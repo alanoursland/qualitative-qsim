@@ -83,7 +83,26 @@ over rows; hashing is cheap.
   the repo so "GPU when helpful" is a measured claim, with the reference
   engine as the baseline.
 
-## 5. Interval extension (semi-quantitative, later)
+## 5. As built (phase 5)
+
+`qrlib.tensor` implements §2–§3 with one deliberate simplification:
+constraint tables are built by **exhaustively evaluating the reference
+predicates** over each frame's (tiny) value spaces rather than by
+re-deriving the sign algebra in tensor form — agreement with the
+reference engine holds by construction, tables build in milliseconds and
+cache per content-hashed frame. `torch.cartesian_prod` enumerates in
+`itertools.product` order, so tensor results are not merely equal but
+identically ordered, and whole-graph equivalence is asserted in tests.
+
+Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory
+abstraction ~×22 (run boundaries detected in tensor land; Python touches
+O(runs)); batched frontier filtering ×1.5 at B=2048; single-state
+expansion ×0.25 — confirming §1's table: one small model at a time gains
+nothing, which is why `SimConfig.use_tensor` defaults off. GPU
+measurements pend a CUDA environment; the code is device-neutral and the
+integer core makes CPU/GPU results identical.
+
+## 6. Interval extension (semi-quantitative, later)
 
 Q2-style interval annotations ride along as a float tensor `(B, V, 2)` of
 `(lo, hi)` bounds; interval arithmetic for ADD/MULT/monotonic envelopes is

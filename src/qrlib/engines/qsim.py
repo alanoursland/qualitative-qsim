@@ -42,7 +42,7 @@ from collections import deque
 from dataclasses import replace
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
-from ..model import CompiledConstraint, CompiledModel, CompiledTransition, Model
+from ..model import CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
 from . import filters
@@ -127,7 +127,7 @@ def qsim(
         state = node.state
         vals = tuple(state[v] for v in frame.var_order)
         is_point = state.time is TimeTag.POINT
-        active = frame.constraints_of(node.region)
+        active_idx = frame.region_named(node.region).constraint_idx
 
         if len(nodes) > cfg.max_states or node.depth >= cfg.max_depth:
             node.terminal = TerminalClass.TRUNCATED
@@ -165,7 +165,7 @@ def qsim(
                 # Explore departures (unstable equilibria); the identity
                 # continuation is the quiescent behavior itself.
                 succ = _expand(
-                    frame, state, vals, cfg, stats, ignored, active, exclude=vals
+                    frame, state, vals, cfg, stats, ignored, active_idx, exclude=vals
                 )
                 for child_state, child_frame in succ or []:
                     attach(node, child_state, child_frame, node.region)
@@ -181,7 +181,7 @@ def qsim(
 
         exclude = vals if (not is_point and cfg.no_change_filter) else None
         children = _expand(
-            frame, state, vals, cfg, stats, ignored, active, exclude=exclude
+            frame, state, vals, cfg, stats, ignored, active_idx, exclude=exclude
         )
         if children is None:  # some variable has no legal transition
             node.terminal = (
@@ -219,6 +219,20 @@ def _guards_hold(
     return True
 
 
+def _filtered_combos(frame, domains, active_idx, cfg):
+    """Consistent complete assignments — reference pipeline or the
+    tensorized tables (identical results by contract)."""
+    if cfg.use_tensor:
+        from ..tensor.engine import filtered_combos
+
+        return filtered_combos(frame, domains, active_idx)
+    active = tuple(frame.constraints[i] for i in active_idx)
+    pruned = filters.prune_domains(frame, domains, active)
+    if pruned is None:
+        return []
+    return filters.assemble(frame, pruned, active)
+
+
 def _entry_states(
     frame: CompiledModel,
     vals: tuple[QVal, ...],
@@ -230,16 +244,13 @@ def _entry_states(
     """Region-entry states: magnitudes carry over, directions re-derive
     under the target region's constraints (the vector field may change
     discontinuously at the boundary)."""
-    active = frame.constraints_of(target)
+    active_idx = frame.region_named(target).constraint_idx
     domains = [
         [QVal(qv.mag, d) for d in (Qdir.DEC, Qdir.STD, Qdir.INC)] for qv in vals
     ]
-    pruned = filters.prune_domains(frame, domains, active)
-    if pruned is None:
-        return []
     out: list[QState] = []
     emitted: set[QState] = set()
-    for combo in filters.assemble(frame, pruned, active):
+    for combo in _filtered_combos(frame, domains, active_idx, cfg):
         stats["candidates"] += 1
         projected = tuple(
             QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
@@ -262,7 +273,7 @@ def _expand(
     cfg: SimConfig,
     stats: dict,
     ignored: frozenset[int],
-    active: tuple[CompiledConstraint, ...],
+    active_idx: tuple[int, ...],
     *,
     exclude: tuple[QVal, ...] | None,
 ) -> list[tuple[QState, CompiledModel]] | None:
@@ -291,13 +302,9 @@ def _expand(
     if any(not d for d in domains):
         return None
 
-    pruned = filters.prune_domains(frame, domains, active)
-    if pruned is None:
-        return []
-
     out: list[tuple[QState, CompiledModel]] = []
     emitted: set[QState] = set()
-    for combo in filters.assemble(frame, pruned, active):
+    for combo in _filtered_combos(frame, domains, active_idx, cfg):
         stats["candidates"] += 1
         if (
             next_time is TimeTag.POINT

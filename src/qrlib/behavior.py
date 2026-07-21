@@ -91,6 +91,9 @@ class SimConfig:
       spurious behaviors without touching core semantics.
     - ``envisionment``: merge identical (frame, state) pairs globally,
       producing the attainable envisionment graph instead of a tree.
+    - ``use_tensor``: route successor filtering through the tensorized
+      tables (``qrlib.tensor``; requires torch). Results are identical to
+      the reference path by contract — this is purely a performance knob.
     """
 
     max_states: int = 500
@@ -103,6 +106,7 @@ class SimConfig:
     ignore_qdir: tuple[str, ...] = ()
     successor_filters: tuple[SuccessorFilter, ...] = ()
     envisionment: bool = False
+    use_tensor: bool = False
 
 
 @dataclass

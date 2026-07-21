@@ -22,8 +22,9 @@ src/qrlib/
 │   ├── filters.py       # predicates, tuple/Waltz filtering, assembly
 │   └── landmarks.py     # new-landmark introduction (per-branch frames)
 ├── tensor/
-│   ├── encoding.py      # QState/frontier <-> integer tensor codecs          [stub]
-│   └── engine.py        # batched/tensorized QSIM                            [planned]
+│   ├── encoding.py      # qcodes, frontier codecs, per-frame constraint tables
+│   ├── engine.py        # tensorized prune/assemble, batched frontiers
+│   └── abstraction.py   # batched (B,T,V) quantize/directions
 ├── bridge/
 │   ├── abstraction.py   # trajectories (+ mode channel) -> behaviors
 │   ├── coverage.py      # coverage oracle: witness / diagnosis / score

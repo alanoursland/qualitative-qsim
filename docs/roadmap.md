@@ -129,14 +129,31 @@ moved up; analysis/queries attach to the phases that make them possible.
   regions and landmark values included) and `qrlib.result/v1`
   (region-tagged graph export).
 
-## Phase 5 — Tensorized engine
+## Phase 5 — Tensorized engine *(done; GPU measurements pending a GPU box)*
 
-- State/frontier codecs (`tensor/encoding.py`), compiled constraint tables.
-- Batched successor generation + filtering; fallback backtracker for
-  oversized interpretation sets.
-- Equivalence property tests vs. reference engine; benchmark suite
-  (frontier scaling, ensemble scaling, abstraction throughput); measured
-  GPU-vs-CPU report.
+- `tensor/encoding.py`: qcode packing, canonical `(B, 2V)` frontier
+  codecs, and per-frame dense constraint tables **built by exhaustively
+  evaluating the reference predicates** — agreement by construction,
+  re-verified by tests; cached per (content-hashable) frame.
+- `tensor/engine.py`: tensorized prune + interpretation filtering, single
+  and batched-frontier (`filtered_combos_batch`, shared padded grid,
+  order-preserving), with the reference generator as fallback above an
+  interpretation-product cap. Activated via `SimConfig(use_tensor=True)`.
+- `tensor/abstraction.py`: batched quantization/direction estimation over
+  `(B, T, V)` tensors mirroring the reference arithmetic
+  expression-for-expression (float64, bit-identical ranks/dirs); run
+  boundaries detected in tensor land so Python touches O(runs), not O(T).
+- **Equivalence tests**: identical behavior-graph exports and stats
+  across nine engine configurations (goldens, discovery, energy filter,
+  chatter, envisionment, regions); batched ≡ per-state ≡ reference
+  (order included); abstraction parity on soundness-harness trajectories.
+- **Measured (CPU, this environment)** via `benchmarks/bench_tensor.py`:
+  trajectory abstraction ~×22 (0.07 → 1.6M samples/s, B=8 × T=50k);
+  batched frontier filtering ×1.5 at B=2048; single-state engine
+  expansion ×0.25 — the tensor path *loses* on one small model at a
+  time, exactly as `docs/gpu-tensorization.md` predicted, which is why
+  `use_tensor` defaults off. GPU runs of the same benchmark are the
+  remaining item, pending an environment with CUDA.
 
 ## Phase 6 — Semi-quantitative layer (Q2-style)
 
