@@ -1,0 +1,182 @@
+"""Unit tests for the numeric bridge: abstraction mechanics, coverage
+matching, landmark harvest/proposal."""
+
+import pytest
+
+import qrlib as qr
+from qrlib import Landmark, Qdir, TimeTag
+from qrlib.bridge import abstraction, coverage, harvest
+from qrlib.bridge.abstraction import AbstractionConfig
+
+
+def one_var_model():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    return m.compile()
+
+
+def test_transversal_crossing_synthesizes_point():
+    cm = one_var_model()
+    xs = [[1.0 - 0.05 * i + 0.013] for i in range(41)]  # no sample at 0 exactly
+    b = abstraction.abstract_trajectory(xs, cm)
+    tags = [s.time for s in b.states]
+    assert tags == [TimeTag.INTERVAL, TimeTag.POINT, TimeTag.INTERVAL]
+    mid = b.states[1]["x"]
+    assert mid.mag == cm.spaces[0].rank_of("0")
+    assert mid.dir is Qdir.DEC
+    assert b.spans[1][0] == b.spans[1][1]  # zero-width synthesized point
+
+
+def test_extremum_synthesizes_steady_point():
+    cm = one_var_model()
+    xs = [[0.5 + t * 0.1 * (2 - t * 0.1)] for t in range(1, 20)]
+    b = abstraction.abstract_trajectory(xs, cm)
+    dirs = [s["x"].dir for s in b.states]
+    assert dirs == [Qdir.INC, Qdir.STD, Qdir.DEC]
+    assert b.states[1].time is TimeTag.POINT
+    assert b.states[1]["x"].mag % 2 == 1  # steady at an unnamed value
+
+
+def test_undersampled_jump_raises():
+    m = qr.Model("m")
+    m.variable(
+        "x",
+        landmarks=(Landmark("0", value=0.0), Landmark("A", value=1.0)),
+        unbounded=True,
+    )
+    cm = m.compile()
+    with pytest.raises(ValueError, match="undersampled"):
+        # jumps from (-inf,0) to (A,+inf), crossing two landmarks
+        abstraction.abstract_trajectory([[-0.5], [-0.2], [1.5], [1.8]], cm)
+
+
+def test_out_of_space_value_reports_variable_and_sample():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), upper_unbounded=True)
+    with pytest.raises(ValueError, match="variable 'x'"):
+        abstraction.abstract_trajectory([[0.5], [-0.5]], m.compile())
+
+
+def test_debounce_removes_chatter_runs():
+    cm = one_var_model()
+    base = [[0.5 + 0.01 * i] for i in range(30)]
+    # one glitch sample with a locally negative slope
+    base[15][0] = base[14][0] - 0.001
+    b = abstraction.abstract_trajectory(
+        base, cm, config=AbstractionConfig(debounce=4)
+    )
+    assert [s["x"].dir for s in b.states] == [Qdir.INC]
+
+
+def test_array_like_interop():
+    cm = one_var_model()
+
+    class FakeTensor:
+        def __init__(self, data):
+            self._data = data
+
+        def tolist(self):
+            return self._data
+
+    b = abstraction.abstract_trajectory(
+        FakeTensor([[0.1 + 0.1 * i] for i in range(10)]), cm
+    )
+    assert [s["x"].dir for s in b.states] == [Qdir.INC]
+
+
+# --- coverage matching -----------------------------------------------------
+
+
+def test_coverage_translates_discovered_landmarks():
+    # graph node at a discovered landmark inside (0, +inf) must be covered
+    # by an observation quantized to the coarser root interval
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    m.variable("v", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    m.variable("a", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    m.constrain(qr.Deriv("x", "v"))
+    m.constrain(qr.Deriv("v", "a"))
+    m.constrain(qr.Minus("x", "a"))
+    initial = m.state(
+        time=TimeTag.POINT,
+        x=("0", Qdir.INC),
+        v=(("0", "+inf"), Qdir.STD),
+        a=("0", Qdir.DEC),
+    )
+    result = qr.qsim(m, initial)  # discovery on: n2 has x at x*0
+    peak = result.graph.nodes[2]
+    assert "x*0" in peak.model.spaces[peak.model.index("x")].names
+
+    root_space = m.variables["x"].space
+    obs_peak = qr.QState.from_dict(
+        {
+            "x": qr.QVal(root_space.rank_between("0", "+inf"), Qdir.STD),
+            "v": qr.QVal(root_space.rank_of("0"), Qdir.DEC),
+            "a": qr.QVal(root_space.rank_between("-inf", "0"), Qdir.STD),
+        },
+        TimeTag.POINT,
+    )
+    res = coverage.check([obs_peak], result.graph)
+    assert res.covered
+    assert 2 in res.witness
+
+
+def test_coverage_failure_carries_diagnosis():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    m.constrain(qr.Constant("x"))
+    initial = m.state(time=TimeTag.POINT, x=(("0", "+inf"), Qdir.STD))
+    result = qr.qsim(m, initial)
+    bad = qr.QState.from_dict(
+        {"x": qr.QVal(m.variables["x"].space.rank_between("0", "+inf"), Qdir.INC)},
+        TimeTag.POINT,
+    )
+    res = coverage.check([bad], result.graph)
+    assert not res.covered
+    assert res.divergence_index == 0
+    assert "x" in res.diagnosis
+
+
+# --- harvest / proposal ----------------------------------------------------
+
+
+def test_harvest_inserts_by_value_and_reports_conflicts():
+    m = qr.Model("m")
+    m.variable(
+        "x",
+        landmarks=(Landmark("0", value=0.0), Landmark("TOP", value=10.0)),
+        upper_unbounded=True,
+    )
+    grown = harvest.harvest_into_model(
+        m, [harvest.LandmarkRecord("x", "EQ", 4.0)]
+    )
+    space = grown.variables["x"].space
+    assert space.names == ("0", "EQ", "TOP")
+    assert space.landmark("EQ").value == 4.0
+    # original untouched
+    assert m.variables["x"].space.names == ("0", "TOP")
+
+    with pytest.raises(ValueError, match="duplicates"):
+        harvest.harvest_into_model(m, [harvest.LandmarkRecord("x", "Z", 10.0)])
+    with pytest.raises(ValueError, match="below the"):
+        harvest.harvest_into_model(m, [harvest.LandmarkRecord("x", "Z", -1.0)])
+    with pytest.raises(ValueError, match="numeric value"):
+        harvest.harvest_into_model(m, [harvest.LandmarkRecord("x", "Z")])
+    with pytest.raises(ValueError, match="unknown variable"):
+        harvest.harvest_into_model(m, [harvest.LandmarkRecord("y", "Z", 1.0)])
+
+
+def test_propose_landmarks_finds_steady_plateau():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), upper_unbounded=True)
+    # rise to a plateau at 3.0, dwell, nothing near an existing landmark
+    xs = [[min(3.0, 0.1 * i)] for i in range(120)]
+    (rec,) = harvest.propose_landmarks(
+        xs, m, config=AbstractionConfig(direction_eps=1e-3), min_dwell=10
+    )
+    assert rec.variable == "x"
+    assert rec.name == "x^0"
+    assert abs(rec.value - 3.0) < 0.05
+    # round-trip: proposals harvest cleanly
+    grown = harvest.harvest_into_model(m, [rec])
+    assert "x^0" in grown.variables["x"].space.names

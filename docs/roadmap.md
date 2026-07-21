@@ -60,18 +60,37 @@ moved up; analysis/queries attach to the phases that make them possible.
   match). Resource limits with explicit `TRUNCATED` terminals were done in
   phase 1.
 
-## Phase 3 — Upward bridge + coverage oracle
+## Phase 3 — Upward bridge + coverage oracle *(done)*
 
-- Trajectory abstraction pipeline (quantize → direction → segment →
-  canonicalize), batched, ragged-output handling, explicit
-  abstraction-config values.
-- **Coverage oracle** with the full contract (witness / divergence
-  diagnosis / embedded config), single and batched; coverage aggregate as a
-  consistency score.
-- Soundness harness: envelope-sample concrete instances (monotone splines),
-  integrate, abstract, assert coverage — randomized property test over
-  Phases 1–2. **This invariant is the exit criterion.**
-- Landmark intake/dedup (`bridge.harvest`) + landmark proposal from data.
+- Trajectory abstraction pipeline (`bridge.abstraction`): quantize →
+  estimate directions → segment → debounce → emit alternating
+  point/interval behaviors with sample spans; explicit
+  `AbstractionConfig` travels with every result. Reference implementation
+  (pure Python, per-trajectory; `abstract_batch` loops — tensorized in
+  phase 5); accepts any array-like incl. torch/numpy via `tolist()`.
+  Crossings between samples are synthesized as point states;
+  multi-landmark jumps raise (undersampling is reported, not papered
+  over). Numerics that mattered: second-order one-sided endpoint
+  differences (first-order is O(h)-biased exactly at critical points) and
+  a value-scale floor on the relative direction threshold (constant
+  variables otherwise hallucinate directions from rounding noise).
+- **Coverage oracle** (`bridge.coverage`): witness path on success;
+  longest-prefix, divergence index, and per-variable diagnosis on
+  failure; embedded abstraction config. Observed states (root-space
+  ranks) match discovered-landmark frames by containment translation.
+  Prefix semantics (finite windows end mid-behavior); CYCLE closures
+  followed; QUIESCENT constant continuations absorbed; matching into
+  TRUNCATED frontiers succeeds vacuously with a note. `score()` gives the
+  batched consistency fraction.
+- **Soundness harness** (tests/test_soundness.py, the exit criterion):
+  randomized monotone power-law bathtubs (equilibrium prefixes + overflow
+  paths matched through to REGION_EXIT), springs over 2.2 periods
+  (matched through cycle closure, against both the discovery-off graph
+  and the energy-filtered discovery graph via frame translation), U-tube,
+  and a fabricated violating trajectory refuted with diagnosis.
+- Landmark intake by value with conflict reporting
+  (`bridge.harvest.harvest_into_model`) + steady-stretch landmark
+  proposal from data (`propose_landmarks`), round-trippable.
 
 ## Phase 4 — Structure intake, regions, and priors
 

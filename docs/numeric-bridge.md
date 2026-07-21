@@ -114,6 +114,31 @@ artifacts: `Model` (versioned JSON schema), `SimResult`/`BehaviorGraph`
 (neutral array export), `CoverageResult`, `SignStructure`. A host adapter
 layer is written entirely against these.
 
+## As built (phase 3)
+
+The reference implementations live in `qrlib.bridge.abstraction`,
+`qrlib.bridge.coverage`, and `qrlib.bridge.harvest` — pure Python,
+per-trajectory, accepting any array-like (torch/numpy via `tolist()`).
+Contract details fixed during implementation:
+
+- **Prefix semantics.** A finite sample window ends mid-behavior;
+  asymptotic equilibrium arrival is the t→∞ limit and is never observed.
+  Coverage therefore accepts observed behaviors as path *prefixes*;
+  quiescent nodes absorb constant continuations; matching into a
+  `TRUNCATED` frontier succeeds vacuously (noted in the result).
+- **Frame translation.** Observations are quantized against the model's
+  root spaces; graph nodes may sit at discovered landmarks. A node covers
+  an observed value when its finer magnitude lies inside the observed
+  coarser one (names map root→frame; frames only add landmarks).
+- **Undersampling raises.** A magnitude jump across more than one landmark
+  between samples is an error, not a silently-invented history.
+- **Endpoint derivatives are second-order.** First-order one-sided
+  differences are O(h)-biased exactly at critical points — precisely where
+  initial conditions like "released at peak speed" sit.
+- **Direction thresholds have a value-scale floor.** A relative-only
+  threshold on an (essentially) constant variable is relative to rounding
+  noise and hallucinates directions.
+
 ## Semantics gotchas to respect
 
 - **QSIM time is event-based, numeric time is sampled.** Abstraction must
