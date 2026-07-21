@@ -19,6 +19,12 @@ Matching semantics:
   successors), QUIESCENT nodes absorb constant continuations, and matching
   into a TRUNCATED node succeeds vacuously (an unexplored frontier cannot
   refute an observation) — reported in ``note``.
+- **Regions.** When the observation carries a mode channel, states must
+  match nodes of the same region. Region crossings are instantaneous
+  point -> point edges (transition state, then entry state) while an
+  observation captures a single boundary instant — matching therefore
+  skips across double-point pairs, and a skipped-into quiescent entry
+  absorbs constant continuations directly.
 """
 
 from __future__ import annotations
@@ -29,7 +35,7 @@ from typing import Sequence
 
 from ..behavior import BehaviorGraph, Node, TerminalClass
 from ..quantity import Qdir, QuantitySpace, QVal
-from ..state import QState
+from ..state import QState, TimeTag
 from .abstraction import AbstractedBehavior, AbstractionConfig
 
 __all__ = ["CoverageResult", "check", "score"]
@@ -63,9 +69,11 @@ def check(
     if isinstance(observed, AbstractedBehavior):
         states = observed.states
         cfg = observed.config
+        obs_regions = observed.regions or (None,) * len(states)
     else:
         states = tuple(observed)
         cfg = None
+        obs_regions = (None,) * len(states)
     total = len(states)
     if total == 0:
         return CoverageResult(True, (), 0, 0, config=cfg)
@@ -86,7 +94,7 @@ def check(
             best_miss = (oi, nid, mism)
 
     for nid, node in graph.nodes.items():
-        mism = _mismatches(node, states[0], graph)
+        mism = _mismatches(node, states[0], graph, obs_regions[0])
         if not mism:
             key = (0, nid)
             parents[key] = None
@@ -132,13 +140,28 @@ def check(
                 config=cfg,
             )
 
-        for snid in _successors(graph, node):
-            mism = _mismatches(graph.nodes[snid], states[oi + 1], graph)
+        for snid in _match_targets(graph, node):
+            succ = graph.nodes[snid]
+            mism = _mismatches(succ, states[oi + 1], graph, obs_regions[oi + 1])
             if not mism:
                 skey = (oi + 1, snid)
                 if skey not in parents:
                     parents[skey] = key
                     frontier.append(skey)
+            elif succ.terminal is TerminalClass.QUIESCENT and _quiescent_absorbs(
+                succ, states[oi + 1 :], graph
+            ):
+                # an instantaneous quiescent entry (point after point) is
+                # never captured as its own observed state; it absorbs the
+                # constant continuation directly
+                return CoverageResult(
+                    True,
+                    witness_of(key) + (snid,),
+                    total,
+                    total,
+                    note="constant quiescent continuation",
+                    config=cfg,
+                )
             else:
                 note_miss(oi + 1, snid, mism)
 
@@ -186,6 +209,30 @@ def _successors(graph: BehaviorGraph, node: Node) -> list[int]:
     return succ
 
 
+def _match_targets(graph: BehaviorGraph, node: Node) -> list[int]:
+    """Successors for matching, skipping across instantaneous region
+    crossings (point -> point edges): an observation captures the boundary
+    as one instant, while the graph holds a (transition, entry) pair —
+    either half may be the one the observation matched."""
+    out: list[int] = []
+    node_is_point = node.state.time is TimeTag.POINT
+    for snid in _successors(graph, node):
+        out.append(snid)
+        s = graph.nodes[snid]
+        if s.state.time is not TimeTag.POINT:
+            continue
+        if node_is_point:
+            # node matched the transition instant: skip its entry twin
+            out.extend(_successors(graph, s))
+        else:
+            # child is the transition instant: its entry twin is also a
+            # legitimate target for the observed boundary point
+            for gnid in _successors(graph, s):
+                if graph.nodes[gnid].state.time is TimeTag.POINT:
+                    out.append(gnid)
+    return out
+
+
 def _frame_range(
     obs: QVal, root_space: QuantitySpace, frame_space: QuantitySpace
 ) -> tuple[int, int]:
@@ -201,12 +248,15 @@ def _frame_range(
 
 
 def _mismatches(
-    node: Node, obs: QState, graph: BehaviorGraph
+    node: Node, obs: QState, graph: BehaviorGraph, obs_region: str | None = None
 ) -> tuple[str, ...]:
     """Names of variables where the node fails to cover the observed state
-    (empty = covers). A time-tag mismatch reports as ``('<time>',)``."""
+    (empty = covers). A time-tag mismatch reports as ``('<time>',)``; a
+    mode-channel region mismatch as ``('<region>',)``."""
     if node.state.time is not obs.time:
         return ("<time>",)
+    if obs_region is not None and node.region != obs_region:
+        return ("<region>",)
     out = []
     for vi, name in enumerate(graph.var_order):
         nq = node.state[name]

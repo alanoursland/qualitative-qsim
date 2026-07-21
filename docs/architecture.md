@@ -13,7 +13,7 @@ src/qrlib/
 ├── quantity.py          # Landmark, QuantitySpace, Qmag ranks, Qdir, QVal
 ├── state.py             # QState (one qualitative state of a model)
 ├── constraints.py       # Constraint types: MPlus, MMinus, Add, Mult, Deriv, ...
-├── model.py             # Variable, Model, CompiledModel; Region             [Region planned]
+├── model.py             # Variable, Model, CompiledModel, regions, schema
 ├── behavior.py          # BehaviorGraph, TerminalClass, SimResult/SimConfig
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── engines/
@@ -25,10 +25,10 @@ src/qrlib/
 │   ├── encoding.py      # QState/frontier <-> integer tensor codecs          [stub]
 │   └── engine.py        # batched/tensorized QSIM                            [planned]
 ├── bridge/
-│   ├── abstraction.py   # trajectory batches -> qualitative behaviors        [planned]
-│   ├── coverage.py      # coverage oracle: behavior ⊑ behavior graph?        [planned]
-│   ├── signs.py         # sign-matrix intake -> Model; sign estimation       [planned]
-│   └── harvest.py       # landmark intake/dedup + data-driven proposals      [planned]
+│   ├── abstraction.py   # trajectories (+ mode channel) -> behaviors
+│   ├── coverage.py      # coverage oracle: witness / diagnosis / score
+│   ├── signs.py         # sign-matrix intake, estimation, consistency check
+│   └── harvest.py       # landmark intake/dedup + data-driven proposals
 ├── analysis/
 │   ├── queries.py       # terminal census, quiescence, cycles, state search
 │   └── explain.py       # structured + prose behavior narration              [planned]

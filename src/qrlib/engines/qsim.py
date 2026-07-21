@@ -6,31 +6,31 @@ generate per-variable candidates from the transition tables, filter
 successors, repeat. Written for clarity and auditability; the tensorized
 engine (phase 5) must agree with it exactly.
 
-Phase-2 machinery (docs/qsim.md §8):
+Phase-2 machinery (docs/qsim.md §8): landmark discovery (per-branch
+frames), chatter abstraction (``ignore_qdir``), user successor filters,
+and envisionment mode.
 
-- **Landmark discovery.** I5/I9 arrivals mint named landmarks, producing a
-  new per-branch frame (:mod:`.landmarks`); each node carries its frame.
-- **Chatter abstraction.** Variables in ``config.ignore_qdir`` are stored
-  with untracked direction (``Qdir.IGN``); candidates are generated over
-  all concrete directions, filtered normally, then projected and merged.
-- **Successor filters.** User vetoes ``(parent_state, candidate, frame) ->
-  bool`` — the analytic-knowledge hook (energy arguments etc.).
-- **Envisionment.** With ``config.envisionment``, identical (frame, state)
-  pairs merge into one node: the attainable envisionment graph. Cycles then
-  appear as back-edges (enumerated by ``BehaviorGraph.behaviors``) instead
-  of CYCLE terminals.
+Phase-4 machinery — operating regions: every node carries its region; the
+region's constraint subset governs filtering. At a point state, if a
+region transition's guards hold (landmark predicates on magnitudes), the
+behavior crosses instantaneously: **entry states** are created in the
+target region with the same magnitudes and re-derived directions (the
+vector field may change discontinuously at the boundary), producing a
+point -> point edge. A boundary with no declared transition still ends in
+``REGION_EXIT``.
 
 Terminal classification at a point state, in order:
 
 1. DIVERGENT   — some variable at an infinite landmark (t = infinity).
-2. QUIESCENT   — all tracked directions steady; the constant continuation
+2. (region transitions fire here: entry children, no terminal)
+3. QUIESCENT   — all tracked directions steady; the constant continuation
                  is a complete behavior. Departures (unstable equilibria)
                  are still explored and become children if consistent.
-3. CYCLE       — state equals an ancestor point state in an equal frame
-                 (tree mode only; envisionment merges instead).
-4. REGION_EXIT — some variable must leave its bounded quantity space
-                 (empty P-successor set).
-5. DEADEND     — candidates existed but none survived filtering (the state
+4. CYCLE       — state equals an ancestor point state in an equal frame
+                 and region (tree mode only; envisionment merges instead).
+5. REGION_EXIT — some variable must leave its bounded quantity space
+                 (empty P-successor set, no transition declared).
+6. DEADEND     — candidates existed but none survived filtering (the state
                  was spurious; reported, never silently dropped).
 
 Resource limits mark nodes TRUNCATED and the result status TRUNCATED.
@@ -42,7 +42,7 @@ from collections import deque
 from dataclasses import replace
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
-from ..model import CompiledModel, Model
+from ..model import CompiledConstraint, CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
 from . import filters
@@ -76,17 +76,18 @@ def qsim(
     unknown = set(cfg.ignore_qdir) - set(root_frame.var_order)
     if unknown:
         raise ValueError(f"ignore_qdir names unknown variables: {sorted(unknown)}")
-    ignored = frozenset(
-        root_frame.index(name) for name in cfg.ignore_qdir
-    )
+    ignored = frozenset(root_frame.index(name) for name in cfg.ignore_qdir)
 
-    _validate_initial(root_frame, initial)
+    root_region = root_frame.initial_region
+    _validate_initial(root_frame, initial, root_region)
     init_state = _project(root_frame, initial, ignored)
 
-    nodes: dict[int, Node] = {0: Node(0, init_state, None, 0, root_frame)}
+    nodes: dict[int, Node] = {
+        0: Node(0, init_state, None, 0, root_frame, root_region)
+    }
     frontier: deque[int] = deque([0])
-    seen: dict[tuple[CompiledModel, QState], int] | None = (
-        {(root_frame, init_state): 0} if cfg.envisionment else None
+    seen: dict[tuple[CompiledModel, QState, str], int] | None = (
+        {(root_frame, init_state, root_region): 0} if cfg.envisionment else None
     )
     stats = {
         "nodes": 1,
@@ -97,14 +98,14 @@ def qsim(
         "user_filtered": 0,
         "merged": 0,
         "landmarks_minted": 0,
+        "region_crossings": 0,
         "deadends": 0,
     }
     truncated = False
 
-    def attach(parent: Node, state: QState, frame: CompiledModel) -> None:
-        nonlocal truncated
+    def attach(parent: Node, state: QState, frame: CompiledModel, region: str) -> None:
         if seen is not None:
-            key = (frame, state)
+            key = (frame, state, region)
             hit = seen.get(key)
             if hit is not None:
                 if hit not in parent.children:
@@ -112,12 +113,12 @@ def qsim(
                 stats["merged"] += 1
                 return
         nid = len(nodes)
-        nodes[nid] = Node(nid, state, parent.id, parent.depth + 1, frame)
+        nodes[nid] = Node(nid, state, parent.id, parent.depth + 1, frame, region)
         parent.children.append(nid)
         frontier.append(nid)
         stats["nodes"] += 1
         if seen is not None:
-            seen[(frame, state)] = nid
+            seen[(frame, state, region)] = nid
 
     while frontier:
         nid = frontier.popleft()
@@ -126,6 +127,7 @@ def qsim(
         state = node.state
         vals = tuple(state[v] for v in frame.var_order)
         is_point = state.time is TimeTag.POINT
+        active = frame.constraints_of(node.region)
 
         if len(nodes) > cfg.max_states or node.depth >= cfg.max_depth:
             node.terminal = TerminalClass.TRUNCATED
@@ -139,14 +141,34 @@ def qsim(
             node.terminal = TerminalClass.DIVERGENT
             continue
 
+        if is_point:
+            firing = [
+                tr
+                for tr in frame.region_named(node.region).transitions
+                if _guards_hold(frame, vals, tr)
+            ]
+            if firing:
+                stats["region_crossings"] += len(firing)
+                for tr in firing:
+                    for entry in _entry_states(
+                        frame, vals, tr.target, cfg, stats, ignored
+                    ):
+                        attach(node, entry, frame, tr.target)
+                if not node.children:
+                    node.terminal = TerminalClass.DEADEND
+                    stats["deadends"] += 1
+                continue
+
         if all(qv.dir in _TRACKED_STEADY for qv in vals):
             node.terminal = TerminalClass.QUIESCENT
             if is_point:
                 # Explore departures (unstable equilibria); the identity
                 # continuation is the quiescent behavior itself.
-                succ = _expand(frame, state, vals, cfg, stats, ignored, exclude=vals)
+                succ = _expand(
+                    frame, state, vals, cfg, stats, ignored, active, exclude=vals
+                )
                 for child_state, child_frame in succ or []:
-                    attach(node, child_state, child_frame)
+                    attach(node, child_state, child_frame, node.region)
                 stats["expanded"] += 1
             continue
 
@@ -158,7 +180,9 @@ def qsim(
                 continue
 
         exclude = vals if (not is_point and cfg.no_change_filter) else None
-        children = _expand(frame, state, vals, cfg, stats, ignored, exclude=exclude)
+        children = _expand(
+            frame, state, vals, cfg, stats, ignored, active, exclude=exclude
+        )
         if children is None:  # some variable has no legal transition
             node.terminal = (
                 TerminalClass.REGION_EXIT if is_point else TerminalClass.DEADEND
@@ -170,11 +194,65 @@ def qsim(
             stats["deadends"] += 1
             continue
         for child_state, child_frame in children:
-            attach(node, child_state, child_frame)
+            attach(node, child_state, child_frame, node.region)
 
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
     return SimResult(graph, status, stats, cfg)
+
+
+def _guards_hold(
+    frame: CompiledModel, vals: tuple[QVal, ...], tr: CompiledTransition
+) -> bool:
+    for vi, op, landmark in tr.guards:
+        rank = vals[vi].mag
+        ref = 2 * frame.spaces[vi].effective_landmarks.index(landmark)
+        holds = {
+            "==": rank == ref,
+            "<": rank < ref,
+            ">": rank > ref,
+            "<=": rank <= ref,
+            ">=": rank >= ref,
+        }[op]
+        if not holds:
+            return False
+    return True
+
+
+def _entry_states(
+    frame: CompiledModel,
+    vals: tuple[QVal, ...],
+    target: str,
+    cfg: SimConfig,
+    stats: dict,
+    ignored: frozenset[int],
+) -> list[QState]:
+    """Region-entry states: magnitudes carry over, directions re-derive
+    under the target region's constraints (the vector field may change
+    discontinuously at the boundary)."""
+    active = frame.constraints_of(target)
+    domains = [
+        [QVal(qv.mag, d) for d in (Qdir.DEC, Qdir.STD, Qdir.INC)] for qv in vals
+    ]
+    pruned = filters.prune_domains(frame, domains, active)
+    if pruned is None:
+        return []
+    out: list[QState] = []
+    emitted: set[QState] = set()
+    for combo in filters.assemble(frame, pruned, active):
+        stats["candidates"] += 1
+        projected = tuple(
+            QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
+            for vi, qv in enumerate(combo)
+        )
+        entry = QState.from_dict(
+            dict(zip(frame.var_order, projected)), TimeTag.POINT
+        )
+        if entry in emitted:
+            continue
+        emitted.add(entry)
+        out.append(entry)
+    return out
 
 
 def _expand(
@@ -184,6 +262,7 @@ def _expand(
     cfg: SimConfig,
     stats: dict,
     ignored: frozenset[int],
+    active: tuple[CompiledConstraint, ...],
     *,
     exclude: tuple[QVal, ...] | None,
 ) -> list[tuple[QState, CompiledModel]] | None:
@@ -212,13 +291,13 @@ def _expand(
     if any(not d for d in domains):
         return None
 
-    pruned = filters.prune_domains(frame, domains)
+    pruned = filters.prune_domains(frame, domains, active)
     if pruned is None:
         return []
 
     out: list[tuple[QState, CompiledModel]] = []
     emitted: set[QState] = set()
-    for combo in filters.assemble(frame, pruned):
+    for combo in filters.assemble(frame, pruned, active):
         stats["candidates"] += 1
         if (
             next_time is TimeTag.POINT
@@ -277,13 +356,19 @@ def _matching_ancestor(nodes: dict[int, Node], node: Node) -> int | None:
     pid = node.parent
     while pid is not None:
         anc = nodes[pid]
-        if anc.state == node.state and anc.model == node.model:
+        if (
+            anc.state == node.state
+            and anc.model == node.model
+            and anc.region == node.region
+        ):
             return pid
         pid = anc.parent
     return None
 
 
-def _validate_initial(compiled: CompiledModel, initial: QState) -> None:
+def _validate_initial(
+    compiled: CompiledModel, initial: QState, region: str
+) -> None:
     if initial.time is not TimeTag.POINT:
         raise ValueError("the initial state must be a time-point state")
     missing = set(compiled.var_order) - set(initial.variables)
@@ -304,6 +389,8 @@ def _validate_initial(compiled: CompiledModel, initial: QState) -> None:
                 f"initial value of {name!r} must use a concrete direction "
                 f"(the engine projects ignored directions itself)"
             )
-    violated = filters.check_state(compiled, initial)
+    violated = filters.check_state(
+        compiled, initial, compiled.constraints_of(region)
+    )
     if violated is not None:
         raise ValueError(f"initial state violates constraint {violated.source!r}")

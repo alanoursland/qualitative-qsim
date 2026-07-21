@@ -114,6 +114,7 @@ class Node:
     parent: int | None
     depth: int
     model: CompiledModel
+    region: str = "default"
     children: list[int] = field(default_factory=list)
     terminal: TerminalClass | None = None
     cycle_target: int | None = None
@@ -127,6 +128,7 @@ class Behavior:
     states: tuple[QState, ...]
     terminal: TerminalClass
     cycle_target: int | None = None
+    regions: tuple[str, ...] = ()
 
 
 @dataclass
@@ -154,20 +156,33 @@ class BehaviorGraph:
         def states_of(path: tuple[int, ...]) -> tuple[QState, ...]:
             return tuple(self.nodes[i].state for i in path)
 
+        def regions_of(path: tuple[int, ...]) -> tuple[str, ...]:
+            return tuple(self.nodes[i].region for i in path)
+
         def walk(nid: int, path: tuple[int, ...], on_path: frozenset[int]) -> None:
             node = self.nodes[nid]
             path = path + (nid,)
             on_path = on_path | {nid}
             if node.terminal is not None:
                 out.append(
-                    Behavior(path, states_of(path), node.terminal, node.cycle_target)
+                    Behavior(
+                        path,
+                        states_of(path),
+                        node.terminal,
+                        node.cycle_target,
+                        regions_of(path),
+                    )
                 )
             for child in node.children:
                 if child in on_path:
                     closed = path + (child,)
                     out.append(
                         Behavior(
-                            closed, states_of(closed), TerminalClass.CYCLE, child
+                            closed,
+                            states_of(closed),
+                            TerminalClass.CYCLE,
+                            child,
+                            regions_of(closed),
                         )
                     )
                 else:
@@ -177,7 +192,10 @@ class BehaviorGraph:
         return tuple(out)
 
     def describe_node(self, node: Node) -> str:
-        return self._describe(node.state, node.model.spaces)
+        text = self._describe(node.state, node.model.spaces)
+        if node.region != "default":
+            text += f" @{node.region}"
+        return text
 
     def describe_state(self, state: QState) -> str:
         """Describe a state in the *root* frame (pre-discovery spaces)."""
@@ -214,6 +232,7 @@ class BehaviorGraph:
                     "parent": node.parent,
                     "depth": node.depth,
                     "frame": frame_ids[node.id],
+                    "region": node.region,
                     "time": node.state.time.value,
                     "terminal": node.terminal.value if node.terminal else None,
                     "values": {
@@ -272,6 +291,7 @@ class SimResult:
         # callables are not serializable; record how many were active
         config["successor_filters"] = len(self.config.successor_filters)
         return {
+            "schema": "qrlib.result/v1",
             "status": self.status.value,
             "stats": dict(self.stats),
             "config": config,

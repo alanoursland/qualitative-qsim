@@ -16,7 +16,14 @@ from .behavior import (
 )
 from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
 from .engines.qsim import qsim
-from .model import CompiledModel, Model, Variable
+from .model import (
+    CompiledModel,
+    Guard,
+    Model,
+    RegionTransition,
+    SignStructure,
+    Variable,
+)
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
@@ -32,6 +39,9 @@ __all__ = [
     "Model",
     "CompiledModel",
     "Variable",
+    "Guard",
+    "RegionTransition",
+    "SignStructure",
     "Landmark",
     "Qdir",
     "QuantitySpace",

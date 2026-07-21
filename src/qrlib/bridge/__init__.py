@@ -11,13 +11,15 @@ surfaces (docs/numeric-bridge.md, docs/host-integration.md):
 - ``harvest`` — landmark intake by numeric value (with conflict reporting)
   and data-driven landmark proposal from steady stretches.
 
-Planned: ``signs`` (interaction sign-matrix intake -> Model; sign
-estimation from data — phase 4) and tensorized batched implementations of
-the above (phase 5). Inputs accept any array-like, including numpy arrays
-and torch tensors (anything with ``tolist()``); no simulator or CAS
-dependencies.
+- ``signs`` — interaction sign-matrix intake -> Model, sign estimation
+  from data with confidences, and the downward per-constraint consistency
+  checker.
+
+Planned: tensorized batched implementations (phase 5). Inputs accept any
+array-like, including numpy arrays and torch tensors (anything with
+``tolist()``); no simulator or CAS dependencies.
 """
 
-from . import abstraction, coverage, harvest
+from . import abstraction, coverage, harvest, signs
 
-__all__ = ["abstraction", "coverage", "harvest"]
+__all__ = ["abstraction", "coverage", "harvest", "signs"]

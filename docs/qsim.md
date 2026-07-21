@@ -180,6 +180,28 @@ Phase-2 additions:
   named one, and veto motion beyond a named extremum. A first-class
   declarative `EnergyFilter` remains open (docs/open-questions.md #7).
 
+Phase-4 additions — operating regions:
+
+- **Guards fire at points, on magnitudes.** A region transition is a
+  conjunction of landmark predicates (`(var, op, landmark)`) evaluated on
+  a point state's magnitude ranks in the node's frame (guards reference
+  landmark *names*, so discovered landmarks shifting ranks cannot break
+  them). Direction is expressed by adding atoms (e.g. `netflow > 0`
+  distinguishes overflow arrival from equilibrium arrival at the same
+  landmark).
+- **Region entry is instantaneous and re-derives directions.** The
+  transition state (source region) gets entry children (target region)
+  with identical magnitudes and directions enumerated afresh under the
+  target's constraint subset — the vector field may change
+  discontinuously at the boundary, so carrying directions over would be
+  unsound. This produces a point→point edge; alternation resumes
+  immediately after. When a transition fires, normal in-region expansion
+  is suppressed (the guard marks the boundary of the source region's
+  validity); a boundary with no declared transition remains
+  `REGION_EXIT`.
+- **Identity is (frame, state, region).** Cycle matching and envisionment
+  merging compare all three.
+
 ## 9. Order of implementation
 
 1. Transition tables + per-variable candidate generation (pure data + lookup).

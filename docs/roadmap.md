@@ -92,19 +92,42 @@ moved up; analysis/queries attach to the phases that make them possible.
   (`bridge.harvest.harvest_into_model`) + steady-stretch landmark
   proposal from data (`propose_landmarks`), round-trippable.
 
-## Phase 4 — Structure intake, regions, and priors
+## Phase 4 — Structure intake, regions, and priors *(done)*
 
-- Sign-matrix intake → models (`bridge.signs`), incl. region-dependent
-  structure; sign estimation from data with confidence masks.
-- **Operating regions in core**: region declarations on `Model`, boundary
-  landmark predicates, region-transition simulation, `REGION_EXIT`
-  terminals, region-tagged states; mode channel respected end-to-end
-  (abstraction + coverage).
-- Region/guard data export per the mapping contract
-  (`host-integration.md`, Surface 5).
-- `Model.sign_structure()` export + downward consistency checker
-  (data vs. constraints).
-- Versioned JSON schema for models/results frozen at the end of this phase.
+- **Operating regions in core**: `Model.region()` declares named
+  constraint subsets; `Model.transition()` declares guarded crossings
+  (conjunctions of landmark predicates on magnitudes, e.g.
+  `amount == FULL and netflow > 0`). Region entry is instantaneous
+  (point→point edge): magnitudes carry over, **directions re-derive**
+  under the target region's constraints (the vector field may change
+  discontinuously at the boundary). Nodes/behaviors/exports are
+  region-tagged; cycle matching and envisionment merging are
+  region-aware; a boundary without a declared transition still ends in
+  `REGION_EXIT`.
+- **Mode channel end-to-end**: `abstract_trajectory(modes=...)` labels
+  observed states with regions (mode changes force segment boundaries;
+  boundary instants belong to the region being left); coverage requires
+  region agreement and skips across the instantaneous transition/entry
+  double-point pairs (an observation captures the boundary as one
+  instant). Wrong mode channels are refuted.
+- Sign-matrix intake → models (`bridge.signs.model_from_signs`):
+  Deriv + M± through named auxiliary term/sum variables; `UNKNOWN`
+  entries stay unconstrained; no zero-crossing cvals are asserted (a
+  sign matrix doesn't pin where influences vanish). Region-dependent
+  matrices compose via the region API.
+- Sign estimation from data (`estimate_signs` + `signs_with_threshold`):
+  least-squares first cut with t-like per-entry confidences — exact on
+  linear systems, average monotonicity on nonlinear ones; asserts signs
+  or `UNKNOWN`, never a confident zero (open-questions #10 refinement
+  still open).
+- `Model.sign_structure()` export (monotone pairs, derivative couplings,
+  sums/products, constants, corresponding values) + downward
+  consistency checker (`check_consistency`: per-constraint violation
+  masses against data; localizes corrupted structure).
+- **Versioned schemas frozen**: `qrlib.model/v1`
+  (`Model.to_dict/from_dict`, JSON round-trip preserving semantics,
+  regions and landmark values included) and `qrlib.result/v1`
+  (region-tagged graph export).
 
 ## Phase 5 — Tensorized engine
 

@@ -1,12 +1,26 @@
 """Declarative QDE model descriptions.
 
 A :class:`Model` is pure data — variables (each owning a
-:class:`~qrlib.quantity.QuantitySpace`) plus constraints — consumed by every
-engine. :meth:`Model.compile` freezes the name -> index and landmark -> rank
-mappings and resolves constraints into :class:`CompiledConstraint` records
-(variable indices, corresponding-value ranks, zero/infinity ranks). The
-compiled artifacts are inert data; the consistency predicates that interpret
-them live with the engines (``qrlib.engines.filters``).
+:class:`~qrlib.quantity.QuantitySpace`), constraints, and optional
+**operating regions** — consumed by every engine. :meth:`Model.compile`
+freezes the name -> index and landmark -> rank mappings and resolves
+constraints into :class:`CompiledConstraint` records. The compiled
+artifacts are inert data; the consistency predicates that interpret them
+live with the engines (``qrlib.engines.filters``).
+
+Operating regions (docs/host-integration.md, Surface 5): a region names a
+subset of the model's constraints that are active while the system is in
+it, and **transitions** declare when the system crosses into another
+region — guard conditions are conjunctions of landmark predicates
+(``amount == FULL``, ``netflow > 0``) evaluated on qualitative magnitudes.
+A model with no declared regions has one implicit region (``"default"``)
+containing every constraint. Region entry re-derives directions: the
+vector field may change discontinuously at the boundary, so magnitudes
+carry over and directions are re-enumerated under the new region's
+constraints.
+
+Models serialize to a versioned JSON-able schema (:meth:`Model.to_dict` /
+:meth:`Model.from_dict`) — the interchange format hosts author against.
 """
 
 from __future__ import annotations
@@ -17,7 +31,20 @@ from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus,
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
-__all__ = ["Variable", "Model", "CompiledConstraint", "CompiledModel"]
+__all__ = [
+    "Variable",
+    "Guard",
+    "RegionTransition",
+    "Model",
+    "CompiledConstraint",
+    "CompiledRegion",
+    "CompiledTransition",
+    "CompiledModel",
+    "SignStructure",
+    "MODEL_SCHEMA",
+]
+
+MODEL_SCHEMA = "qrlib.model/v1"
 
 _KIND: dict[type, str] = {
     MPlus: "mplus",
@@ -28,14 +55,40 @@ _KIND: dict[type, str] = {
     Deriv: "deriv",
     Constant: "constant",
 }
+_CLASS: dict[str, type] = {v: k for k, v in _KIND.items()}
 
 ZERO = "0"
+DEFAULT_REGION = "default"
+_GUARD_OPS = ("==", "<", ">", "<=", ">=")
 
 
 @dataclass(frozen=True)
 class Variable:
     name: str
     space: QuantitySpace
+
+
+@dataclass(frozen=True)
+class Guard:
+    """One landmark predicate: ``variable <op> landmark`` on magnitudes."""
+
+    var: str
+    op: str
+    landmark: str
+
+    def __post_init__(self) -> None:
+        if self.op not in _GUARD_OPS:
+            raise ValueError(f"guard op must be one of {_GUARD_OPS}, got {self.op!r}")
+
+
+@dataclass(frozen=True)
+class RegionTransition:
+    """When every guard holds at a point state in ``source``, the behavior
+    crosses into ``target`` (magnitudes carry over, directions re-derive)."""
+
+    source: str
+    target: str
+    guards: tuple[Guard, ...]
 
 
 @dataclass(frozen=True)
@@ -58,6 +111,22 @@ class CompiledConstraint:
 
 
 @dataclass(frozen=True)
+class CompiledTransition:
+    """Guards as (variable index, op, landmark *name*) — names, not ranks,
+    because discovered landmarks shift ranks per branch frame."""
+
+    target: str
+    guards: tuple[tuple[int, str, str], ...]
+
+
+@dataclass(frozen=True)
+class CompiledRegion:
+    name: str
+    constraint_idx: tuple[int, ...]
+    transitions: tuple[CompiledTransition, ...]
+
+
+@dataclass(frozen=True)
 class CompiledModel:
     """Frozen, engine-consumable form of a :class:`Model`."""
 
@@ -65,6 +134,8 @@ class CompiledModel:
     var_order: tuple[str, ...]
     spaces: tuple[QuantitySpace, ...]
     constraints: tuple[CompiledConstraint, ...]
+    regions: tuple[CompiledRegion, ...] = ()
+    initial_region: str = DEFAULT_REGION
 
     def index(self, var: str) -> int:
         return self.var_order.index(var)
@@ -75,14 +146,52 @@ class CompiledModel:
         hi = space.num_ranks - 1 if space.upper_unbounded else None
         return (lo, hi)
 
+    def region_named(self, name: str) -> CompiledRegion:
+        for region in self.regions:
+            if region.name == name:
+                return region
+        raise KeyError(name)
+
+    def constraints_of(self, region: str) -> tuple[CompiledConstraint, ...]:
+        idx = self.region_named(region).constraint_idx
+        return tuple(self.constraints[i] for i in idx)
+
+
+@dataclass(frozen=True)
+class SignStructure:
+    """The sign/monotonicity closure a model's constraints imply, as plain
+    data (docs/host-integration.md, Surface 6): what a host maps onto its
+    own regression parameterization or checks against its own analyses.
+
+    - ``monotone``: (x, y, s) with s = sign of dy/dx (M+, M-, MINUS).
+    - ``derivatives``: (x, y) with dx/dt = y.
+    - ``sums``: (x, y, z) with x + y = z; ``products``: z = x * y.
+    - ``constants``: variables pinned constant.
+    - ``corresponding``: (variable names, landmark-name tuples) pinned to
+      co-occur, per constraint that carries corresponding values.
+    """
+
+    monotone: tuple[tuple[str, str, int], ...]
+    derivatives: tuple[tuple[str, str], ...]
+    sums: tuple[tuple[str, str, str], ...]
+    products: tuple[tuple[str, str, str], ...]
+    constants: tuple[str, ...]
+    corresponding: tuple[tuple[tuple[str, ...], tuple[tuple[str, ...], ...]], ...]
+
 
 @dataclass
 class Model:
-    """A qualitative differential equation: variables + constraints."""
+    """A qualitative differential equation: variables + constraints
+    (+ optional operating regions)."""
 
     name: str = "model"
     variables: dict[str, Variable] = field(default_factory=dict)
     constraints: list[Constraint] = field(default_factory=list)
+    regions: dict[str, tuple[Constraint, ...] | None] = field(default_factory=dict)
+    region_transitions: list[RegionTransition] = field(default_factory=list)
+    initial_region: str | None = None
+
+    # --- authoring ---------------------------------------------------------
 
     def variable(
         self,
@@ -120,6 +229,51 @@ class Model:
         self.constraints.append(constraint)
         return constraint
 
+    def region(
+        self, name: str, *, constraints: tuple[Constraint, ...] | None = None
+    ) -> str:
+        """Declare an operating region. ``constraints=None`` means all of
+        the model's constraints are active in it. The first declared region
+        becomes the initial region unless ``initial_region`` is set."""
+        if name in self.regions:
+            raise ValueError(f"region {name!r} already declared")
+        if constraints is not None:
+            for c in constraints:
+                if not any(c is existing for existing in self.constraints):
+                    raise ValueError(
+                        f"region {name!r} references a constraint not added "
+                        f"to the model: {c!r}"
+                    )
+        self.regions[name] = tuple(constraints) if constraints is not None else None
+        if self.initial_region is None:
+            self.initial_region = name
+        return name
+
+    def transition(
+        self,
+        source: str,
+        target: str,
+        *,
+        when: tuple[tuple[str, str, str], ...],
+    ) -> RegionTransition:
+        """Declare a region transition guarded by landmark predicates
+        (conjunction of ``(variable, op, landmark)`` atoms)."""
+        for region in (source, target):
+            if region not in self.regions:
+                raise ValueError(f"undeclared region {region!r}")
+        guards = []
+        for var, op, landmark in when:
+            if var not in self.variables:
+                raise ValueError(f"guard references undeclared variable {var!r}")
+            if landmark not in self.variables[var].space.effective_landmarks:
+                raise ValueError(
+                    f"guard landmark {landmark!r} is not a landmark of {var!r}"
+                )
+            guards.append(Guard(var, op, landmark))
+        tr = RegionTransition(source, target, tuple(guards))
+        self.region_transitions.append(tr)
+        return tr
+
     def state(
         self,
         time: TimeTag = TimeTag.POINT,
@@ -151,8 +305,152 @@ class Model:
             raise ValueError(f"state is missing variables: {sorted(missing)}")
         return QState.from_dict(out, time)
 
+    # --- analysis exports --------------------------------------------------
+
+    def sign_structure(self) -> SignStructure:
+        """Export the constraint closure as plain data (Surface 6)."""
+        monotone: list[tuple[str, str, int]] = []
+        derivatives: list[tuple[str, str]] = []
+        sums: list[tuple[str, str, str]] = []
+        products: list[tuple[str, str, str]] = []
+        constants: list[str] = []
+        corresponding: list = []
+        for c in self.constraints:
+            kind = _KIND[type(c)]
+            if kind == "mplus":
+                monotone.append((c.x, c.y, 1))
+            elif kind in ("mminus", "minus"):
+                monotone.append((c.x, c.y, -1))
+            elif kind == "deriv":
+                derivatives.append((c.x, c.y))
+            elif kind == "add":
+                sums.append((c.x, c.y, c.z))
+            elif kind == "mult":
+                products.append((c.x, c.y, c.z))
+            elif kind == "constant":
+                constants.append(c.x)
+            if c.corresponding_values:
+                corresponding.append((c.variables, c.corresponding_values))
+        return SignStructure(
+            tuple(monotone),
+            tuple(derivatives),
+            tuple(sums),
+            tuple(products),
+            tuple(constants),
+            tuple(corresponding),
+        )
+
+    # --- serialization (versioned schema) ----------------------------------
+
+    def to_dict(self) -> dict:
+        def landmark_dict(lm: Landmark) -> dict:
+            out: dict = {"name": lm.name}
+            for k in ("value", "lo", "hi"):
+                if getattr(lm, k) is not None:
+                    out[k] = getattr(lm, k)
+            return out
+
+        def constraint_dict(c: Constraint) -> dict:
+            out = {"kind": _KIND[type(c)], "args": list(c.variables)}
+            if c.corresponding_values:
+                out["cvals"] = [list(cv) for cv in c.corresponding_values]
+            return out
+
+        def index_of(c: Constraint) -> int:
+            for i, existing in enumerate(self.constraints):
+                if existing is c:
+                    return i
+            raise ValueError(f"constraint {c!r} not in model")
+
+        data: dict = {
+            "schema": MODEL_SCHEMA,
+            "name": self.name,
+            "variables": [
+                {
+                    "name": v.name,
+                    "landmarks": [landmark_dict(lm) for lm in v.space.landmarks],
+                    "lower_unbounded": v.space.lower_unbounded,
+                    "upper_unbounded": v.space.upper_unbounded,
+                }
+                for v in self.variables.values()
+            ],
+            "constraints": [constraint_dict(c) for c in self.constraints],
+        }
+        if self.regions:
+            data["regions"] = [
+                {
+                    "name": name,
+                    "constraints": (
+                        None if subset is None else [index_of(c) for c in subset]
+                    ),
+                }
+                for name, subset in self.regions.items()
+            ]
+            data["transitions"] = [
+                {
+                    "source": t.source,
+                    "target": t.target,
+                    "when": [[g.var, g.op, g.landmark] for g in t.guards],
+                }
+                for t in self.region_transitions
+            ]
+            data["initial_region"] = self.initial_region
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Model":
+        if data.get("schema") != MODEL_SCHEMA:
+            raise ValueError(
+                f"unsupported model schema {data.get('schema')!r} "
+                f"(expected {MODEL_SCHEMA!r})"
+            )
+        m = cls(data["name"])
+        for v in data["variables"]:
+            m.variable(
+                v["name"],
+                landmarks=tuple(
+                    Landmark(
+                        lm["name"],
+                        value=lm.get("value"),
+                        lo=lm.get("lo"),
+                        hi=lm.get("hi"),
+                    )
+                    for lm in v["landmarks"]
+                ),
+                lower_unbounded=v.get("lower_unbounded", False),
+                upper_unbounded=v.get("upper_unbounded", False),
+            )
+        for c in data["constraints"]:
+            cls_ = _CLASS[c["kind"]]
+            args = c["args"]
+            kwargs: dict = {}
+            if "cvals" in c:
+                kwargs["cvals"] = tuple(tuple(cv) for cv in c["cvals"])
+            m.constrain(cls_(*args, **kwargs))
+        for r in data.get("regions", []):
+            subset = r["constraints"]
+            m.region(
+                r["name"],
+                constraints=(
+                    None
+                    if subset is None
+                    else tuple(m.constraints[i] for i in subset)
+                ),
+            )
+        for t in data.get("transitions", []):
+            m.transition(
+                t["source"],
+                t["target"],
+                when=tuple((g[0], g[1], g[2]) for g in t["when"]),
+            )
+        if "initial_region" in data:
+            m.initial_region = data["initial_region"]
+        return m
+
+    # --- compilation -------------------------------------------------------
+
     def compile(self) -> CompiledModel:
-        """Freeze mappings and resolve constraints. See module docstring."""
+        """Freeze mappings and resolve constraints/regions."""
         var_order = tuple(self.variables)
         spaces = tuple(self.variables[v].space for v in var_order)
 
@@ -199,4 +497,49 @@ class Model:
                     kind, idx, tuple(cvals), zeros, tuple(inf_pair(s) for s in csp), c
                 )
             )
-        return CompiledModel(self.name, var_order, spaces, tuple(compiled))
+
+        def constraint_index(c: Constraint) -> int:
+            for i, existing in enumerate(self.constraints):
+                if existing is c:
+                    return i
+            raise ValueError(f"region references unknown constraint {c!r}")
+
+        if self.regions:
+            initial = self.initial_region or next(iter(self.regions))
+            if initial not in self.regions:
+                raise ValueError(f"initial region {initial!r} is not declared")
+            regions = []
+            for rname, subset in self.regions.items():
+                idxs = (
+                    tuple(range(len(self.constraints)))
+                    if subset is None
+                    else tuple(constraint_index(c) for c in subset)
+                )
+                transitions = tuple(
+                    CompiledTransition(
+                        t.target,
+                        tuple(
+                            (var_order.index(g.var), g.op, g.landmark)
+                            for g in t.guards
+                        ),
+                    )
+                    for t in self.region_transitions
+                    if t.source == rname
+                )
+                regions.append(CompiledRegion(rname, idxs, transitions))
+            for t in self.region_transitions:
+                if t.target not in self.regions:
+                    raise ValueError(f"transition targets undeclared region {t.target!r}")
+        else:
+            initial = DEFAULT_REGION
+            regions = [
+                CompiledRegion(DEFAULT_REGION, tuple(range(len(self.constraints))), ())
+            ]
+        return CompiledModel(
+            self.name,
+            var_order,
+            spaces,
+            tuple(compiled),
+            tuple(regions),
+            initial,
+        )

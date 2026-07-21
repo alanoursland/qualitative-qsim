@@ -122,26 +122,37 @@ def check(cc: CompiledConstraint, vals: Sequence[QVal]) -> bool:
     raise ValueError(f"unknown constraint kind {kind!r}")
 
 
-def check_state(compiled: CompiledModel, state: QState) -> CompiledConstraint | None:
-    """First constraint the state violates, or None if consistent."""
+def check_state(
+    compiled: CompiledModel,
+    state: QState,
+    constraints: Sequence[CompiledConstraint] | None = None,
+) -> CompiledConstraint | None:
+    """First constraint the state violates, or None if consistent.
+
+    ``constraints`` restricts the check to a region's active subset
+    (default: all of the model's constraints)."""
+    active = compiled.constraints if constraints is None else constraints
     vals = tuple(state[v] for v in compiled.var_order)
-    for cc in compiled.constraints:
+    for cc in active:
         if not check(cc, tuple(vals[i] for i in cc.vars)):
             return cc
     return None
 
 
 def prune_domains(
-    compiled: CompiledModel, domains: list[list[QVal]]
+    compiled: CompiledModel,
+    domains: list[list[QVal]],
+    constraints: Sequence[CompiledConstraint] | None = None,
 ) -> list[list[QVal]] | None:
     """Tuple + Waltz filtering: restrict each variable's candidates to values
-    that participate in some consistent tuple of every constraint, iterated
-    to a fixpoint. Returns None if any domain empties (no successor)."""
+    that participate in some consistent tuple of every active constraint,
+    iterated to a fixpoint. Returns None if any domain empties."""
+    active = compiled.constraints if constraints is None else constraints
     domains = [list(d) for d in domains]
     changed = True
     while changed:
         changed = False
-        for cc in compiled.constraints:
+        for cc in active:
             local = [domains[i] for i in cc.vars]
             surviving = [t for t in product(*local) if check(cc, t)]
             if not surviving:
@@ -155,15 +166,17 @@ def prune_domains(
 
 
 def assemble(
-    compiled: CompiledModel, domains: list[list[QVal]]
+    compiled: CompiledModel,
+    domains: list[list[QVal]],
+    constraints: Sequence[CompiledConstraint] | None = None,
 ) -> Iterator[tuple[QVal, ...]]:
     """Complete consistent assignments from (pruned) candidate domains, in
     deterministic order. Domain sizes are tiny (<= 4 per variable), so the
     reference implementation is a filtered cross-product."""
+    active = compiled.constraints if constraints is None else constraints
     for combo in product(*domains):
         if all(
-            check(cc, tuple(combo[i] for i in cc.vars))
-            for cc in compiled.constraints
+            check(cc, tuple(combo[i] for i in cc.vars)) for cc in active
         ):
             yield combo
 

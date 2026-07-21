@@ -66,12 +66,16 @@ class AbstractedBehavior:
     sample-index range ``[start, end)`` the state was observed over
     (synthesized crossing points have zero width at the boundary index).
     Magnitude ranks are relative to the *model's* (root) quantity spaces.
+    ``regions[i]`` carries the mode channel's region label for each state
+    when one was provided (None per state otherwise); a synthesized
+    boundary point belongs to the region being left.
     """
 
     states: tuple[QState, ...]
     spans: tuple[tuple[int, int], ...]
     var_order: tuple[str, ...]
     config: AbstractionConfig
+    regions: tuple[str | None, ...] = ()
 
 
 def abstract_trajectory(
@@ -79,9 +83,14 @@ def abstract_trajectory(
     model: Model | CompiledModel,
     *,
     times=None,
+    modes=None,
     config: AbstractionConfig | None = None,
 ) -> AbstractedBehavior:
-    """Abstract one trajectory of shape (T, V), columns in model order."""
+    """Abstract one trajectory of shape (T, V), columns in model order.
+
+    ``modes`` is the optional mode channel: one region label per sample
+    (for hybrid executions). Mode changes force segment boundaries and the
+    emitted states carry their region labels."""
     compiled = model.compile() if isinstance(model, Model) else model
     cfg = config or AbstractionConfig()
     rows = _to_rows(x, len(compiled.var_order))
@@ -92,6 +101,10 @@ def abstract_trajectory(
     )
     if len(ts) != len(rows):
         raise ValueError(f"{len(rows)} samples but {len(ts)} timestamps")
+    if modes is not None:
+        modes = list(modes.tolist() if hasattr(modes, "tolist") else modes)
+        if len(modes) != len(rows):
+            raise ValueError(f"{len(rows)} samples but {len(modes)} mode labels")
 
     ranks = _quantize(rows, compiled, cfg)
     dirs = _directions(rows, ts, cfg)
@@ -99,20 +112,22 @@ def abstract_trajectory(
         tuple((ranks[t][v], dirs[t][v]) for v in range(len(compiled.var_order)))
         for t in range(len(rows))
     ]
-    runs = _runs(codes)
+    run_modes = modes if modes is not None else [None] * len(rows)
+    runs = _runs(list(zip(codes, run_modes)))
     runs = _debounce(runs, cfg.debounce)
-    states, spans = _emit(runs, compiled.var_order)
-    return AbstractedBehavior(states, spans, compiled.var_order, cfg)
+    states, spans, regions = _emit(runs, compiled.var_order)
+    return AbstractedBehavior(states, spans, compiled.var_order, cfg, regions)
 
 
 def abstract_batch(
-    xs, model: Model | CompiledModel, *, times=None, config=None
+    xs, model: Model | CompiledModel, *, times=None, modes=None, config=None
 ) -> tuple[AbstractedBehavior, ...]:
     """Abstract a batch of trajectories (loop reference; tensorized later)."""
     ts = times if times is not None else [None] * len(xs)
+    ms = modes if modes is not None else [None] * len(xs)
     return tuple(
-        abstract_trajectory(x, model, times=t, config=config)
-        for x, t in zip(xs, ts)
+        abstract_trajectory(x, model, times=t, modes=mo, config=config)
+        for x, t, mo in zip(xs, ts, ms)
     )
 
 
@@ -229,9 +244,10 @@ def _debounce(runs, k: int):
     return runs
 
 
-def _is_point_run(code) -> bool:
+def _is_point_run(entry) -> bool:
     # a variable cannot sit AT a landmark while moving over a time interval:
     # such a run is a crossing dwell — an instant, qualitatively
+    code, _mode = entry
     return any(m % 2 == 0 and d is not Qdir.STD for m, d in code)
 
 
@@ -280,27 +296,31 @@ def _synth_interval(c1, c2):
 def _emit(runs, var_order):
     states: list[QState] = []
     spans: list[tuple[int, int]] = []
+    regions: list[str | None] = []
 
-    def emit(code, tag, span):
+    def emit(code, tag, span, mode):
         values = {
             name: QVal(m, d) for name, (m, d) in zip(var_order, code)
         }
         states.append(QState.from_dict(values, tag))
         spans.append(span)
+        regions.append(mode)
 
     prev_kind = None
     prev_code = None
-    for code, start, end in runs:
-        kind = TimeTag.POINT if _is_point_run(code) else TimeTag.INTERVAL
+    prev_mode = None
+    for (code, mode), start, end in runs:
+        kind = TimeTag.POINT if _is_point_run((code, mode)) else TimeTag.INTERVAL
         if prev_kind is not None and prev_kind == kind:
+            # a synthesized boundary instant belongs to the region being left
             if kind is TimeTag.INTERVAL:
-                emit(_synth_point(prev_code, code), TimeTag.POINT, (start, start))
+                emit(_synth_point(prev_code, code), TimeTag.POINT, (start, start), prev_mode)
             else:
-                emit(_synth_interval(prev_code, code), TimeTag.INTERVAL, (start, start))
-        emit(code, kind, (start, end))
-        prev_kind, prev_code = kind, code
+                emit(_synth_interval(prev_code, code), TimeTag.INTERVAL, (start, start), prev_mode)
+        emit(code, kind, (start, end), mode)
+        prev_kind, prev_code, prev_mode = kind, code, mode
 
     assert all(
         states[i].time is not states[i + 1].time for i in range(len(states) - 1)
     ), "internal error: emitted states do not alternate point/interval"
-    return tuple(states), tuple(spans)
+    return tuple(states), tuple(spans), tuple(regions)
