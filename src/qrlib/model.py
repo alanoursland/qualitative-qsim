@@ -2,26 +2,78 @@
 
 A :class:`Model` is pure data — variables (each owning a
 :class:`~qrlib.quantity.QuantitySpace`) plus constraints — consumed by every
-engine. ``Model.compile()`` (phase 1) will freeze name→index and
-landmark→rank mappings and precompute constraint tables; the editable
-``Model`` itself stays serialization-friendly.
+engine. :meth:`Model.compile` freezes the name -> index and landmark -> rank
+mappings and resolves constraints into :class:`CompiledConstraint` records
+(variable indices, corresponding-value ranks, zero/infinity ranks). The
+compiled artifacts are inert data; the consistency predicates that interpret
+them live with the engines (``qrlib.engines.filters``).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .constraints import Constraint
+from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
-__all__ = ["Variable", "Model"]
+__all__ = ["Variable", "Model", "CompiledConstraint", "CompiledModel"]
+
+_KIND: dict[type, str] = {
+    MPlus: "mplus",
+    MMinus: "mminus",
+    Add: "add",
+    Mult: "mult",
+    Minus: "minus",
+    Deriv: "deriv",
+    Constant: "constant",
+}
+
+ZERO = "0"
 
 
 @dataclass(frozen=True)
 class Variable:
     name: str
     space: QuantitySpace
+
+
+@dataclass(frozen=True)
+class CompiledConstraint:
+    """A constraint resolved against frozen variable/landmark mappings.
+
+    ``vars`` are indices into the compiled variable order; ``cvals`` are
+    corresponding-value tuples as magnitude ranks (including any implicit
+    zero tuples added at compile time); ``zeros`` is the rank of the ``0``
+    landmark per constrained variable (or None); ``infs`` is the pair
+    (rank of -inf, rank of +inf) per constrained variable (None = bounded).
+    """
+
+    kind: str
+    vars: tuple[int, ...]
+    cvals: tuple[tuple[int, ...], ...]
+    zeros: tuple[int | None, ...]
+    infs: tuple[tuple[int | None, int | None], ...]
+    source: Constraint
+
+
+@dataclass(frozen=True)
+class CompiledModel:
+    """Frozen, engine-consumable form of a :class:`Model`."""
+
+    name: str
+    var_order: tuple[str, ...]
+    spaces: tuple[QuantitySpace, ...]
+    constraints: tuple[CompiledConstraint, ...]
+
+    def index(self, var: str) -> int:
+        return self.var_order.index(var)
+
+    def inf_ranks(self, vi: int) -> tuple[int | None, int | None]:
+        space = self.spaces[vi]
+        lo = 0 if space.lower_unbounded else None
+        hi = space.num_ranks - 1 if space.upper_unbounded else None
+        return (lo, hi)
 
 
 @dataclass
@@ -68,12 +120,17 @@ class Model:
         self.constraints.append(constraint)
         return constraint
 
-    def state(self, time: TimeTag = TimeTag.POINT, **values: tuple[str, Qdir] | QVal) -> QState:
-        """Build a state from keyword args, e.g. ``amount=("0", Qdir.INC)``.
+    def state(
+        self,
+        time: TimeTag = TimeTag.POINT,
+        **values: tuple[str | tuple[str, str], Qdir] | QVal,
+    ) -> QState:
+        """Build a state from keyword args.
 
-        Magnitude may be a landmark name or an ``"(a, b)"``-free shorthand:
-        pass a landmark name for an at-landmark magnitude; interval
-        magnitudes should be built via ``QVal`` directly for now.
+        Each value is either a ``QVal``, or a ``(magnitude, qdir)`` pair
+        where magnitude is a landmark name (``"0"``) for an at-landmark
+        value or a pair of adjacent landmark names (``("0", "FULL")``) for
+        an open-interval value.
         """
         out: dict[str, QVal] = {}
         for name, v in values.items():
@@ -81,18 +138,65 @@ class Model:
                 raise ValueError(f"unknown variable {name!r}")
             if isinstance(v, QVal):
                 out[name] = v
+                continue
+            mag_spec, qdir = v
+            space = self.variables[name].space
+            if isinstance(mag_spec, tuple):
+                rank = space.rank_between(*mag_spec)
             else:
-                landmark, qdir = v
-                rank = self.variables[name].space.rank_of(landmark)
-                out[name] = QVal(rank, qdir)
+                rank = space.rank_of(mag_spec)
+            out[name] = QVal(rank, qdir)
         missing = set(self.variables) - set(out)
         if missing:
             raise ValueError(f"state is missing variables: {sorted(missing)}")
         return QState.from_dict(out, time)
 
-    def compile(self):
-        """Freeze mappings and precompute constraint tables. Phase 1."""
-        raise NotImplementedError(
-            "Model.compile() lands with the reference QSIM engine "
-            "(docs/roadmap.md, phase 1)"
-        )
+    def compile(self) -> CompiledModel:
+        """Freeze mappings and resolve constraints. See module docstring."""
+        var_order = tuple(self.variables)
+        spaces = tuple(self.variables[v].space for v in var_order)
+
+        def zero_rank(space: QuantitySpace) -> int | None:
+            eff = space.effective_landmarks
+            return 2 * eff.index(ZERO) if ZERO in eff else None
+
+        def inf_pair(space: QuantitySpace) -> tuple[int | None, int | None]:
+            lo = 0 if space.lower_unbounded else None
+            hi = space.num_ranks - 1 if space.upper_unbounded else None
+            return (lo, hi)
+
+        compiled: list[CompiledConstraint] = []
+        for c in self.constraints:
+            kind = _KIND[type(c)]
+            idx = tuple(var_order.index(v) for v in c.variables)
+            csp = [spaces[i] for i in idx]
+            zeros = tuple(zero_rank(s) for s in csp)
+            cvals = [
+                tuple(csp[k].rank_of(nm) for k, nm in enumerate(cv))
+                for cv in c.corresponding_values
+            ]
+            if kind == "deriv" and zeros[1] is None:
+                raise ValueError(
+                    f"{c!r}: the derivative variable {c.variables[1]!r} needs a "
+                    f"'0' landmark (its sign drives the other's direction)"
+                )
+            if kind == "mult" and any(z is None for z in zeros):
+                raise ValueError(
+                    f"{c!r}: MULT requires a '0' landmark in every operand space"
+                )
+            # Implicit corresponding values at zero: x+y=z pins (0,0,0);
+            # y=-x pins (0,0). These carry the sign algebra of the constraint.
+            if kind == "add" and all(z is not None for z in zeros):
+                implicit3 = (zeros[0], zeros[1], zeros[2])
+                if implicit3 not in cvals:
+                    cvals.append(implicit3)
+            if kind == "minus" and all(z is not None for z in zeros):
+                implicit2 = (zeros[0], zeros[1])
+                if implicit2 not in cvals:
+                    cvals.append(implicit2)
+            compiled.append(
+                CompiledConstraint(
+                    kind, idx, tuple(cvals), zeros, tuple(inf_pair(s) for s in csp), c
+                )
+            )
+        return CompiledModel(self.name, var_order, spaces, tuple(compiled))

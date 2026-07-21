@@ -77,7 +77,15 @@ def test_state_requires_all_variables():
         m.state(amount=("0", Qdir.STD))
 
 
-def test_qsim_entry_point_is_declared_but_unimplemented():
+def test_compile_freezes_order_and_resolves_cvals():
     m = bathtub()
-    with pytest.raises(NotImplementedError):
-        qr.qsim(m, initial=None)
+    cm = m.compile()
+    assert cm.var_order == tuple(m.variables)
+    # MPlus(amount, level) resolved its (0, 0) corresponding value to ranks
+    mplus = cm.constraints[0]
+    assert mplus.kind == "mplus"
+    assert (0, 0) in mplus.cvals
+    # Add gained the implicit (0, 0, 0) corresponding value
+    add = next(cc for cc in cm.constraints if cc.kind == "add")
+    zeros = tuple(add.zeros)
+    assert zeros in add.cvals

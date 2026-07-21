@@ -12,17 +12,28 @@ moved up; analysis/queries attach to the phases that make them possible.
   (`Landmark`/`QuantitySpace`, `QVal`, `QState`, constraints, `Model`)
   with unit tests. Landmarks carry optional numeric values/bounds.
 
-## Phase 1 — Reference QSIM (pure Python)
+## Phase 1 — Reference QSIM (pure Python) *(done)*
 
-- Transition tables, constraint predicates with corresponding values,
-  tuple/Waltz/global filtering, behavior graph construction.
-- Built-in global filters: no-change, quiescence, cycle match, divergence.
-- Result conventions from day one: `SimConfig`, `SimResult` with
-  `status`/pruning stats/model hash, `TerminalClass` on every terminal,
-  neutral graph export + dot; `graph.py` (BFS/SCC/cycles) and basic
-  `analysis.queries` (reachability, quiescent states, cycles).
-- **Exit criteria:** bathtub, U-tube, frictionless spring golden tests match
-  the literature; results round-trip through `to_dict()`.
+- Transition tables, constraint predicates with corresponding values
+  (including the algebra of infinite landmarks in `ADD`), tuple/Waltz
+  filtering, global interpretation assembly, behavior graph construction.
+- Built-in global filters: no-change, cycle match, quiescence handling
+  (with departure exploration for unstable equilibria), region-exit
+  detection, and the infinity-admissibility rule (a point state at an
+  infinite landmark is the t→∞ limit; every variable must be steady or at
+  infinity there). Toggling the infinity filter off restores the classic
+  spurious reach-infinity-in-finite-time behaviors — kept as a regression
+  test.
+- Result conventions: `SimConfig`, `SimResult` with `status` + stats,
+  `TerminalClass` on every terminal, neutral graph export + dot;
+  `graph.py` (reachability, Tarjan SCC) and `analysis.queries`
+  (terminal census, quiescent states, cycles, state search).
+- **Exit criteria met:** bathtub (3 behaviors: equilibrium below FULL, at
+  FULL, overflow region-exit), U-tube (single equilibrium behavior), and
+  frictionless spring (single sustained oscillation, 8-transition cycle)
+  match the literature.
+- Deferred within phase: model hash in results (with the phase-4 schema);
+  `to_dict()` round-trip tests.
 
 ## Phase 2 — Full-fidelity QSIM
 

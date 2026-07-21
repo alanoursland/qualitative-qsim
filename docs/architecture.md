@@ -13,13 +13,13 @@ src/qrlib/
 ├── quantity.py          # Landmark, QuantitySpace, Qmag ranks, Qdir, QVal
 ├── state.py             # QState (one qualitative state of a model)
 ├── constraints.py       # Constraint types: MPlus, MMinus, Add, Mult, Deriv, ...
-├── model.py             # Variable, Model; Region (operating regions)        [Region planned]
-├── behavior.py          # BehaviorGraph, TerminalClass, SimResult/SimConfig  [planned]
-├── graph.py             # small graph algorithms: BFS, SCC, cycle enum       [planned]
+├── model.py             # Variable, Model, CompiledModel; Region             [Region planned]
+├── behavior.py          # BehaviorGraph, TerminalClass, SimResult/SimConfig
+├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── engines/
-│   ├── qsim.py          # reference pure-Python QSIM                         [stub]
-│   ├── transitions.py   # P-/I-transition tables                             [stub]
-│   └── filters.py       # constraint, Waltz, global + pluggable filters      [stub]
+│   ├── qsim.py          # reference pure-Python QSIM
+│   ├── transitions.py   # P-/I-transition tables
+│   └── filters.py       # predicates, tuple/Waltz filtering, assembly        [plugin hook planned]
 ├── tensor/
 │   ├── encoding.py      # QState/frontier <-> integer tensor codecs          [stub]
 │   └── engine.py        # batched/tensorized QSIM                            [planned]
@@ -29,7 +29,7 @@ src/qrlib/
 │   ├── signs.py         # sign-matrix intake -> Model; sign estimation       [planned]
 │   └── harvest.py       # landmark intake/dedup + data-driven proposals      [planned]
 ├── analysis/
-│   ├── queries.py       # reachability, quiescence, cycles, path predicates  [planned]
+│   ├── queries.py       # terminal census, quiescence, cycles, state search
 │   └── explain.py       # structured + prose behavior narration              [planned]
 └── viz/                 # data-first exports; optional plotting extra        [planned]
 ```

@@ -124,7 +124,36 @@ Each becomes a golden test with the expected behavior set checked
 structurally (tree shape + terminal classifications), not by string
 comparison.
 
-## 8. Order of implementation
+## 8. Phase-1 implementation notes (as built)
+
+Semantic decisions made in the reference engine, recorded for review:
+
+- **Infinity admissibility.** A point state with a variable at `±inf`
+  denotes the limit t→∞; it is admitted only if every variable is steady or
+  itself at an infinite landmark (a finite limit or an infinite one — no
+  variable can be left mid-motion at t=∞). `ADD` additionally applies the
+  algebra of infinities (one infinite operand forces the sum; a finite sum
+  of one infinity needs the opposite infinity). Together these kill the
+  classic reach-infinity-in-finite-time spurious behaviors: the spring's 16
+  divergent candidates and the U-tube's "tank fills to infinity" branch.
+  Toggling `infinity_filter` off restores them (regression-tested).
+- **Steady inside an interval without landmark discovery.** I5/I9
+  transitions (becoming steady at an unnamed value) are admitted and yield
+  quiescent states whose magnitude is the open interval — the equilibrium
+  exists but is unnamed until phase-2 landmark introduction mints it.
+- **Quiescent states are terminal and explorable.** The constant
+  continuation is one complete behavior; departure candidates (unstable
+  equilibria) are still generated and survive only if constraint-consistent.
+- **Region exit.** A point state where a variable sits at a boundary
+  landmark of its *bounded* space with an outward direction has no legal
+  P-transition; it is classified `REGION_EXIT` (leaving the model's domain
+  of validity — the hook operating regions will attach to in phase 4).
+- **Dead ends are reported, not pruned.** A state with candidates but no
+  consistent successor is classified `DEADEND`; deleting it (or its
+  ancestors) retroactively is a phase-2+ refinement that must preserve
+  soundness bookkeeping.
+
+## 9. Order of implementation
 
 1. Transition tables + per-variable candidate generation (pure data + lookup).
 2. Constraint predicates + corresponding values (reference form).
