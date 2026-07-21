@@ -155,12 +155,32 @@ moved up; analysis/queries attach to the phases that make them possible.
   `use_tensor` defaults off. GPU runs of the same benchmark are the
   remaining item, pending an environment with CUDA.
 
-## Phase 6 — Semi-quantitative layer (Q2-style)
+## Phase 6 — Semi-quantitative layer (Q2-style) *(done)*
 
-- Interval bounds on landmarks (already in the schema) propagated through
-  constraints along behaviors; envelope annotations on M-constraints.
-- Pruning of numerically impossible behaviors; guaranteed bounds output;
-  envelope-vs-trajectory data export for host plotting.
+- `qrlib.semiquant`: interval propagation along behaviors to a fixpoint —
+  within-state ADD/MINUS/MULT interval arithmetic and M± **envelope**
+  forward/inverse maps; cross-state continuity/monotonic persistence,
+  region-entry value/time sharing, CONSTANT intersection; and MVT time
+  propagation through DERIV (region-aware throughout; discovered
+  landmarks bounded by their neighbors via ordering-tightened ranges).
+  Conservative closed-interval arithmetic with the standard `0·∞ = 0`
+  convention; all deductions only shrink intervals, so real trajectories
+  of consistent instances always lie inside the reported bounds.
+- **Guaranteed bounds output** (`SemiQuantResult`, plain-data
+  `to_dict()`): per-state variable bands + time bounds, ready to plot
+  against numeric trajectories. Classic Q2 results reproduced exactly:
+  the overflow crossing lands in `[FULL/IF, FULL/(IF−OMAX)]` (verified
+  to contain a concrete instance's true crossing time), ±10% envelopes
+  pin the discovered equilibrium landmark to `[1/1.1², 1/0.9²]`, and
+  asymptotic equilibrium arrival is correctly unbounded.
+- **Numeric refutation / pruning** (`feasible_behaviors`): behaviors
+  whose intervals empty are impossible under the annotations, with the
+  state/variable localized. Demonstrated in both directions: a strong
+  drain (OMAX > inflow) kills the overflow and at-FULL branches; a weak
+  drain (OMAX < inflow) kills both equilibria. Unannotated models are
+  never refuted (sound no-op).
+- Deferred: batched/tensorized interval propagation `(B, V, 2)` (rides
+  the phase-5 layer when a workload demands it).
 
 ## Phase 7 — Analysis polish & exploratory
 
