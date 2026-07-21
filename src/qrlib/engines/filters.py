@@ -177,6 +177,8 @@ def admissible_at_infinity(compiled: CompiledModel, vals: Sequence[QVal]) -> boo
     (a finite limit, possibly approached asymptotically). States violating
     this describe 'reaching infinity in finite time' and are excluded.
     States with no variable at infinity are unconstrained by this rule.
+    A variable with untracked direction (``IGN``) might be steady, so it is
+    admitted (sound: never excludes a real behavior).
     """
     statuses = [
         _inf_status(qv, compiled.inf_ranks(vi)) for vi, qv in enumerate(vals)
@@ -184,5 +186,5 @@ def admissible_at_infinity(compiled: CompiledModel, vals: Sequence[QVal]) -> boo
     if not any(statuses):
         return True
     return all(
-        s != 0 or qv.dir is Qdir.STD for s, qv in zip(statuses, vals)
+        s != 0 or qv.dir in (Qdir.STD, Qdir.IGN) for s, qv in zip(statuses, vals)
     )

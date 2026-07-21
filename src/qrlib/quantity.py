@@ -39,15 +39,22 @@ POS_INF = "+inf"
 
 
 class Qdir(IntEnum):
-    """Direction of change of a variable. ``sign`` maps to {-1, 0, +1}."""
+    """Direction of change of a variable. ``sign`` maps to {-1, 0, +1}.
+
+    ``IGN`` marks a direction deliberately not tracked (chatter abstraction,
+    ``SimConfig.ignore_qdir``): engines store it in states but never feed it
+    to constraint predicates — candidates are generated and filtered with
+    concrete directions and only then projected to ``IGN``.
+    """
 
     DEC = 0
     STD = 1
     INC = 2
+    IGN = 3
 
     @property
     def sign(self) -> int:
-        return int(self) - 1
+        return 0 if self is Qdir.IGN else int(self) - 1
 
 
 @dataclass(frozen=True)
@@ -233,5 +240,5 @@ class QVal:
     dir: Qdir
 
     def describe(self, space: QuantitySpace) -> str:
-        arrow = {Qdir.DEC: "↓", Qdir.STD: "·", Qdir.INC: "↑"}[self.dir]
+        arrow = {Qdir.DEC: "↓", Qdir.STD: "·", Qdir.INC: "↑", Qdir.IGN: "?"}[self.dir]
         return f"{space.describe(self.mag)}{arrow}"

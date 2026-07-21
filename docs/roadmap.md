@@ -35,16 +35,30 @@ moved up; analysis/queries attach to the phases that make them possible.
 - Deferred within phase: model hash in results (with the phase-4 schema);
   `to_dict()` round-trip tests.
 
-## Phase 2 — Full-fidelity QSIM
+## Phase 2 — Full-fidelity QSIM *(done)*
 
-- New-landmark introduction (per-branch quantity spaces).
-- Chatter mitigation: `ignore-qdir`, then chatter-box abstraction.
-- Resource limits with explicit `TRUNCATED` terminals.
-- Attainable-envisionment mode (state dedup / graph instead of tree).
-- Pluggable global-filter hook (user path/state predicates — the
-  energy-argument slot for killing spurious oscillation growth).
-- Damped-spring golden test incl. spurious-behavior regression checks
-  (spurious branches present with the analytic filter off, gone with it on).
+- New-landmark introduction (default on): I5/I9 arrivals mint named
+  landmarks (`x*0`, …) into per-branch **frames** (compiled models with
+  grown spaces and rank-shifted constraint references); minting also
+  records new corresponding values for M±/MINUS/ADD constraints whose
+  variables all sit at landmarks. `max_landmarks` caps per-variable
+  discovery (beyond it, steadiness stays unnamed — sound).
+- Chatter mitigation: `ignore_qdir` — untracked directions (`Qdir.IGN`)
+  generated over all concrete directions, filtered normally, then
+  projected and merged (damped spring: 403 truncated nodes → 15 complete).
+  Automatic chatter-box *detection* deferred.
+- Successor-filter hook (`SimConfig.successor_filters`): user vetoes over
+  `(parent, candidate, frame)`. Regression-tested with the classic energy
+  argument: undamped spring with discovery branches intractably
+  (spurious growing/shrinking amplitudes, truncation); with the energy
+  filter it completes as the single true cycle (17 nodes: one
+  landmark-discovery period, then closure).
+- Attainable-envisionment mode (`SimConfig.envisionment`): global
+  (frame, state) merging; cycles become back-edges enumerated by
+  `behaviors()` (spring: 8-node cycle graph).
+- Cycle matching is frame-aware (states in different quantity spaces never
+  match). Resource limits with explicit `TRUNCATED` terminals were done in
+  phase 1.
 
 ## Phase 3 — Upward bridge + coverage oracle
 

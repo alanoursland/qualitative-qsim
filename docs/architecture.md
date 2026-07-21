@@ -17,9 +17,10 @@ src/qrlib/
 ├── behavior.py          # BehaviorGraph, TerminalClass, SimResult/SimConfig
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── engines/
-│   ├── qsim.py          # reference pure-Python QSIM
+│   ├── qsim.py          # reference pure-Python QSIM (+ envisionment mode)
 │   ├── transitions.py   # P-/I-transition tables
-│   └── filters.py       # predicates, tuple/Waltz filtering, assembly        [plugin hook planned]
+│   ├── filters.py       # predicates, tuple/Waltz filtering, assembly
+│   └── landmarks.py     # new-landmark introduction (per-branch frames)
 ├── tensor/
 │   ├── encoding.py      # QState/frontier <-> integer tensor codecs          [stub]
 │   └── engine.py        # batched/tensorized QSIM                            [planned]

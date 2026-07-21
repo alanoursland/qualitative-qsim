@@ -6,13 +6,28 @@ generate per-variable candidates from the transition tables, filter
 successors, repeat. Written for clarity and auditability; the tensorized
 engine (phase 5) must agree with it exactly.
 
+Phase-2 machinery (docs/qsim.md §8):
+
+- **Landmark discovery.** I5/I9 arrivals mint named landmarks, producing a
+  new per-branch frame (:mod:`.landmarks`); each node carries its frame.
+- **Chatter abstraction.** Variables in ``config.ignore_qdir`` are stored
+  with untracked direction (``Qdir.IGN``); candidates are generated over
+  all concrete directions, filtered normally, then projected and merged.
+- **Successor filters.** User vetoes ``(parent_state, candidate, frame) ->
+  bool`` — the analytic-knowledge hook (energy arguments etc.).
+- **Envisionment.** With ``config.envisionment``, identical (frame, state)
+  pairs merge into one node: the attainable envisionment graph. Cycles then
+  appear as back-edges (enumerated by ``BehaviorGraph.behaviors``) instead
+  of CYCLE terminals.
+
 Terminal classification at a point state, in order:
 
 1. DIVERGENT   — some variable at an infinite landmark (t = infinity).
-2. QUIESCENT   — all directions steady; the constant continuation is a
-                 complete behavior. Departures (unstable equilibria) are
-                 still explored and become children if consistent.
-3. CYCLE       — state equals an ancestor point state; close the loop.
+2. QUIESCENT   — all tracked directions steady; the constant continuation
+                 is a complete behavior. Departures (unstable equilibria)
+                 are still explored and become children if consistent.
+3. CYCLE       — state equals an ancestor point state in an equal frame
+                 (tree mode only; envisionment merges instead).
 4. REGION_EXIT — some variable must leave its bounded quantity space
                  (empty P-successor set).
 5. DEADEND     — candidates existed but none survived filtering (the state
@@ -24,15 +39,19 @@ Resource limits mark nodes TRUNCATED and the result status TRUNCATED.
 from __future__ import annotations
 
 from collections import deque
+from dataclasses import replace
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
 from ..model import CompiledModel, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
 from . import filters
+from .landmarks import introduce_landmarks
 from .transitions import interval_successors, point_successors
 
 __all__ = ["qsim"]
+
+_TRACKED_STEADY = (Qdir.STD, Qdir.IGN)
 
 
 def qsim(
@@ -44,46 +63,68 @@ def qsim(
     max_depth: int | None = None,
 ) -> SimResult:
     """Simulate all qualitative behaviors of ``model`` from ``initial``."""
-    compiled = model.compile() if isinstance(model, Model) else model
+    root_frame = model.compile() if isinstance(model, Model) else model
     cfg = config or SimConfig()
-    if max_states is not None or max_depth is not None:
-        from dataclasses import replace
+    overrides = {
+        k: v
+        for k, v in (("max_states", max_states), ("max_depth", max_depth))
+        if v is not None
+    }
+    if overrides:
+        cfg = replace(cfg, **overrides)
 
-        cfg = replace(
-            cfg,
-            **{
-                k: v
-                for k, v in (("max_states", max_states), ("max_depth", max_depth))
-                if v is not None
-            },
-        )
+    unknown = set(cfg.ignore_qdir) - set(root_frame.var_order)
+    if unknown:
+        raise ValueError(f"ignore_qdir names unknown variables: {sorted(unknown)}")
+    ignored = frozenset(
+        root_frame.index(name) for name in cfg.ignore_qdir
+    )
 
-    _validate_initial(compiled, initial)
+    _validate_initial(root_frame, initial)
+    init_state = _project(root_frame, initial, ignored)
 
-    nodes: dict[int, Node] = {0: Node(0, initial, None, 0)}
+    nodes: dict[int, Node] = {0: Node(0, init_state, None, 0, root_frame)}
     frontier: deque[int] = deque([0])
+    seen: dict[tuple[CompiledModel, QState], int] | None = (
+        {(root_frame, init_state): 0} if cfg.envisionment else None
+    )
     stats = {
         "nodes": 1,
         "expanded": 0,
         "candidates": 0,
         "no_change_filtered": 0,
         "infinity_filtered": 0,
+        "user_filtered": 0,
+        "merged": 0,
+        "landmarks_minted": 0,
         "deadends": 0,
     }
     truncated = False
 
-    def add_child(parent: Node, state: QState) -> None:
+    def attach(parent: Node, state: QState, frame: CompiledModel) -> None:
+        nonlocal truncated
+        if seen is not None:
+            key = (frame, state)
+            hit = seen.get(key)
+            if hit is not None:
+                if hit not in parent.children:
+                    parent.children.append(hit)
+                stats["merged"] += 1
+                return
         nid = len(nodes)
-        nodes[nid] = Node(nid, state, parent.id, parent.depth + 1)
+        nodes[nid] = Node(nid, state, parent.id, parent.depth + 1, frame)
         parent.children.append(nid)
         frontier.append(nid)
         stats["nodes"] += 1
+        if seen is not None:
+            seen[(frame, state)] = nid
 
     while frontier:
         nid = frontier.popleft()
         node = nodes[nid]
+        frame = node.model
         state = node.state
-        vals = tuple(state[v] for v in compiled.var_order)
+        vals = tuple(state[v] for v in frame.var_order)
         is_point = state.time is TimeTag.POINT
 
         if len(nodes) > cfg.max_states or node.depth >= cfg.max_depth:
@@ -92,103 +133,151 @@ def qsim(
             continue
 
         if is_point and any(
-            filters._inf_status(qv, compiled.inf_ranks(vi))
+            filters._inf_status(qv, frame.inf_ranks(vi))
             for vi, qv in enumerate(vals)
         ):
             node.terminal = TerminalClass.DIVERGENT
             continue
 
-        if all(qv.dir is Qdir.STD for qv in vals):
+        if all(qv.dir in _TRACKED_STEADY for qv in vals):
             node.terminal = TerminalClass.QUIESCENT
             if is_point:
                 # Explore departures (unstable equilibria); the identity
                 # continuation is the quiescent behavior itself.
-                for succ in _successors(compiled, state, cfg, stats, exclude=vals):
-                    add_child(node, succ)
+                succ = _expand(frame, state, vals, cfg, stats, ignored, exclude=vals)
+                for child_state, child_frame in succ or []:
+                    attach(node, child_state, child_frame)
                 stats["expanded"] += 1
             continue
 
-        if is_point and cfg.cycle_detection:
+        if is_point and cfg.cycle_detection and not cfg.envisionment:
             anc = _matching_ancestor(nodes, node)
             if anc is not None:
                 node.terminal = TerminalClass.CYCLE
                 node.cycle_target = anc
                 continue
 
-        if is_point and any(
-            not point_successors(qv, compiled.spaces[vi])
-            for vi, qv in enumerate(vals)
-        ):
-            node.terminal = TerminalClass.REGION_EXIT
-            continue
-
         exclude = vals if (not is_point and cfg.no_change_filter) else None
-        children = list(_successors(compiled, state, cfg, stats, exclude=exclude))
+        children = _expand(frame, state, vals, cfg, stats, ignored, exclude=exclude)
+        if children is None:  # some variable has no legal transition
+            node.terminal = (
+                TerminalClass.REGION_EXIT if is_point else TerminalClass.DEADEND
+            )
+            continue
         stats["expanded"] += 1
         if not children:
             node.terminal = TerminalClass.DEADEND
             stats["deadends"] += 1
             continue
-        for succ in children:
-            add_child(node, succ)
+        for child_state, child_frame in children:
+            attach(node, child_state, child_frame)
 
-    graph = BehaviorGraph(nodes, 0, compiled.var_order, compiled.spaces)
+    graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
     return SimResult(graph, status, stats, cfg)
 
 
-def _successors(
-    compiled: CompiledModel,
+def _expand(
+    frame: CompiledModel,
     state: QState,
+    vals: tuple[QVal, ...],
     cfg: SimConfig,
     stats: dict,
+    ignored: frozenset[int],
     *,
     exclude: tuple[QVal, ...] | None,
-) -> list[QState]:
-    """Filtered successor states of ``state`` (the opposite time tag).
+) -> list[tuple[QState, CompiledModel]] | None:
+    """Filtered successors of ``state`` with their (possibly grown) frames.
 
-    ``exclude`` drops the assignment identical to those values: the
-    no-change filter for interval states, the identity continuation for
-    quiescent points.
+    Returns None when some variable has no legal transition at all (the
+    region-exit condition at points); an empty list when candidates existed
+    but none survived filtering.
     """
     is_point = state.time is TimeTag.POINT
     table = point_successors if is_point else interval_successors
     next_time = TimeTag.INTERVAL if is_point else TimeTag.POINT
 
-    domains = [
-        table(state[v], compiled.spaces[i])
-        for i, v in enumerate(compiled.var_order)
-    ]
+    domains: list[list[QVal]] = []
+    for vi, qv in enumerate(vals):
+        if qv.dir is Qdir.IGN:
+            # direction untracked: candidates from every concrete direction
+            union: list[QVal] = []
+            for d in (Qdir.DEC, Qdir.STD, Qdir.INC):
+                for cand in table(QVal(qv.mag, d), frame.spaces[vi]):
+                    if cand not in union:
+                        union.append(cand)
+            domains.append(union)
+        else:
+            domains.append(table(qv, frame.spaces[vi]))
     if any(not d for d in domains):
-        return []
-    pruned = filters.prune_domains(compiled, domains)
+        return None
+
+    pruned = filters.prune_domains(frame, domains)
     if pruned is None:
         return []
 
-    out: list[QState] = []
-    for combo in filters.assemble(compiled, pruned):
+    out: list[tuple[QState, CompiledModel]] = []
+    emitted: set[QState] = set()
+    for combo in filters.assemble(frame, pruned):
         stats["candidates"] += 1
-        if exclude is not None and combo == exclude:
-            stats["no_change_filtered"] += 1
-            continue
         if (
             next_time is TimeTag.POINT
             and cfg.infinity_filter
-            and not filters.admissible_at_infinity(compiled, combo)
+            and not filters.admissible_at_infinity(frame, combo)
         ):
             stats["infinity_filtered"] += 1
             continue
-        out.append(
-            QState.from_dict(dict(zip(compiled.var_order, combo)), next_time)
+        projected = tuple(
+            QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
+            for vi, qv in enumerate(combo)
         )
+        if exclude is not None and projected == exclude:
+            stats["no_change_filtered"] += 1
+            continue
+        cand_state = QState.from_dict(
+            dict(zip(frame.var_order, projected)), next_time
+        )
+        if cand_state in emitted:  # chatter branches collapse here
+            continue
+        if cfg.successor_filters and not all(
+            keep(state, cand_state, frame) for keep in cfg.successor_filters
+        ):
+            stats["user_filtered"] += 1
+            continue
+        emitted.add(cand_state)
+
+        child_frame = frame
+        child_state = cand_state
+        if next_time is TimeTag.POINT and cfg.discover_landmarks:
+            child_frame, minted_vals, minted = introduce_landmarks(
+                frame, vals, projected, cfg.max_landmarks
+            )
+            if minted:
+                stats["landmarks_minted"] += len(minted)
+                child_state = QState.from_dict(
+                    dict(zip(frame.var_order, minted_vals)), next_time
+                )
+        out.append((child_state, child_frame))
     return out
+
+
+def _project(
+    frame: CompiledModel, state: QState, ignored: frozenset[int]
+) -> QState:
+    if not ignored:
+        return state
+    values = {
+        name: (QVal(state[name].mag, Qdir.IGN) if vi in ignored else state[name])
+        for vi, name in enumerate(frame.var_order)
+    }
+    return QState.from_dict(values, state.time)
 
 
 def _matching_ancestor(nodes: dict[int, Node], node: Node) -> int | None:
     pid = node.parent
     while pid is not None:
         anc = nodes[pid]
-        if anc.state == node.state:
+        if anc.state == node.state and anc.model == node.model:
             return pid
         pid = anc.parent
     return None
@@ -205,11 +294,16 @@ def _validate_initial(compiled: CompiledModel, initial: QState) -> None:
             f"(missing: {sorted(missing)}, unknown: {sorted(extra)})"
         )
     for vi, name in enumerate(compiled.var_order):
-        rank = initial[name].mag
-        if not 0 <= rank < compiled.spaces[vi].num_ranks:
-            raise ValueError(f"initial value of {name!r} has out-of-range rank {rank}")
+        qv = initial[name]
+        if not 0 <= qv.mag < compiled.spaces[vi].num_ranks:
+            raise ValueError(
+                f"initial value of {name!r} has out-of-range rank {qv.mag}"
+            )
+        if qv.dir is Qdir.IGN:
+            raise ValueError(
+                f"initial value of {name!r} must use a concrete direction "
+                f"(the engine projects ignored directions itself)"
+            )
     violated = filters.check_state(compiled, initial)
     if violated is not None:
-        raise ValueError(
-            f"initial state violates constraint {violated.source!r}"
-        )
+        raise ValueError(f"initial state violates constraint {violated.source!r}")

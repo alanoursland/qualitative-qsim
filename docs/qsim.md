@@ -150,8 +150,35 @@ Semantic decisions made in the reference engine, recorded for review:
   of validity — the hook operating regions will attach to in phase 4).
 - **Dead ends are reported, not pruned.** A state with candidates but no
   consistent successor is classified `DEADEND`; deleting it (or its
-  ancestors) retroactively is a phase-2+ refinement that must preserve
+  ancestors) retroactively is a later refinement that must preserve
   soundness bookkeeping.
+
+Phase-2 additions:
+
+- **Frames.** Landmark discovery makes quantity spaces per-branch: each
+  node carries a frame (a `CompiledModel` with grown spaces and
+  rank-shifted constraint references). Inserting a landmark into interval
+  rank `r` shifts that variable's ranks above `r` by +2; the steady value
+  re-encodes to `r+1`. Frames are content-hashable, so cycle matching and
+  envisionment merging compare `(frame, state)` pairs — states in
+  different spaces never spuriously match.
+- **Discovered corresponding values.** When minting, any M+/M-/MINUS/ADD
+  constraint touching a minted variable whose variables are all at
+  landmarks records the observed rank tuple as a corresponding value
+  (valid: monotonic functions and sums pin co-occurring values). This is
+  what ties `x*0` to `a*0` in the spring and sharpens later filtering on
+  that branch.
+- **Chatter abstraction is projection, not restriction.** For
+  `ignore_qdir` variables, candidates are generated over all concrete
+  directions and constraint-filtered normally (soundness), then projected
+  to `IGN` and merged (collapse). Ignored variables never mint landmarks
+  and never block quiescence.
+- **The energy-argument slot.** `successor_filters` receive
+  `(parent_state, candidate, frame)` with the candidate in the parent's
+  (pre-mint) frame. The undamped-spring energy filter in the test suite is
+  the canonical use: veto unnamed extrema on a side that already has a
+  named one, and veto motion beyond a named extremum. A first-class
+  declarative `EnergyFilter` remains open (docs/open-questions.md #7).
 
 ## 9. Order of implementation
 
