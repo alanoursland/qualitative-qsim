@@ -7,7 +7,7 @@ what exists vs. what is planned.
 
 from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
 from .model import Model, Variable
-from .quantity import Qdir, QuantitySpace, QVal
+from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "Mult",
     "Model",
     "Variable",
+    "Landmark",
     "Qdir",
     "QuantitySpace",
     "QVal",

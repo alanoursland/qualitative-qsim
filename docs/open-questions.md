@@ -1,67 +1,62 @@
 # Open questions
 
-Things that should be settled by the forthcoming integration details (or an
-explicit decision), roughly in order of how much they shape the design.
-Provisional defaults are what the skeleton currently assumes.
+Updated after the host-integration requirements landed
+(`docs/host-integration.md`). Resolved items are kept (struck through in
+spirit) with their resolutions; new questions raised by that design follow.
 
-## 1. Which bridge direction matters most?
+## Resolved
 
-The numeric bridge has four distinct products: (a) trajectory abstraction
-(numeric → qualitative summaries), (b) validation (numeric model vs.
-qualitative spec), (c) guidance (use the behavior graph to steer numeric
-search/experiments), (d) model induction (learn QDEs from trajectories).
-**Provisional default:** (a) first, since it unlocks the soundness harness
-regardless. If the integration mainly needs (b)/(c)/(d), Phase 3 reshapes.
+1. **Which bridge direction matters most?** → Both upward abstraction *and*
+   validation are primary: the coverage oracle (Surface 3) is the flagship
+   host-facing product and the exit criterion of phase 3; abstraction is its
+   prerequisite. Identification priors are served as data exports
+   (Surface 6); active "guidance" of numeric search stays out of scope.
+2. **Time semantics of the numeric side?** → Continuous-time, possibly
+   irregularly sampled, **with hybrid/mode-switching support required
+   early** — operating regions moved to phase 4 and the abstraction
+   pipeline reserves a mode channel from day one.
+3. **Differentiability?** → Not near-term. Hosts consume qualitative
+   structure as *data* (sign structure for constrained regression, coverage
+   scores for model selection); soft losses remain a possible phase-7 layer
+   strictly above the exact core.
+4. **Model interchange format?** → Yes, needed: hosts author and ship QDEs
+   programmatically. Versioned JSON schema for models and results; frozen at
+   the end of phase 4, marked unstable before that.
+5. **Symbolic values on landmarks?** → No CAS dependency, ever, in core.
+   Landmarks carry optional numeric `value`/bounds; symbolic identities stay
+   host-side keyed by landmark name (Surface 1).
 
-## 2. Scale profile
+## Open
 
-Typical variable counts, batch sizes of trajectories, and whether *ensembles
-of models* is a real workload decide how hard to push the tensor engine and
-whether `int8` encodings / `torch.compile` are worth it.
-**Provisional default:** design for `V ≤ ~64`, trajectory batches up to ~10⁶
-timesteps total, ensembles as a first-class batch axis.
-
-## 3. Time semantics of the numeric side
-
-Continuous-time ODE trajectories, discrete-time maps, or both? Irregular
-sampling? Hybrid/mode-switching systems from day one? This shapes the
-abstraction pipeline's direction-estimation and the urgency of operating
-regions. **Provisional default:** continuous-time, possibly irregularly
-sampled, hybrid support designed-for but deferred (mode channel reserved in
-the segment representation).
-
-## 4. Differentiability
-
-Is gradient flow through qualitative structure (soft constraint losses,
-relaxations) ever wanted, or is QR strictly a symbolic/analysis layer?
-**Provisional default:** strictly symbolic core; soft losses deferred to
-Phase 6 and layered, never entangled with exact semantics.
-
-## 5. Naming & packaging conventions
-
-Package is currently `qrlib` under `src/`, `pyproject.toml`/hatchling,
-Python ≥ 3.10, torch required-but-lazily-imported. If the neighboring
-ecosystem has conventions (namespace packages, config style, tensor layout
-`(B,T,V)` vs `(T,B,V)`, device handling idioms), we should match them early —
-renames get expensive fast. **Provisional default:** batch-first `(B,T,V)`.
-
-## 6. Model interchange format
-
-Should qualitative models be authored/emitted by other tools? If yes, the
-JSON schema for `Model` (variables, spaces, constraints, corresponding
-values) should be versioned and specified early. **Provisional default:**
-schema exists but is marked unstable until Phase 2.
-
-## 7. License and distribution
-
-No license file yet — needs an explicit choice (MIT/BSD-3/Apache-2.0?)
-before anything is published. Also: PyPI name (`qualitative-reasoning-lib`?
-`qrlib` is likely taken — check before Phase 1 ends).
-
-## 8. Scope of "other stuff too"
-
-The landscape doc lists candidates (envisionment, QPT-style processes,
-semi-quantitative Q2, comparative analysis, QDE induction). Current bet on
-order: Q2 > operating regions > envisionment > induction > comparative
-analysis. Cheap to reorder now, worth confirming against the integration
-goals when details arrive.
+6. **Scale profile.** Typical variable counts, trajectory batch sizes, and
+   whether model ensembles are a real workload — decides how hard to push
+   the tensor engine (`int8` encodings, `torch.compile`).
+   *Provisional:* design for `V ≤ ~64`, batches to ~10⁶ total timesteps,
+   ensembles as a first-class batch axis.
+7. **Analytic filter semantics.** The pluggable global-filter hook accepts
+   user predicates; the classic use is an energy argument (a declared
+   variable that must be non-increasing along behaviors). Should qrlib ship
+   a first-class `EnergyFilter` (declare variable + monotonicity) or leave
+   it to host predicates? *Provisional:* ship it — it is the canonical
+   spurious-behavior killer and needs careful point/interval semantics that
+   shouldn't be reinvented per host.
+8. **Crossing refinement at the seam.** Abstraction tolerates sample-level
+   landmark crossings; hosts with event-accurate solvers can pre-refine.
+   Should the seam optionally accept per-crossing refined times to tighten
+   behaviors, or is sample-level always enough? *Provisional:* accept an
+   optional refined-events input later; not in the phase-3 pipeline.
+9. **String constraint syntax.** `"M+(level, outflow)"` parsing is cheap and
+   host-ergonomic, but a second authoring path to maintain.
+   *Provisional:* add in phase 4 alongside the schema freeze, as a thin
+   layer over the schema only.
+10. **Confidence semantics for estimated signs.** `bridge.signs` estimation
+    returns per-entry confidence; what statistic (sign agreement rate?
+    bootstrap?) and what threshold feeds model construction?
+    Decide during phase 4 with real data in hand.
+11. **License and distribution.** No license file yet — needs an explicit
+    choice (MIT/BSD-3/Apache-2.0?) before anything is published. PyPI name
+    (`qualitative-reasoning-lib`? `qrlib` availability) to check before
+    phase 1 ends.
+12. **Order of the phase-7 extras.** Current bet: explanation/viz > total
+    envisionment > induction > comparative analysis > temporal-logic
+    queries. Reorder on demand signals from the first host adapter.

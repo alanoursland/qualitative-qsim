@@ -2,8 +2,14 @@
 
 The foundational representations of QSIM-style qualitative reasoning:
 
-- :class:`QuantitySpace` — a totally ordered tuple of named landmark values,
-  optionally unbounded below/above (conceptual ``-inf`` / ``+inf`` endpoints).
+- :class:`Landmark` — a named landmark value; the *name* is its canonical
+  identity, with optional numeric knowledge attached (an exact ``value``
+  and/or interval bounds ``(lo, hi)``). Purely qualitative machinery uses
+  only names and order; abstraction, coverage checking, and
+  semi-quantitative propagation use the numbers when present (see
+  docs/host-integration.md, Surface 1).
+- :class:`QuantitySpace` — a totally ordered tuple of landmarks, optionally
+  unbounded below/above (conceptual ``-inf`` / ``+inf`` endpoints).
 - :class:`Qdir` — direction of change (decreasing / steady / increasing).
 - :class:`QVal` — a qualitative value: a magnitude (at a landmark, or in the
   open interval between adjacent landmarks) paired with a direction.
@@ -26,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
-__all__ = ["Qdir", "QuantitySpace", "QVal"]
+__all__ = ["Landmark", "Qdir", "QuantitySpace", "QVal"]
 
 NEG_INF = "-inf"
 POS_INF = "+inf"
@@ -45,44 +51,99 @@ class Qdir(IntEnum):
 
 
 @dataclass(frozen=True)
-class QuantitySpace:
-    """A totally ordered set of named landmarks.
+class Landmark:
+    """A named landmark, optionally carrying numeric knowledge.
 
-    ``landmarks`` are the *finite*, named landmarks in increasing order
-    (e.g. ``("0", "FULL")``). ``lower_unbounded`` / ``upper_unbounded`` add
-    conceptual ``-inf`` / ``+inf`` endpoints, which behave as ordinary
-    (unreachable-in-finite-time) landmarks for encoding purposes.
+    ``value`` is the exact numeric location when known (e.g. a computed
+    equilibrium level); ``lo``/``hi`` are interval bounds for
+    semi-quantitative reasoning or uncertain estimates. Hosts that know a
+    landmark's location only symbolically keep the expression on their side,
+    keyed by ``name``, and pass ``value=None`` (or numeric bounds) here.
     """
 
-    landmarks: tuple[str, ...]
+    name: str
+    value: float | None = None
+    lo: float | None = None
+    hi: float | None = None
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("a Landmark needs a non-empty name")
+        if self.lo is not None and self.hi is not None and self.lo > self.hi:
+            raise ValueError(f"landmark {self.name!r}: lo {self.lo} > hi {self.hi}")
+        if self.value is not None:
+            if self.lo is not None and self.value < self.lo:
+                raise ValueError(f"landmark {self.name!r}: value below lo bound")
+            if self.hi is not None and self.value > self.hi:
+                raise ValueError(f"landmark {self.name!r}: value above hi bound")
+
+
+@dataclass(frozen=True)
+class QuantitySpace:
+    """A totally ordered set of landmarks.
+
+    ``landmarks`` are the *finite* landmarks in increasing order, given as
+    :class:`Landmark` objects or bare name strings (normalized to
+    ``Landmark``). ``lower_unbounded`` / ``upper_unbounded`` add conceptual
+    ``-inf`` / ``+inf`` endpoints, which behave as ordinary
+    (unreachable-in-finite-time) landmarks for encoding purposes. Known
+    numeric values must respect the declared order.
+    """
+
+    landmarks: tuple[Landmark | str, ...]
     lower_unbounded: bool = False
     upper_unbounded: bool = False
 
     def __post_init__(self) -> None:
-        if not self.landmarks:
+        norm = tuple(
+            lm if isinstance(lm, Landmark) else Landmark(str(lm))
+            for lm in self.landmarks
+        )
+        object.__setattr__(self, "landmarks", norm)
+        names = [lm.name for lm in norm]
+        if not names:
             raise ValueError("a QuantitySpace needs at least one named landmark")
-        if len(set(self.landmarks)) != len(self.landmarks):
-            raise ValueError(f"duplicate landmark names: {self.landmarks!r}")
+        if len(set(names)) != len(names):
+            raise ValueError(f"duplicate landmark names: {names!r}")
         for reserved in (NEG_INF, POS_INF):
-            if reserved in self.landmarks:
+            if reserved in names:
                 raise ValueError(
                     f"{reserved!r} is implicit; use lower_unbounded/upper_unbounded"
                 )
+        prev: Landmark | None = None
+        for lm in norm:
+            if lm.value is not None:
+                if prev is not None and lm.value <= prev.value:
+                    raise ValueError(
+                        f"landmark values out of order: {prev.name!r}={prev.value} "
+                        f"is not below {lm.name!r}={lm.value}"
+                    )
+                prev = lm
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        return tuple(lm.name for lm in self.landmarks)
 
     @property
     def effective_landmarks(self) -> tuple[str, ...]:
         """Landmark names including any conceptual infinities."""
         pre = (NEG_INF,) if self.lower_unbounded else ()
         post = (POS_INF,) if self.upper_unbounded else ()
-        return pre + self.landmarks + post
+        return pre + self.names + post
 
     @property
     def num_ranks(self) -> int:
         """Number of distinct qualitative magnitudes (landmarks + gaps)."""
         return 2 * len(self.effective_landmarks) - 1
 
+    def landmark(self, name: str) -> Landmark:
+        for lm in self.landmarks:
+            if lm.name == name:
+                return lm
+        raise KeyError(name)
+
     def rank_of(self, landmark: str) -> int:
-        """Rank of the magnitude 'at ``landmark``'."""
+        """Rank of the magnitude 'at ``landmark``' (by name)."""
         return 2 * self.effective_landmarks.index(landmark)
 
     def rank_between(self, lower: str, upper: str) -> int:
@@ -92,6 +153,29 @@ class QuantitySpace:
         if j != i + 1:
             raise ValueError(f"{lower!r} and {upper!r} are not adjacent in {eff}")
         return 2 * i + 1
+
+    def rank_of_value(self, x: float, *, atol: float = 0.0) -> int:
+        """Rank of the magnitude containing numeric value ``x``.
+
+        Requires every named landmark to carry a numeric ``value``; a
+        landmark is hit when ``|x - value| <= atol``, otherwise ``x`` falls
+        in an interval. This is the scalar seed of the batched bucketization
+        in ``qrlib.bridge.abstraction``.
+        """
+        values = [lm.value for lm in self.landmarks]
+        if any(v is None for v in values):
+            missing = [lm.name for lm in self.landmarks if lm.value is None]
+            raise ValueError(f"landmarks without numeric values: {missing}")
+        off = 1 if self.lower_unbounded else 0
+        for i, v in enumerate(values):
+            if abs(x - v) <= atol:
+                return 2 * (i + off)
+        below = sum(1 for v in values if v < x)
+        if below == 0 and not self.lower_unbounded:
+            raise ValueError(f"{x} lies below this space")
+        if below == len(values) and not self.upper_unbounded:
+            raise ValueError(f"{x} lies above this space")
+        return 2 * (below - 1 + off) + 1
 
     def is_landmark_rank(self, rank: int) -> bool:
         self._check_rank(rank)
@@ -115,21 +199,23 @@ class QuantitySpace:
         zero_rank = self.rank_of(zero)
         return (rank > zero_rank) - (rank < zero_rank)
 
-    def insert_landmark(self, name: str, *, after: str) -> "QuantitySpace":
-        """A new space with ``name`` inserted just above landmark ``after``.
+    def insert_landmark(self, landmark: Landmark | str, *, after: str) -> "QuantitySpace":
+        """A new space with ``landmark`` inserted just above landmark ``after``.
 
-        This is the primitive behind QSIM new-landmark discovery.
+        This is the primitive behind QSIM new-landmark discovery, and behind
+        landmark intake from hosts (``qrlib.bridge.harvest``).
         """
-        if name in self.effective_landmarks:
-            raise ValueError(f"landmark {name!r} already exists")
-        i = self.landmarks.index(after) + 1 if after in self.landmarks else None
-        if i is None:
-            if after == NEG_INF and self.lower_unbounded:
-                i = 0
-            else:
-                raise ValueError(f"unknown landmark {after!r}")
+        lm = landmark if isinstance(landmark, Landmark) else Landmark(str(landmark))
+        if lm.name in self.effective_landmarks:
+            raise ValueError(f"landmark {lm.name!r} already exists")
+        if after in self.names:
+            i = self.names.index(after) + 1
+        elif after == NEG_INF and self.lower_unbounded:
+            i = 0
+        else:
+            raise ValueError(f"unknown landmark {after!r}")
         return QuantitySpace(
-            self.landmarks[:i] + (name,) + self.landmarks[i:],
+            self.landmarks[:i] + (lm,) + self.landmarks[i:],
             lower_unbounded=self.lower_unbounded,
             upper_unbounded=self.upper_unbounded,
         )

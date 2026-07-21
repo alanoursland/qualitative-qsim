@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .constraints import Constraint
-from .quantity import Qdir, QuantitySpace, QVal
+from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
 __all__ = ["Variable", "Model"]
@@ -36,7 +36,7 @@ class Model:
         self,
         name: str,
         *,
-        landmarks: tuple[str, ...] = ("0",),
+        landmarks: tuple[str | Landmark, ...] = ("0",),
         lower_unbounded: bool = False,
         upper_unbounded: bool = False,
         unbounded: bool = False,

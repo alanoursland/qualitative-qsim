@@ -34,10 +34,10 @@ def test_sign_of_relative_to_zero():
 def test_insert_landmark_preserves_order():
     space = QuantitySpace(("0", "FULL"), upper_unbounded=True)
     grown = space.insert_landmark("EQ", after="0")
-    assert grown.landmarks == ("0", "EQ", "FULL")
+    assert grown.names == ("0", "EQ", "FULL")
     assert grown.rank_of("EQ") == 2
     # original space untouched (spaces are values)
-    assert space.landmarks == ("0", "FULL")
+    assert space.names == ("0", "FULL")
 
 
 def test_space_validation():

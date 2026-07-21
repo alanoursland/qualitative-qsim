@@ -53,6 +53,7 @@ Corresponding values     Semi-quantitative (Q2-ish)  Visualization
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
   [tensorization & GPU strategy](docs/gpu-tensorization.md),
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
+  [embedding in a host toolkit](docs/host-integration.md),
   [roadmap](docs/roadmap.md), [open questions](docs/open-questions.md).
 - **`src/qrlib/`** — provisional package skeleton. Core representations
   (quantity spaces, qualitative values, constraints, models) are small real
@@ -94,7 +95,12 @@ behaviors.plot()   # branching behavior tree: equilibrium vs. overflow, etc.
    numeric dynamical system (a vector field / trajectory source) can be
    abstracted into, or checked against, a qualitative model — see
    [`docs/numeric-bridge.md`](docs/numeric-bridge.md).
-4. **Soundness is sacred, spuriousness is managed.** Like QSIM itself: never
+4. **Embeddable by design.** Larger dynamical-systems toolkits should be able
+   to build thin adapter modules on top of qrlib — names as canonical
+   identity, no CAS/graph-library dependencies in core, tensors as the only
+   numeric interchange, serializable witness-carrying results — see
+   [`docs/host-integration.md`](docs/host-integration.md).
+5. **Soundness is sacred, spuriousness is managed.** Like QSIM itself: never
    drop a real behavior; add filters to prune impossible ones.
 
 ## References (orientation)
