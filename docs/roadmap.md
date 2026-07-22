@@ -378,8 +378,14 @@ in recommended order:
   states, and it refutes a qualitatively-consistent but numerically-
   impossible equilibrium. Envelopes and cross-state coupling stay in the
   reference `semiquant.refine` path.
-- GPU benchmark runs (needs a CUDA box); first-class declarative
-  `EnergyFilter` (docs/open-questions.md #7).
+- ~~First-class declarative `EnergyFilter`~~ **(done —
+  `qrlib.EnergyFilter`)**: a ready-made `SuccessorFilter` enforcing the
+  energy argument through landmark discovery — CONSERVED pins turning
+  points to discovered extrema, NONINCREASING forbids only growth, with
+  the point/interval landmark semantics handled once. Reproduces the
+  hand-written frictionless-spring filter byte-for-byte (17-node cycle,
+  8 vetoes) and stays covered by the numeric soundness harness.
+- GPU benchmark runs (needs a CUDA box).
 - Not yet assessed (worth a follow-up survey): monotone dynamical-systems
   theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
   reachability tooling; hybrid-system falsification / conformance testing.

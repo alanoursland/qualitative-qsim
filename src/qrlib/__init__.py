@@ -26,6 +26,7 @@ from .constraints import (
     Mult,
     Negligible,
 )
+from .energy import EnergyFilter, Trend
 from . import decompose, diagnosis, frontends, guide, induce, semiquant, viz
 from .engines.envision import Envisionment, envision
 from .engines.qsim import qsim
@@ -69,6 +70,8 @@ __all__ = [
     "SimResult",
     "SimStatus",
     "TerminalClass",
+    "EnergyFilter",
+    "Trend",
     "qsim",
     "envision",
     "Envisionment",

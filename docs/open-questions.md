@@ -33,13 +33,16 @@ spirit) with their resolutions; new questions raised by that design follow.
    the tensor engine (`int8` encodings, `torch.compile`).
    *Provisional:* design for `V ≤ ~64`, batches to ~10⁶ total timesteps,
    ensembles as a first-class batch axis.
-7. **Analytic filter semantics.** The pluggable global-filter hook accepts
-   user predicates; the classic use is an energy argument (a declared
-   variable that must be non-increasing along behaviors). Should qrlib ship
-   a first-class `EnergyFilter` (declare variable + monotonicity) or leave
-   it to host predicates? *Provisional:* ship it — it is the canonical
-   spurious-behavior killer and needs careful point/interval semantics that
-   shouldn't be reinvented per host.
+7. **Analytic filter semantics.** ~~Should qrlib ship a first-class
+   `EnergyFilter`?~~ **Resolved: shipped** (`qrlib.EnergyFilter`). A
+   declarative `SuccessorFilter` (amplitude-contributing variables +
+   `Trend` = CONSERVED | NONINCREASING + reference landmark) that enforces
+   the energy argument through landmark discovery: turning points must
+   coincide with discovered extrema (conserved) or never grow past them
+   (dissipative), with the point/interval landmark semantics handled once.
+   It reproduces the bespoke frictionless-spring filter byte-for-byte
+   (the single 17-node cycle) and keeps the numeric soundness harness
+   covered.
 8. **Crossing refinement at the seam.** Abstraction tolerates sample-level
    landmark crossings; hosts with event-accurate solvers can pre-refine.
    Should the seam optionally accept per-crossing refined times to tighten
