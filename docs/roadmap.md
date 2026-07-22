@@ -300,8 +300,18 @@ in recommended order:
   declarations), rides the schema/sign-structure exports, is skipped by
   causal ordering (an inequality, not an equation), and reaches the
   tensor tables by construction.
-- Opportunistic reasoning layers: QPT / ENVISION-confluences model
-  front-ends.
+- ~~QPT / ENVISION-confluences model front-ends~~ **(done —
+  `qrlib.frontends`)**: `qpt.System` authors quantities, qualitative
+  proportionalities, and processes with direct influences; influence
+  resolution emits `q'` derivative variables (sole-mechanism `q' = 0`
+  when nothing is active) and activation conditions compile to operating
+  regions with boundary transitions — supported by a new engine Zeno
+  guard suppressing instantaneous return-to-region ping-pong on shared
+  boundaries. `devices.Library`/`Device` compose models by wiring
+  reusable component types; connected terminals unify into shared
+  variables and the netlist compiles to a `Model` identical to its
+  handwritten equivalent (cascade regression). Both are pure front-ends:
+  the engine consumes ordinary models.
 - Total envisionment (enumerate all consistent states, then connect).
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
   pairs naturally with the trajectory-abstraction pipeline.

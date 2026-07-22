@@ -197,6 +197,7 @@ def qsim(
                 tr
                 for tr in frame.region_named(node.region).transitions
                 if _guards_hold(frame, vals, tr)
+                and not _bounces(nodes, node, tr, vals)
             ]
             if firing:
                 stats["region_crossings"] += len(firing)
@@ -266,6 +267,24 @@ def qsim(
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
     return SimResult(graph, status, stats, cfg)
+
+
+def _bounces(
+    nodes: dict[int, Node], node: Node, tr: CompiledTransition, vals: tuple[QVal, ...]
+) -> bool:
+    """Would this transition instantaneously return to the region the
+    behavior just left, with unchanged magnitudes? Both regions' guards
+    hold on a shared boundary, so without this check two boundary-crossing
+    transitions ping-pong forever at the same instant (a Zeno loop). The
+    behavior is already sitting on the boundary: staying put in the
+    current region is the real continuation."""
+    if node.parent is None:
+        return False
+    parent = nodes[node.parent]
+    if parent.region != tr.target or parent.model != node.model:
+        return False
+    pvals = tuple(parent.state[v].mag for v in parent.model.var_order)
+    return pvals == tuple(qv.mag for qv in vals)
 
 
 def _guards_hold(

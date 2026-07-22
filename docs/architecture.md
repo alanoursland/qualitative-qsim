@@ -20,6 +20,9 @@ src/qrlib/
 ├── guide.py             # temporal-logic guided simulation + verdicts (LTL)
 ├── decompose.py         # DecSIM-style component decomposition + join
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
+├── frontends/
+│   ├── qpt.py           # process-centric authoring (QPT) -> Model + regions
+│   └── devices.py       # component/netlist composition (ENVISION) -> Model
 ├── engines/
 │   ├── qsim.py          # reference pure-Python QSIM (+ envisionment mode)
 │   ├── transitions.py   # P-/I-transition tables

@@ -230,7 +230,16 @@ rule; treat QPORTRAIT as optional.
 
 ## Tier 3 — alternative model intake & a scaling lesson
 
-### 7. Qualitative Process Theory (Forbus) as a model front-end
+### 7. Qualitative Process Theory (Forbus) as a model front-end — **implemented**
+
+> Built as `qrlib.frontends.qpt`: quantities, qualitative
+> proportionalities, and processes with direct influences; influence
+> resolution emits derivative variables and per-activation-combination
+> constraints; activation conditions compile to operating regions with
+> boundary transitions (an engine Zeno guard suppresses instantaneous
+> boundary ping-pong). Strengthenings inherent to targeting a QDE engine
+> are documented in the module, and unsupported forms raise rather than
+> degrade. The rest is the original assessment.
 
 **What it does.** A **process-centered** modeling ontology — processes
 (flow, transfer, motion) are the primitives that create influences — versus
@@ -248,7 +257,16 @@ structure (which `bridge.signs` already consumes). No engine change.
 **Buys:** a more natural authoring path and automatic process-activation
 regions.
 
-### 8. ENVISION / confluences (de Kleer & Brown)
+### 8. ENVISION / confluences (de Kleer & Brown) — **composition implemented**
+
+> Built as `qrlib.frontends.devices`: a `Library` of `ComponentType`s
+> (terminals + internals + a law over local names), instantiated and
+> wired by a `Device`; connected terminals unify into shared variables
+> and the composed result is an ordinary `Model` ("no function in
+> structure": types know nothing about their wiring). Component modes
+> defer to operating regions / `diagnosis.Component`; total
+> envisionment remains on the backlog. The rest is the original
+> assessment.
 
 **What it does.** A **device-centered** ontology: components + conduits
 (topology) + boundary conditions, behavior composed from a reusable
@@ -337,8 +355,8 @@ By value-per-effort against the current architecture:
 4. ~~**DecSIM decomposition** (§1)~~ — **done** (`qrlib.decompose`).
 5. Opportunistic: ~~the **non-intersection global filter** (§6)~~ — **done**
    (`engines.phase`, `SimConfig.phase_pairs`); ~~**FOG** disambiguation
-   (§5)~~ — **done** (`qrlib.Negligible`); a **QPT/ENVISION** front-end
-   (§7–8) as authoring demand appears.
+   (§5)~~ — **done** (`qrlib.Negligible`); ~~a **QPT/ENVISION** front-end
+   (§7–8)~~ — **done** (`qrlib.frontends`).
 
 See also `docs/piecewise-affine.md` — a related near-term candidate
 (exact qualitative phase portraits for piecewise-affine systems) documented

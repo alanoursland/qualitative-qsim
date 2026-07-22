@@ -26,7 +26,7 @@ from .constraints import (
     Mult,
     Negligible,
 )
-from . import decompose, diagnosis, guide, semiquant, viz
+from . import decompose, diagnosis, frontends, guide, semiquant, viz
 from .engines.qsim import qsim
 from .model import (
     CompiledModel,
@@ -71,6 +71,7 @@ __all__ = [
     "qsim",
     "decompose",
     "diagnosis",
+    "frontends",
     "guide",
     "semiquant",
     "viz",
