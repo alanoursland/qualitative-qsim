@@ -82,12 +82,22 @@ def qsim(
     _validate_initial(root_frame, initial, root_region)
     init_state = _project(root_frame, initial, ignored)
 
+    progress_fn = None
+    root_guide = None
+    if cfg.guide is not None:
+        from ..guide import FALSE as _SPEC_FALSE
+        from ..guide import progress as progress_fn
+
+        root_guide = progress_fn(cfg.guide, init_state, root_frame)
+
     nodes: dict[int, Node] = {
-        0: Node(0, init_state, None, 0, root_frame, root_region)
+        0: Node(0, init_state, None, 0, root_frame, root_region, guide=root_guide)
     }
     frontier: deque[int] = deque([0])
-    seen: dict[tuple[CompiledModel, QState, str], int] | None = (
-        {(root_frame, init_state, root_region): 0} if cfg.envisionment else None
+    seen = (
+        {(root_frame, init_state, root_region, root_guide): 0}
+        if cfg.envisionment
+        else None
     )
     stats = {
         "nodes": 1,
@@ -99,13 +109,24 @@ def qsim(
         "merged": 0,
         "landmarks_minted": 0,
         "region_crossings": 0,
+        "spec_filtered": 0,
         "deadends": 0,
     }
     truncated = False
+    if root_guide is not None and root_guide == _SPEC_FALSE:
+        nodes[0].terminal = TerminalClass.SPEC_PRUNED
+        frontier.clear()
 
     def attach(parent: Node, state: QState, frame: CompiledModel, region: str) -> None:
+        child_guide = None
+        if progress_fn is not None:
+            child_guide = progress_fn(parent.guide, state, frame)
+            if child_guide == _SPEC_FALSE:
+                # bad prefix: no extension can satisfy the spec
+                stats["spec_filtered"] += 1
+                return
         if seen is not None:
-            key = (frame, state, region)
+            key = (frame, state, region, child_guide)
             hit = seen.get(key)
             if hit is not None:
                 if hit not in parent.children:
@@ -113,12 +134,15 @@ def qsim(
                 stats["merged"] += 1
                 return
         nid = len(nodes)
-        nodes[nid] = Node(nid, state, parent.id, parent.depth + 1, frame, region)
+        nodes[nid] = Node(
+            nid, state, parent.id, parent.depth + 1, frame, region,
+            guide=child_guide,
+        )
         parent.children.append(nid)
         frontier.append(nid)
         stats["nodes"] += 1
         if seen is not None:
-            seen[(frame, state, region)] = nid
+            seen[(frame, state, region, child_guide)] = nid
 
     while frontier:
         nid = frontier.popleft()
@@ -149,14 +173,19 @@ def qsim(
             ]
             if firing:
                 stats["region_crossings"] += len(firing)
+                entries_existed = False
                 for tr in firing:
                     for entry in _entry_states(
                         frame, vals, tr.target, cfg, stats, ignored
                     ):
+                        entries_existed = True
                         attach(node, entry, frame, tr.target)
                 if not node.children:
-                    node.terminal = TerminalClass.DEADEND
-                    stats["deadends"] += 1
+                    if entries_existed:  # the spec excluded every entry
+                        node.terminal = TerminalClass.SPEC_PRUNED
+                    else:
+                        node.terminal = TerminalClass.DEADEND
+                        stats["deadends"] += 1
                 continue
 
         if all(qv.dir in _TRACKED_STEADY for qv in vals):
@@ -195,6 +224,8 @@ def qsim(
             continue
         for child_state, child_frame in children:
             attach(node, child_state, child_frame, node.region)
+        if not node.children:  # the spec excluded every consistent successor
+            node.terminal = TerminalClass.SPEC_PRUNED
 
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
@@ -367,6 +398,7 @@ def _matching_ancestor(nodes: dict[int, Node], node: Node) -> int | None:
             anc.state == node.state
             and anc.model == node.model
             and anc.region == node.region
+            and anc.guide == node.guide
         ):
             return pid
         pid = anc.parent

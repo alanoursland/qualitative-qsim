@@ -15,7 +15,7 @@ from .behavior import (
     TerminalClass,
 )
 from .constraints import Add, At, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
-from . import diagnosis, semiquant, viz
+from . import diagnosis, guide, semiquant, viz
 from .engines.qsim import qsim
 from .model import (
     CompiledModel,
@@ -58,6 +58,7 @@ __all__ = [
     "TerminalClass",
     "qsim",
     "diagnosis",
+    "guide",
     "semiquant",
     "viz",
 ]

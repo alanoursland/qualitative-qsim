@@ -221,9 +221,21 @@ in recommended order:
   makes "stuck at zero" distinguishable from "normally zero" — wired
   through predicates, schema, causal ordering, semiquant, and the
   consistency checker.
-- **Guided simulation / exogenous inputs** (TeQSIM): temporal-logic
-  trajectory constraints + an incremental behavior-graph model-checker on
-  the agenda loop; the first-class story for time-varying inputs we lack.
+- ~~Guided simulation / exogenous inputs~~ **(done)** — `qrlib.guide`:
+  LTL over qualitative states (magnitude-vs-landmark and direction atoms;
+  X/G/F/U with operator sugar) progressed along every path
+  (Bacchus-Kabanza); bad prefixes pruned soundly at attach time with a
+  distinct `SPEC_PRUNED` terminal; exact per-terminal verdicts (lasso
+  evaluation for cycles, constant-suffix for quiescent/divergent,
+  finite-trace for exits, three-valued for truncation); residual formula
+  in node identity gives correct temporal unrolling of loops.
+  `classify()` doubles as temporal-logic model checking over any
+  behavior graph (the backlog's TL-queries item). Exogenous inputs work
+  as advertised: dropping `Constant(inflow)` and guiding with
+  `G(inflow==IF* ∧ dir std)` reproduces the golden graph export-for-
+  export. `universal` is a sound all-real-behaviors proof (empty
+  violated + undetermined); satisfied behaviors are possible, not
+  proven.
 - **Decomposition / scaling** (DecSIM): constraint-graph partitioner +
   interacting-histories coordinator to break the `2^n` successor blowup.
   The big scaling lever; larger effort — do it when model size binds.
@@ -237,7 +249,8 @@ in recommended order:
 - Total envisionment (enumerate all consistent states, then connect).
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
   pairs naturally with the trajectory-abstraction pipeline.
-- Comparative analysis; temporal-logic queries over behavior graphs.
+- Comparative analysis. (Temporal-logic queries over behavior graphs:
+  covered by `qrlib.guide.classify`.)
 - Soft differentiable constraint losses (layered above the exact core).
 - Batched/tensorized interval propagation; GPU benchmark runs (needs a
   CUDA box); first-class declarative `EnergyFilter`

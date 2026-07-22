@@ -50,6 +50,9 @@ class TerminalClass(Enum):
     - ``DEADEND``: no consistent successor survived filtering. A dead end
       indicates the state itself is spurious (real behaviors continue), but
       it is reported rather than silently pruned.
+    - ``SPEC_PRUNED``: physically consistent successors existed, but the
+      guide specification excluded every one of them (guided simulation
+      only) — the spec, not the model, ends this path.
     - ``TRUNCATED``: a resource limit stopped exploration here.
     """
 
@@ -58,6 +61,7 @@ class TerminalClass(Enum):
     DIVERGENT = "divergent"
     REGION_EXIT = "region_exit"
     DEADEND = "deadend"
+    SPEC_PRUNED = "spec_pruned"
     TRUNCATED = "truncated"
 
 
@@ -94,6 +98,10 @@ class SimConfig:
     - ``use_tensor``: route successor filtering through the tensorized
       tables (``qrlib.tensor``; requires torch). Results are identical to
       the reference path by contract — this is purely a performance knob.
+    - ``guide``: a temporal-logic spec (``qrlib.guide.Formula``) progressed
+      along every path; successors whose residual collapses to false are
+      pruned (sound: only behaviors none of whose extensions satisfy the
+      spec are removed). Usually set via ``qrlib.guide.guided``.
     """
 
     max_states: int = 500
@@ -107,6 +115,7 @@ class SimConfig:
     successor_filters: tuple[SuccessorFilter, ...] = ()
     envisionment: bool = False
     use_tensor: bool = False
+    guide: object | None = None
 
 
 @dataclass
@@ -122,6 +131,7 @@ class Node:
     children: list[int] = field(default_factory=list)
     terminal: TerminalClass | None = None
     cycle_target: int | None = None
+    guide: object | None = None  # residual spec formula (guided runs)
 
 
 @dataclass(frozen=True)
@@ -294,6 +304,10 @@ class SimResult:
         config = asdict(self.config)
         # callables are not serializable; record how many were active
         config["successor_filters"] = len(self.config.successor_filters)
+        if self.config.guide is not None:
+            from .guide import format_formula
+
+            config["guide"] = format_formula(self.config.guide)
         return {
             "schema": "qrlib.result/v1",
             "status": self.status.value,

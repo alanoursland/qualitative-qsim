@@ -99,7 +99,13 @@ already shipped. One of the highest-value additions, and the kind of
 capability that differentiates tooling rather than replicating textbook
 simulation.
 
-### 3. Guided / constrained simulation — TeQSIM
+### 3. Guided / constrained simulation — TeQSIM — **implemented**
+
+> Built in `qrlib.guide`: formula progression interleaved with the agenda
+> loop (sound bad-prefix pruning, `SPEC_PRUNED` terminals), exact lasso /
+> constant-suffix / finite-trace verdicts, `classify()` as standalone
+> temporal-logic model checking. The rest is the original assessment.
+
 
 **What it does.** Treats **temporal-logic trajectory constraints** as part
 of the model: interleaves simulation with model-checking so only behaviors
@@ -296,8 +302,8 @@ By value-per-effort against the current architecture:
 
 1. ~~**Causal ordering** (§4)~~ — **done** (`qrlib.analysis.causal`).
 2. ~~**Model-based diagnosis** (§2)~~ — **done** (`qrlib.diagnosis`).
-3. **Guided simulation / exogenous inputs** (§3) — fills a real gap
-   (time-varying inputs) and is broadly useful.
+3. ~~**Guided simulation / exogenous inputs** (§3)~~ — **done**
+   (`qrlib.guide`).
 4. **DecSIM decomposition** (§1) — the big scaling lever; larger effort, do
    it when model size becomes the binding constraint.
 5. Opportunistic: the **non-intersection global filter** (§6), **FOG**

@@ -17,6 +17,7 @@ src/qrlib/
 ├── behavior.py          # BehaviorGraph, TerminalClass, SimResult/SimConfig
 ├── semiquant.py         # Q2-style interval refinement, envelopes, time bounds
 ├── diagnosis.py         # consistency-based fault diagnosis (modes + coverage)
+├── guide.py             # temporal-logic guided simulation + verdicts (LTL)
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── engines/
 │   ├── qsim.py          # reference pure-Python QSIM (+ envisionment mode)
