@@ -339,8 +339,19 @@ in recommended order:
   refuted by its derivative row). `tol` is the sparsity/fidelity knob;
   the result is a ranked set, not a unique model (the governing caveat:
   consistency is not proof of uniqueness).
-- Comparative analysis. (Temporal-logic queries over behavior graphs:
-  covered by `qrlib.guide.classify`.)
+- ~~Comparative analysis~~ **(done — `qrlib.analysis.compare`)**:
+  comparative statics via sign propagation. Perturb exogenous parameters
+  in a known direction and derive the sign of change of every quantity
+  between the two equilibria — under the equilibrium condition (each
+  `Deriv`'s rate variable is zero in both systems), the algebraic
+  constraints propagate change signs to a fixpoint (`M+` copies, `M-`/
+  `MINUS` flip, `ADD` is a qualitative sum, `MULT` weights each operand by
+  the other's base operating-point sign). Uniquely forced signs are sound;
+  genuine ambiguity (opposing `ADD` changes, a `MULT` with no base) is
+  reported `INDETERMINATE`, never guessed. Scoped to equilibria and
+  parameter perturbations (not transient timing or landmark/space changes).
+  (Temporal-logic queries over behavior graphs were the other reading of
+  "comparative"; those are `qrlib.guide.classify`.)
 - Soft differentiable constraint losses (layered above the exact core).
 - Batched/tensorized interval propagation; GPU benchmark runs (needs a
   CUDA box); first-class declarative `EnergyFilter`

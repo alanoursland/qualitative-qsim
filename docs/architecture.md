@@ -44,7 +44,8 @@ src/qrlib/
 ├── analysis/
 │   ├── queries.py       # terminal census, quiescence, cycles, state search
 │   ├── explain.py       # structured step records + prose narration
-│   └── causal.py        # causal ordering (which variable determines which)
+│   ├── causal.py        # causal ordering (which variable determines which)
+│   └── compare.py       # comparative statics (parameter -> equilibrium shift)
 └── viz/                 # timeline/tree data exports + dependency-free SVG
 ```
 
