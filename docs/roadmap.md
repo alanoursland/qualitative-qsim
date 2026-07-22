@@ -200,6 +200,13 @@ moved up; analysis/queries attach to the phases that make them possible.
 
 ## Backlog (demand-driven — pick up when a use case asks)
 
+- **Piecewise-affine qualitative analysis** (near-term candidate; see
+  `docs/piecewise-affine.md`): focal-point model front-end compiling
+  thresholds + per-box affine coefficients onto the region + sign-matrix
+  machinery; Filippov sliding-mode derivation on switching domains (the
+  one genuinely new engine capability); focal-point-in-box stability
+  tagging. Exact (not merely sound) qualitative phase portraits for
+  PWA-structured or PWA-abstractable numeric systems.
 - Total envisionment (enumerate all consistent states, then connect).
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage).
 - Comparative analysis; temporal-logic queries over behavior graphs.

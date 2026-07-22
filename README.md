@@ -60,6 +60,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
   [tensorization & GPU strategy](docs/gpu-tensorization.md),
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
   [embedding in a host toolkit](docs/host-integration.md),
+  [piecewise-affine qualitative analysis](docs/piecewise-affine.md),
   [roadmap](docs/roadmap.md), [open questions](docs/open-questions.md).
 - **`src/qrlib/`** — the library: core representations, the reference and
   tensorized engines, the numeric bridge, semi-quantitative refinement,
