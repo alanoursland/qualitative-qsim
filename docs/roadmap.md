@@ -365,9 +365,21 @@ in recommended order:
   sign structure, or score soft consistency. Strictly above the exact
   core: it never feeds the boolean engine. Recovers a balancing parameter
   by gradient descent and pushes a trajectory monotone in the tests.
-- Batched/tensorized interval propagation; GPU benchmark runs (needs a
-  CUDA box); first-class declarative `EnergyFilter`
-  (docs/open-questions.md #7).
+- ~~Batched/tensorized interval propagation~~ **(done —
+  `qrlib.tensor.interval`)**: the semi-quantitative layer's per-state
+  algebraic narrowing (ADD/MINUS/MULT/At interval arithmetic) vectorized
+  over a `(B, V)` batch of states to a fixpoint, with a `feasible_mask`
+  screen that soundly refutes states whose declared numeric ranges are
+  algebraically inconsistent. Interval primitives mirror
+  `semiquant.Interval` expression-for-expression (0·inf=0, inf+-inf
+  guards, divisor-straddling-zero = no refinement); narrowing is a
+  monotone confluent operator so the batched fixpoint equals the
+  reference's — parity-tested on random intervals and on the bathtub's
+  states, and it refutes a qualitatively-consistent but numerically-
+  impossible equilibrium. Envelopes and cross-state coupling stay in the
+  reference `semiquant.refine` path.
+- GPU benchmark runs (needs a CUDA box); first-class declarative
+  `EnergyFilter` (docs/open-questions.md #7).
 - Not yet assessed (worth a follow-up survey): monotone dynamical-systems
   theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
   reachability tooling; hybrid-system falsification / conformance testing.

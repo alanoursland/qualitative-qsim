@@ -116,10 +116,16 @@ consistency scoring). It layers strictly above the exact integer core — it
 never feeds the sound boolean engine, and adopts SIMGEN's lesson (when
 numbers are available, use them) without touching the qualitative path.
 
-## 7. Interval extension (semi-quantitative, later)
+## 7. Interval extension (semi-quantitative)
 
-Q2-style interval annotations ride along as a float tensor `(B, V, 2)` of
-`(lo, hi)` bounds; interval arithmetic for ADD/MULT/monotonic envelopes is
-straightforwardly vectorizable, and a behavior is pruned when any bound pair
-crosses. This is the first place floats enter, and it stays strictly layered
-above the exact integer core.
+Q2-style interval annotations ride along as `(B, V)` `lo`/`hi` float
+tensors; the **per-state algebraic narrowing** (ADD/MINUS/MULT/At) is now
+built in `tensor/interval.py`, vectorized over the batch to a fixpoint,
+with a `feasible_mask` screen that prunes states whose bounds cross. The
+primitives mirror `semiquant.Interval` exactly and narrowing is confluent,
+so the batched fixpoint equals the reference's (parity-tested). Monotone
+envelopes (arbitrary callables) and the cross-state couplings (continuity,
+mean-value time bounds, CONSTANT intersection along a behavior) are
+sequential and stay in `semiquant.refine`; the batched path is the screen
+that runs first or over many states at once. This is the first place
+floats enter, and it stays strictly layered above the exact integer core.
