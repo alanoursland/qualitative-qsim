@@ -312,7 +312,18 @@ in recommended order:
   variables and the netlist compiles to a `Model` identical to its
   handwritten equivalent (cascade regression). Both are pure front-ends:
   the engine consumes ordinary models.
-- Total envisionment (enumerate all consistent states, then connect).
+- ~~Total envisionment~~ **(done — `qrlib.envision`)**: all consistent
+  states of one region's constraint set (full per-variable domains through
+  the existing Waltz/assembly machinery), connected via the engine's
+  transition tables and filters — point/interval node duality
+  (persistability), infinity-admissibility, identity semantics matching
+  the simulator, divergent limit states terminal, quiescence as
+  classification. Yields the model's full qualitative phase portrait:
+  the bathtub shows all 5 equilibria (the standard initial state only
+  ever reaches 2), the attainable envisionment is verified to be a
+  subgraph, and the spring's oscillation is the portrait's one
+  recurrent SCC. Hard `max_states` cap (a partial total envisionment is
+  a contradiction in terms); `ignore_qdir` supported.
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
   pairs naturally with the trajectory-abstraction pipeline.
 - Comparative analysis. (Temporal-logic queries over behavior graphs:

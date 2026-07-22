@@ -25,6 +25,7 @@ src/qrlib/
 │   └── devices.py       # component/netlist composition (ENVISION) -> Model
 ├── engines/
 │   ├── qsim.py          # reference pure-Python QSIM (+ envisionment mode)
+│   ├── envision.py      # total envisionment (all states, connected)
 │   ├── transitions.py   # P-/I-transition tables
 │   ├── filters.py       # predicates, tuple/Waltz filtering, assembly
 │   ├── landmarks.py     # new-landmark introduction (per-branch frames)

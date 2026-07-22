@@ -27,6 +27,7 @@ from .constraints import (
     Negligible,
 )
 from . import decompose, diagnosis, frontends, guide, semiquant, viz
+from .engines.envision import Envisionment, envision
 from .engines.qsim import qsim
 from .model import (
     CompiledModel,
@@ -69,6 +70,8 @@ __all__ = [
     "SimStatus",
     "TerminalClass",
     "qsim",
+    "envision",
+    "Envisionment",
     "decompose",
     "diagnosis",
     "frontends",

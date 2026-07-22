@@ -264,9 +264,10 @@ regions.
 > wired by a `Device`; connected terminals unify into shared variables
 > and the composed result is an ordinary `Model` ("no function in
 > structure": types know nothing about their wiring). Component modes
-> defer to operating regions / `diagnosis.Component`; total
-> envisionment remains on the backlog. The rest is the original
-> assessment.
+> defer to operating regions / `diagnosis.Component`; **total
+> envisionment is now `qrlib.envision`** (all consistent states of a
+> region's constraint set, connected — the full qualitative phase
+> portrait). The rest is the original assessment.
 
 **What it does.** A **device-centered** ontology: components + conduits
 (topology) + boundary conditions, behavior composed from a reusable
