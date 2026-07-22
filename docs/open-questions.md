@@ -53,10 +53,11 @@ spirit) with their resolutions; new questions raised by that design follow.
     returns per-entry confidence; what statistic (sign agreement rate?
     bootstrap?) and what threshold feeds model construction?
     Decide during phase 4 with real data in hand.
-11. **License and distribution.** No license file yet — needs an explicit
-    choice (MIT/BSD-3/Apache-2.0?) before anything is published. PyPI name
-    (`qualitative-reasoning-lib`? `qrlib` availability) to check before
-    phase 1 ends.
+11. **License and distribution.** Deliberately deferred by the owner —
+    do not add a license file until they choose one. Until then the
+    default applies (all rights reserved; not publishable/distributable).
+    PyPI name (`qualitative-reasoning-lib`? `qrlib` availability) to
+    check alongside that decision.
 12. **Order of the phase-7 extras.** *Partially resolved:* explanation
     and viz are built; the rest (total envisionment, induction,
     comparative analysis, temporal-logic queries, soft losses) now live
