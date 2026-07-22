@@ -14,7 +14,18 @@ from .behavior import (
     SimStatus,
     TerminalClass,
 )
-from .constraints import Add, At, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
+from .constraints import (
+    Add,
+    At,
+    Constant,
+    Constraint,
+    Deriv,
+    Minus,
+    MMinus,
+    MPlus,
+    Mult,
+    Negligible,
+)
 from . import decompose, diagnosis, guide, semiquant, viz
 from .engines.qsim import qsim
 from .model import (
@@ -38,6 +49,7 @@ __all__ = [
     "MMinus",
     "MPlus",
     "Mult",
+    "Negligible",
     "Model",
     "CompiledModel",
     "Variable",

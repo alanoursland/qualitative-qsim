@@ -168,7 +168,16 @@ level to rise *causes* outflow to rise"). Caveat: equation-based ordering
 gives nothing inside feedback loops; a component-topology method (ENVISION,
 below) is the alternative there.
 
-### 5. Order-of-magnitude reasoning — FOG
+### 5. Order-of-magnitude reasoning — FOG — **Ne implemented**
+
+> Built as `qrlib.Negligible(small, large)`: FOG's Ne relation in its
+> sound instantaneous form (``|small| < |large|`` everywhere),
+> transitively closed at compile with contradiction detection, feeding
+> the ADD sign algebra exactly as assessed below (a dominant operand
+> resolves the zero-referenced `{-1,0,1}` fork), checked as a constraint
+> in its own right, and excluded from causal ordering. `Vo`/`Co` and the
+> wider rule set remain unimplemented — add them if a model needs more
+> than dominance. The rest is the original assessment.
 
 **What it does.** A disambiguation layer *above* sign reasoning: operators
 `Ne` (negligible vs.), `Vo` (close to), `Co` (same sign and order), with
@@ -327,8 +336,9 @@ By value-per-effort against the current architecture:
    (`qrlib.guide`).
 4. ~~**DecSIM decomposition** (§1)~~ — **done** (`qrlib.decompose`).
 5. Opportunistic: ~~the **non-intersection global filter** (§6)~~ — **done**
-   (`engines.phase`, `SimConfig.phase_pairs`); **FOG** disambiguation (§5)
-   and a **QPT/ENVISION** front-end (§7–8) as authoring demand appears.
+   (`engines.phase`, `SimConfig.phase_pairs`); ~~**FOG** disambiguation
+   (§5)~~ — **done** (`qrlib.Negligible`); a **QPT/ENVISION** front-end
+   (§7–8) as authoring demand appears.
 
 See also `docs/piecewise-affine.md` — a related near-term candidate
 (exact qualitative phase portraits for piecewise-affine systems) documented

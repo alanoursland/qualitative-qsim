@@ -292,7 +292,12 @@ def narrate_causes(order: CausalOrder) -> str:
 def _equations(model: Model | CompiledModel, region: str | None):
     if isinstance(model, Model):
         var_order = tuple(model.variables)
-        eqs = [(_KIND[type(c)], tuple(c.variables), c) for c in model.constraints]
+        # Negligible is an inequality annotation, not an equation
+        eqs = [
+            (_KIND[type(c)], tuple(c.variables), c)
+            for c in model.constraints
+            if _KIND[type(c)] != "negligible"
+        ]
         return var_order, eqs
     # CompiledModel
     var_order = model.var_order
@@ -303,6 +308,7 @@ def _equations(model: Model | CompiledModel, region: str | None):
     eqs = [
         (cc.kind, tuple(var_order[i] for i in cc.vars), cc.source)
         for cc in constraints
+        if cc.kind != "negligible"
     ]
     return var_order, eqs
 

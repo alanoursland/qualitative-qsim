@@ -21,6 +21,7 @@ __all__ = [
     "Deriv",
     "Constant",
     "At",
+    "Negligible",
 ]
 
 CorrespondingValues = tuple[tuple[str, ...], ...]
@@ -149,6 +150,34 @@ class Constant(Constraint):
     @property
     def variables(self) -> tuple[str, ...]:
         return (self.x,)
+
+
+@dataclass(frozen=True)
+class Negligible(Constraint):
+    """``|small| < |large|`` everywhere — an order-of-magnitude assertion
+    (FOG's Ne relation, in its sound instantaneous form).
+
+    Declaring it buys sign disambiguation: in an ``Add`` whose operands
+    are so ordered, the sum's zero-referenced sign equals the dominant
+    operand's sign — pure sign algebra would fork three ways. The
+    relation is transitive (closed at compile time) and is itself
+    checked: a state where the large quantity is zero but the small one
+    is not, or where the small quantity is infinite while the large one
+    is finite, is refuted. Like every constraint, a declaration false of
+    the modeled system can refute real behaviors."""
+
+    small: str
+    large: str
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return (self.small, self.large)
+
+    def __post_init__(self) -> None:
+        if self.small == self.large:
+            raise ValueError(
+                f"Negligible needs two distinct variables, got {self.small!r}"
+            )
 
 
 @dataclass(frozen=True)

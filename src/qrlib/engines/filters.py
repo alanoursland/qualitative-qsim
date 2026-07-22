@@ -95,7 +95,13 @@ def check(cc: CompiledConstraint, vals: Sequence[QVal]) -> bool:
         if z.dir.sign not in _qsum(x.dir.sign, y.dir.sign):
             return False
         for cx, cy, cz in cc.cvals:
-            if _cmp(z.mag, cz) not in _qsum(_cmp(x.mag, cx), _cmp(y.mag, cy)):
+            sx, sy, sz = _cmp(x.mag, cx), _cmp(y.mag, cy), _cmp(z.mag, cz)
+            if cc.dominant is not None and (cx, cy, cz) == cc.zeros:
+                # a Negligible declaration orders the operands: the sum's
+                # zero-referenced sign is the dominant operand's, exactly
+                if sz != (sy if cc.dominant == 1 else sx):
+                    return False
+            elif sz not in _qsum(sx, sy):
                 return False
         # Algebra of infinities: an infinite operand forces the sum, and a
         # finite sum of one infinite operand needs the opposite infinity.
@@ -111,6 +117,13 @@ def check(cc: CompiledConstraint, vals: Sequence[QVal]) -> bool:
         else:  # +inf + -inf: indeterminate
             allowed = frozenset((-1, 0, 1))
         return iz in allowed
+
+    if kind == "negligible":  # |small| strictly dominated by |large|
+        x, y = vals
+        if _cmp(y.mag, cc.zeros[1]) == 0 and _cmp(x.mag, cc.zeros[0]) != 0:
+            return False  # |small| < |large| = 0 is impossible
+        ix, iy = (_inf_status(v, p) for v, p in zip(vals, cc.infs))
+        return not (ix != 0 and iy == 0)  # infinite small vs finite large
 
     if kind == "mult":  # z = x * y
         x, y, z = vals

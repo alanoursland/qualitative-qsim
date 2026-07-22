@@ -286,8 +286,22 @@ in recommended order:
   identical. Composes with the guide (dir-atoms auto-tracked via
   `track_qdir`), DecSIM (guided interface vars auto-tracked), and the
   phase filter (pair vars never abstracted).
-- Opportunistic reasoning layers: order-of-magnitude disambiguation (FOG);
-  QPT / ENVISION-confluences model front-ends.
+- ~~Order-of-magnitude disambiguation (FOG)~~ **(done —
+  `qrlib.Negligible`)**: `Negligible(small, large)` declares
+  ``|small| < |large|`` everywhere (FOG's Ne in its sound instantaneous
+  form). Compile closes the relation transitively (cycles are
+  contradictions), and an `Add` whose operands are so ordered gains a
+  dominant operand: its zero-referenced sign-sum resolves to the
+  dominant sign exactly instead of forking `{-1,0,1}` — the
+  perturbed-sum demo drops 3 behaviors to the 1 real one. The relation
+  is itself checked (large at zero forces small to zero; an infinite
+  small vs finite large is refuted), region-gated (dominance applies
+  only where every region activating the Add also activates the
+  declarations), rides the schema/sign-structure exports, is skipped by
+  causal ordering (an inequality, not an equation), and reaches the
+  tensor tables by construction.
+- Opportunistic reasoning layers: QPT / ENVISION-confluences model
+  front-ends.
 - Total envisionment (enumerate all consistent states, then connect).
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
   pairs naturally with the trajectory-abstraction pipeline.

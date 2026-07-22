@@ -25,9 +25,20 @@ Models serialize to a versioned JSON-able schema (:meth:`Model.to_dict` /
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
-from .constraints import Add, At, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
+from .constraints import (
+    Add,
+    At,
+    Constant,
+    Constraint,
+    Deriv,
+    Minus,
+    MMinus,
+    MPlus,
+    Mult,
+    Negligible,
+)
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
@@ -55,6 +66,7 @@ _KIND: dict[type, str] = {
     Deriv: "deriv",
     Constant: "constant",
     At: "at",
+    Negligible: "negligible",
 }
 _CLASS: dict[str, type] = {v: k for k, v in _KIND.items()}
 
@@ -101,6 +113,9 @@ class CompiledConstraint:
     zero tuples added at compile time); ``zeros`` is the rank of the ``0``
     landmark per constrained variable (or None); ``infs`` is the pair
     (rank of -inf, rank of +inf) per constrained variable (None = bounded).
+    ``dominant`` (ADD only) marks the operand (0 or 1) that a
+    ``Negligible`` declaration proves strictly larger in magnitude: the
+    sum's zero-referenced sign is then that operand's sign exactly.
     """
 
     kind: str
@@ -109,6 +124,7 @@ class CompiledConstraint:
     zeros: tuple[int | None, ...]
     infs: tuple[tuple[int | None, int | None], ...]
     source: Constraint
+    dominant: int | None = None
 
 
 @dataclass(frozen=True)
@@ -170,6 +186,7 @@ class SignStructure:
     - ``constants``: variables pinned constant.
     - ``corresponding``: (variable names, landmark-name tuples) pinned to
       co-occur, per constraint that carries corresponding values.
+    - ``negligible``: (small, large) order-of-magnitude declarations.
     """
 
     monotone: tuple[tuple[str, str, int], ...]
@@ -178,6 +195,7 @@ class SignStructure:
     products: tuple[tuple[str, str, str], ...]
     constants: tuple[str, ...]
     corresponding: tuple[tuple[tuple[str, ...], tuple[tuple[str, ...], ...]], ...]
+    negligible: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass
@@ -316,6 +334,7 @@ class Model:
         products: list[tuple[str, str, str]] = []
         constants: list[str] = []
         corresponding: list = []
+        negligible: list[tuple[str, str]] = []
         for c in self.constraints:
             kind = _KIND[type(c)]
             if kind == "mplus":
@@ -330,6 +349,8 @@ class Model:
                 products.append((c.x, c.y, c.z))
             elif kind == "constant":
                 constants.append(c.x)
+            elif kind == "negligible":
+                negligible.append((c.small, c.large))
             if c.corresponding_values:
                 corresponding.append((c.variables, c.corresponding_values))
         return SignStructure(
@@ -339,6 +360,7 @@ class Model:
             tuple(products),
             tuple(constants),
             tuple(corresponding),
+            tuple(negligible),
         )
 
     # --- serialization (versioned schema) ----------------------------------
@@ -488,6 +510,10 @@ class Model:
                 raise ValueError(
                     f"{c!r}: MULT requires a '0' landmark in every operand space"
                 )
+            if kind == "negligible" and any(z is None for z in zeros):
+                raise ValueError(
+                    f"{c!r}: NEGLIGIBLE requires a '0' landmark in both spaces"
+                )
             # Implicit corresponding values at zero: x+y=z pins (0,0,0);
             # y=-x pins (0,0). These carry the sign algebra of the constraint.
             if kind == "add" and all(z is not None for z in zeros):
@@ -541,6 +567,48 @@ class Model:
             regions = [
                 CompiledRegion(DEFAULT_REGION, tuple(range(len(self.constraints))), ())
             ]
+        # --- order-of-magnitude closure (FOG's Ne) ----------------------
+        # Ne is transitive; a cycle is a contradiction. An ADD gains a
+        # dominant operand where the closed relation orders its operands —
+        # only when every region activating the ADD supports the ordering.
+        ne_idx = [i for i, cc in enumerate(compiled) if cc.kind == "negligible"]
+        if ne_idx:
+
+            def closed_pairs(active: frozenset[int]) -> set[tuple[int, int]]:
+                pairs = {compiled[i].vars for i in ne_idx if i in active}
+                changed = True
+                while changed:
+                    changed = False
+                    for a, b in list(pairs):
+                        for c2, d2 in list(pairs):
+                            if b == c2 and (a, d2) not in pairs:
+                                pairs.add((a, d2))
+                                changed = True
+                return pairs
+
+            per_region: dict[str, set[tuple[int, int]]] = {}
+            for reg in regions:
+                pr = closed_pairs(frozenset(reg.constraint_idx))
+                cyclic = sorted({var_order[a] for a, b in pr if a == b})
+                if cyclic:
+                    raise ValueError(
+                        f"contradictory Negligible cycle involving {cyclic}"
+                    )
+                per_region[reg.name] = pr
+            for i, cc in enumerate(compiled):
+                if cc.kind != "add":
+                    continue
+                x, y = cc.vars[0], cc.vars[1]
+                doms = [
+                    1 if (x, y) in per_region[reg.name]
+                    else 0 if (y, x) in per_region[reg.name]
+                    else None
+                    for reg in regions
+                    if i in reg.constraint_idx
+                ]
+                if doms and doms[0] is not None and all(d == doms[0] for d in doms):
+                    compiled[i] = replace(cc, dominant=doms[0])
+
         return CompiledModel(
             self.name,
             var_order,
