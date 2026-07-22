@@ -45,7 +45,7 @@ from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, Ter
 from ..model import CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
-from . import filters
+from . import filters, phase
 from .landmarks import introduce_landmarks
 from .transitions import interval_successors, point_successors
 
@@ -77,6 +77,7 @@ def qsim(
     if unknown:
         raise ValueError(f"ignore_qdir names unknown variables: {sorted(unknown)}")
     ignored = frozenset(root_frame.index(name) for name in cfg.ignore_qdir)
+    phase_pairs = phase.validate_pairs(root_frame, cfg)
 
     root_region = root_frame.initial_region
     _validate_initial(root_frame, initial, root_region)
@@ -110,6 +111,7 @@ def qsim(
         "landmarks_minted": 0,
         "region_crossings": 0,
         "spec_filtered": 0,
+        "phase_filtered": 0,
         "deadends": 0,
     }
     truncated = False
@@ -117,14 +119,20 @@ def qsim(
         nodes[0].terminal = TerminalClass.SPEC_PRUNED
         frontier.clear()
 
-    def attach(parent: Node, state: QState, frame: CompiledModel, region: str) -> None:
+    def attach(parent: Node, state: QState, frame: CompiledModel, region: str) -> str:
         child_guide = None
         if progress_fn is not None:
             child_guide = progress_fn(parent.guide, state, frame)
             if child_guide == _SPEC_FALSE:
                 # bad prefix: no extension can satisfy the spec
                 stats["spec_filtered"] += 1
-                return
+                return "spec"
+        if phase_pairs and not phase.admits(
+            nodes, parent, state, frame, phase_pairs, root_frame.spaces
+        ):
+            # the path's phase-plane curve would have to cross itself
+            stats["phase_filtered"] += 1
+            return "phase"
         if seen is not None:
             key = (frame, state, region, child_guide)
             hit = seen.get(key)
@@ -132,7 +140,7 @@ def qsim(
                 if hit not in parent.children:
                     parent.children.append(hit)
                 stats["merged"] += 1
-                return
+                return "merged"
         nid = len(nodes)
         nodes[nid] = Node(
             nid, state, parent.id, parent.depth + 1, frame, region,
@@ -173,17 +181,16 @@ def qsim(
             ]
             if firing:
                 stats["region_crossings"] += len(firing)
-                entries_existed = False
+                spec_killed = False
                 for tr in firing:
                     for entry in _entry_states(
                         frame, vals, tr.target, cfg, stats, ignored
                     ):
-                        entries_existed = True
-                        attach(node, entry, frame, tr.target)
+                        spec_killed |= attach(node, entry, frame, tr.target) == "spec"
                 if not node.children:
-                    if entries_existed:  # the spec excluded every entry
+                    if spec_killed:  # the spec excluded every entry
                         node.terminal = TerminalClass.SPEC_PRUNED
-                    else:
+                    else:  # none existed, or the phase filter refuted them
                         node.terminal = TerminalClass.DEADEND
                         stats["deadends"] += 1
                 continue
@@ -222,10 +229,15 @@ def qsim(
             node.terminal = TerminalClass.DEADEND
             stats["deadends"] += 1
             continue
+        spec_killed = False
         for child_state, child_frame in children:
-            attach(node, child_state, child_frame, node.region)
-        if not node.children:  # the spec excluded every consistent successor
-            node.terminal = TerminalClass.SPEC_PRUNED
+            spec_killed |= attach(node, child_state, child_frame, node.region) == "spec"
+        if not node.children:
+            if spec_killed:  # the spec excluded every consistent successor
+                node.terminal = TerminalClass.SPEC_PRUNED
+            else:  # the phase filter refuted every one: the state is spurious
+                node.terminal = TerminalClass.DEADEND
+                stats["deadends"] += 1
 
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE

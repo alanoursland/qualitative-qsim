@@ -102,6 +102,16 @@ class SimConfig:
       along every path; successors whose residual collapses to false are
       pruned (sound: only behaviors none of whose extensions satisfy the
       spec are removed). Usually set via ``qrlib.guide.guided``.
+    - ``phase_pairs``: pairs ``(x, y)`` with ``Deriv(x, y)`` declared as
+      autonomous phase planes; the non-intersection global filter
+      (``engines.phase``, after Lee & Kuipers) prunes successors whose
+      path would trace a self-crossing curve in the (x, y) plane —
+      successive same-direction crossings of a grid line must be
+      monotone or exactly repeating. Declaring a pair asserts that (x, y)
+      determine the flow (second-order autonomous system) and that the
+      pair's equilibria lie at declared landmarks; a pair violating this
+      can prune real behaviors. Path-dependent: incompatible with
+      ``envisionment``.
     """
 
     max_states: int = 500
@@ -116,6 +126,7 @@ class SimConfig:
     envisionment: bool = False
     use_tensor: bool = False
     guide: object | None = None
+    phase_pairs: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass

@@ -189,7 +189,15 @@ current source of `{-1,0,1}` ambiguity in `filters._qsum`). **Buys:**
 branch reduction in envisionment where sign reasoning currently forks, with
 no numeric input required.
 
-### 6. Qualitative phase-space reasoning (Lee & Kuipers)
+### 6. Qualitative phase-space reasoning (Lee & Kuipers) — **non-intersection implemented**
+
+> The non-intersection constraint is built in `engines.phase`
+> (`SimConfig.phase_pairs`): per declared autonomous pair (x, ẋ),
+> grid-line crossings along each path must be monotone or exactly
+> repeating per directed transversal, plus the closure rule (a provably
+> revisited crossing point makes the orbit periodic, so every crossing
+> group must be all-equal). QPORTRAIT remains unimplemented (optional).
+> The rest is the original assessment.
 
 **What it does.** Two phase-portrait results: a global
 **non-intersection-of-trajectories** constraint in qualitative phase space
@@ -310,9 +318,9 @@ By value-per-effort against the current architecture:
 3. ~~**Guided simulation / exogenous inputs** (§3)~~ — **done**
    (`qrlib.guide`).
 4. ~~**DecSIM decomposition** (§1)~~ — **done** (`qrlib.decompose`).
-5. Opportunistic: the **non-intersection global filter** (§6), **FOG**
-   disambiguation (§5), and a **QPT/ENVISION** front-end (§7–8) as authoring
-   demand appears.
+5. Opportunistic: ~~the **non-intersection global filter** (§6)~~ — **done**
+   (`engines.phase`, `SimConfig.phase_pairs`); **FOG** disambiguation (§5)
+   and a **QPT/ENVISION** front-end (§7–8) as authoring demand appears.
 
 See also `docs/piecewise-affine.md` — a related near-term candidate
 (exact qualitative phase portraits for piecewise-affine systems) documented

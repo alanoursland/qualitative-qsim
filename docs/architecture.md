@@ -24,7 +24,8 @@ src/qrlib/
 │   ├── qsim.py          # reference pure-Python QSIM (+ envisionment mode)
 │   ├── transitions.py   # P-/I-transition tables
 │   ├── filters.py       # predicates, tuple/Waltz filtering, assembly
-│   └── landmarks.py     # new-landmark introduction (per-branch frames)
+│   ├── landmarks.py     # new-landmark introduction (per-branch frames)
+│   └── phase.py         # phase-space non-intersection global filter
 ├── tensor/
 │   ├── encoding.py      # qcodes, frontier codecs, per-frame constraint tables
 │   ├── engine.py        # tensorized prune/assemble, batched frontiers

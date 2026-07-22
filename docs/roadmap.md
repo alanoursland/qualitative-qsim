@@ -262,8 +262,19 @@ in recommended order:
   `bridge.signs`, box adjacency → operating regions). The note stays as
   portable design for that host; the seam it describes is the deliverable,
   not an engine feature to build here.
-- Opportunistic reasoning layers: qualitative-phase-space non-intersection
-  global filter (Lee & Kuipers); order-of-magnitude disambiguation (FOG);
+- ~~Qualitative-phase-space non-intersection global filter (Lee &
+  Kuipers)~~ **(done — `engines.phase`, `SimConfig.phase_pairs`)**: per
+  declared autonomous phase pair (x, ẋ), path crossings of each directed
+  grid-line transversal must be strictly monotone or exactly repeating
+  (Poincaré return-map monotonicity), and a provably revisited crossing
+  point closes the orbit, forcing every crossing group periodic. Prunes
+  only provable violations (unseparated magnitudes never prune); states
+  with all successors refuted become DEADENDs. Headlines: damped spring
+  amplitude wobbles and reopened orbits pruned (16 → 6 crossing
+  families); undamped spring with discovery drops 199 → 119 behaviors
+  while the golden no-discovery cycle graph is untouched;
+  numeric-trajectory coverage retained.
+- Opportunistic reasoning layers: order-of-magnitude disambiguation (FOG);
   QPT / ENVISION-confluences model front-ends; dynamic (vs. static)
   chatter abstraction.
 - Total envisionment (enumerate all consistent states, then connect).
