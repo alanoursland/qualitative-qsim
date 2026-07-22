@@ -33,7 +33,8 @@ src/qrlib/
 │   └── harvest.py       # landmark intake/dedup + data-driven proposals
 ├── analysis/
 │   ├── queries.py       # terminal census, quiescence, cycles, state search
-│   └── explain.py       # structured step records + prose narration
+│   ├── explain.py       # structured step records + prose narration
+│   └── causal.py        # causal ordering (which variable determines which)
 └── viz/                 # timeline/tree data exports + dependency-free SVG
 ```
 

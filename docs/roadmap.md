@@ -204,9 +204,13 @@ Fuller assessments (what each does, whether we subsume it, cost/benefit)
 are in `docs/literature-survey.md`; the highest value-per-effort items,
 in recommended order:
 
-- **Causal ordering** (Simon / Iwasaki-Simon): self-contained algorithm
-  over the compiled constraint graph deriving which variable determines
-  which; strengthens explanation into causal narration. Small, low-risk.
+- ~~Causal ordering~~ **(done)** — `qrlib.analysis.causal`: structural
+  matching + SCC over the constraint graph, with integral causality for
+  `DERIV` (state variables given by integration). Reports exogenous
+  inputs, the instantaneous causal chain with depth levels, integration
+  feedback edges, feedback loops (SCCs), and structural singularity
+  (under-/over-determined); prose via `narrate_causes`, plain-data
+  `to_dict`. Per-region for multi-region models.
 - **Model-based diagnosis** (QDOCS / GDE lineage): fault-mode model
   variants (via the region machinery) + a conflict→candidate layer fed by
   the coverage oracle's refutations. New capability class; reuses what we

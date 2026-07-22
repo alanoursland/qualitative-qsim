@@ -125,7 +125,12 @@ caveat); an existential match must be treated as "possible", not "proven".
 
 ## Tier 2 — new reasoning layers
 
-### 4. Causal ordering (Simon; Iwasaki & Simon)
+### 4. Causal ordering (Simon; Iwasaki & Simon) — **implemented**
+
+> Built in `qrlib.analysis.causal` (structural matching + SCC, integral
+> causality for `DERIV`). The rest of this section is the original
+> assessment.
+
 
 **What it does.** Derives *causal* structure — which variable determines
 which — purely from the structural equations, by finding minimal
@@ -284,8 +289,7 @@ their fit is genuinely open, not judged:
 
 By value-per-effort against the current architecture:
 
-1. **Causal ordering** (§4) — small, self-contained, immediately strengthens
-   explanation; no engine risk.
+1. ~~**Causal ordering** (§4)~~ — **done** (`qrlib.analysis.causal`).
 2. **Model-based diagnosis** (§2) — reuses the coverage oracle + regions;
    high-value new capability class.
 3. **Guided simulation / exogenous inputs** (§3) — fills a real gap
