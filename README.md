@@ -11,9 +11,14 @@ qualitative simulation), with the architecture deliberately laid out so other
 QR formalisms (envisionment, process-based modeling, semi-quantitative
 refinement) and tensorized/GPU-accelerated execution can slot in alongside it.
 
-> **Status: exploratory / pre-alpha.** The repository currently contains
-> design documents and a provisional package skeleton. APIs here are sketches
-> meant to be argued with, not depended on. See [`docs/roadmap.md`](docs/roadmap.md).
+> **Status: functional, pre-release.** Phases 0-7 of the
+> [roadmap](docs/roadmap.md) are implemented and tested (128 tests):
+> full QSIM (landmark discovery, chatter abstraction, analytic filters,
+> envisionment, operating regions), the numeric bridge (trajectory
+> abstraction, the coverage oracle, sign-structure intake/estimation),
+> Q2-style semi-quantitative bounds, a torch-backed tensor layer proven
+> equivalent to the reference engine, explanation, and visualization.
+> No license has been chosen yet; APIs are stable-ish but unversioned.
 
 ## Why qualitative reasoning?
 
@@ -36,16 +41,17 @@ That makes QR useful for:
   model only does things the qualitative physics allows, and explaining
   behaviors in human terms ("the level rises, decelerating, toward equilibrium").
 
-## Planned shape of the library
+## Shape of the library
 
 ```
 Model description        Reasoning engines           Analysis / bridge
 ─────────────────        ─────────────────           ──────────────────
-QuantitySpace            QSIM simulation             Behavior graphs
+QuantitySpace            QSIM simulation             Behavior graphs + queries
 Variables (mag, dir)     Attainable envisionment     Trajectory abstraction
-Constraints (M+, ADD,    Batched/tensorized          (numeric → qualitative)
-  DERIV, MULT, ...)        filtering on GPU          Consistency checking
-Corresponding values     Semi-quantitative (Q2-ish)  Visualization
+Constraints (M+, ADD,    Batched/tensorized          Coverage oracle
+  DERIV, MULT, ...)        filtering (torch)         Sign-structure intake
+Corresponding values     Semi-quantitative (Q2)      Explanation + viz
+Operating regions        Landmark discovery          Landmark harvest/proposal
 ```
 
 - **`docs/`** — design notes: [vision](docs/vision.md),
@@ -55,32 +61,60 @@ Corresponding values     Semi-quantitative (Q2-ish)  Visualization
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
   [embedding in a host toolkit](docs/host-integration.md),
   [roadmap](docs/roadmap.md), [open questions](docs/open-questions.md).
-- **`src/qrlib/`** — provisional package skeleton. Core representations
-  (quantity spaces, qualitative values, constraints, models) are small real
-  implementations; engines are stubs.
-- **`tests/`** — seed tests for the core representations.
+- **`src/qrlib/`** — the library: core representations, the reference and
+  tensorized engines, the numeric bridge, semi-quantitative refinement,
+  analysis, and visualization (`docs/architecture.md` maps the layout).
+- **`tests/`** — golden models, equivalence properties, and the soundness
+  harness (concrete ODE instances integrated, abstracted, and verified
+  against predicted behavior graphs). **`benchmarks/`** — measured
+  reference-vs-tensor comparisons.
 
-## Quick taste (target API, subject to change)
+## Quick taste
 
 ```python
 import qrlib as qr
+from qrlib import Qdir
+from qrlib.analysis import explain
 
 m = qr.Model("bathtub")
-amount  = m.variable("amount",  landmarks=("0", "FULL"), upper_unbounded=True)
-level   = m.variable("level",   landmarks=("0",), upper_unbounded=True)
-outflow = m.variable("outflow", landmarks=("0",), upper_unbounded=True)
-inflow  = m.variable("inflow",  landmarks=("0", "IF*"), upper_unbounded=True)
-netflow = m.variable("netflow", landmarks=("0",), unbounded=True)
+m.variable("amount", landmarks=("0", "FULL"))
+m.variable("level", landmarks=("0", "TOP"))
+m.variable("outflow", landmarks=("0", "OMAX"))
+m.variable("inflow", landmarks=("0", "IF*"))
+m.variable("netflow", landmarks=("0",), unbounded=True)
 
-m.constrain(qr.MPlus(amount, level))            # level rises with amount
-m.constrain(qr.MPlus(level, outflow))           # outflow rises with level
-m.constrain(qr.Add(netflow, outflow, inflow))   # netflow + outflow = inflow
-m.constrain(qr.Deriv(amount, netflow))          # d(amount)/dt = netflow
-m.constrain(qr.Constant(inflow))
+m.constrain(qr.MPlus("amount", "level", cvals=(("0", "0"), ("FULL", "TOP"))))
+m.constrain(qr.MPlus("level", "outflow", cvals=(("0", "0"), ("TOP", "OMAX"))))
+m.constrain(qr.Add("netflow", "outflow", "inflow"))  # netflow + outflow = inflow
+m.constrain(qr.Deriv("amount", "netflow"))           # d(amount)/dt = netflow
+m.constrain(qr.Constant("inflow"))
 
-behaviors = qr.qsim(m, initial=..., max_states=500)
-behaviors.plot()   # branching behavior tree: equilibrium vs. overflow, etc.
+initial = m.state(
+    amount=("0", Qdir.INC), level=("0", Qdir.INC), outflow=("0", Qdir.INC),
+    inflow=("IF*", Qdir.STD), netflow=(("0", "+inf"), Qdir.DEC),
+)
+result = qr.qsim(m, initial)
+for b in result.behaviors():
+    print(explain.narrate(result.graph, b))
 ```
+
+yields exactly the three textbook outcomes — equilibrium below FULL (at a
+*discovered* landmark `amount*0`), equilibrium exactly at FULL, and
+overflow:
+
+```
+Behavior of 'bathtub': 3 states, ending in quiescent.
+  0. Initially, amount at 0, rising, level at 0, rising, ...
+  1. Then, over an interval, amount rises into (0, FULL); ...
+  2. At the next instant, amount becomes steady at amount*0 (a newly
+     identified value); ... — the system is in equilibrium ...
+```
+
+From here: `qrlib.bridge.coverage` checks numeric trajectories against the
+graph (witness paths / localized refutations), `qrlib.semiquant` turns
+landmark bounds and monotone-function envelopes into guaranteed value and
+transition-time bounds (and prunes numerically impossible behaviors), and
+`qrlib.viz` renders timelines and behavior trees as plain data or SVG.
 
 ## Design commitments (early)
 

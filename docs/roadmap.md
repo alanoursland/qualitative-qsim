@@ -182,14 +182,31 @@ moved up; analysis/queries attach to the phases that make them possible.
 - Deferred: batched/tensorized interval propagation `(B, V, 2)` (rides
   the phase-5 layer when a workload demands it).
 
-## Phase 7 — Analysis polish & exploratory
+## Phase 7 — Analysis polish *(done)*
 
-- Explanation layer (`analysis.explain`): structured step records + prose.
-- Viz data exports (timeline bands, tree layouts) + optional plotting extra.
-- Candidates, order to be decided by demand: total envisionment,
-  comparative analysis, temporal-logic queries over behavior graphs, QDE
-  induction from abstracted trajectories, soft differentiable constraint
-  losses.
+- Explanation layer (`analysis.explain`): per-step structured `Event`
+  records (reaches / steadies / starts / resumes / region crossings,
+  with discovered landmarks called out) + `narrate()` prose. Changes are
+  compared through each node's own frame (descriptions, not raw ranks),
+  so landmark discovery reads naturally ("becomes steady at amount*0, a
+  newly identified value").
+- Visualization (`qrlib.viz`): data-first exports — `timeline_bands`
+  (per-variable qualitative timelines, with numeric bounds and time
+  bounds attached when a `SemiQuantResult` is supplied) and
+  `tree_layout` (layered positions with tidy first-visit ordering) —
+  plus dependency-free SVG renderers (`timeline_svg`, `tree_svg`; cycle
+  closures dashed). Dot export remains on `BehaviorGraph`.
+- README rewritten around a verified working example; version 0.1.0a0.
+
+## Backlog (demand-driven — pick up when a use case asks)
+
+- Total envisionment (enumerate all consistent states, then connect).
+- QDE induction from abstracted trajectories (GENMODEL/MISQ lineage).
+- Comparative analysis; temporal-logic queries over behavior graphs.
+- Soft differentiable constraint losses (layered above the exact core).
+- Batched/tensorized interval propagation; GPU benchmark runs (needs a
+  CUDA box); first-class declarative `EnergyFilter`
+  (docs/open-questions.md #7).
 
 ## Deliberately not scheduled
 

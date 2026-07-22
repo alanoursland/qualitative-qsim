@@ -15,6 +15,7 @@ from .behavior import (
     TerminalClass,
 )
 from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
+from . import semiquant, viz
 from .engines.qsim import qsim
 from .model import (
     CompiledModel,
@@ -55,6 +56,8 @@ __all__ = [
     "SimStatus",
     "TerminalClass",
     "qsim",
+    "semiquant",
+    "viz",
 ]
 
-__version__ = "0.0.1a0"
+__version__ = "0.1.0a0"

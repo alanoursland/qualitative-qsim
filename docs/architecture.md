@@ -33,8 +33,8 @@ src/qrlib/
 │   └── harvest.py       # landmark intake/dedup + data-driven proposals
 ├── analysis/
 │   ├── queries.py       # terminal census, quiescence, cycles, state search
-│   └── explain.py       # structured + prose behavior narration              [planned]
-└── viz/                 # data-first exports; optional plotting extra        [planned]
+│   └── explain.py       # structured step records + prose narration
+└── viz/                 # timeline/tree data exports + dependency-free SVG
 ```
 
 Rules of the layout:

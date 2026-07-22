@@ -57,6 +57,8 @@ spirit) with their resolutions; new questions raised by that design follow.
     choice (MIT/BSD-3/Apache-2.0?) before anything is published. PyPI name
     (`qualitative-reasoning-lib`? `qrlib` availability) to check before
     phase 1 ends.
-12. **Order of the phase-7 extras.** Current bet: explanation/viz > total
-    envisionment > induction > comparative analysis > temporal-logic
-    queries. Reorder on demand signals from the first host adapter.
+12. **Order of the phase-7 extras.** *Partially resolved:* explanation
+    and viz are built; the rest (total envisionment, induction,
+    comparative analysis, temporal-logic queries, soft losses) now live
+    as the demand-driven backlog in `docs/roadmap.md` — pick up when the
+    first host adapter asks.
