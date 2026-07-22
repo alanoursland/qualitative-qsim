@@ -251,7 +251,17 @@ in recommended order:
   drops from budget-blowing to 15 nodes, joint behaviors == monolithic.
 - **Piecewise-affine qualitative analysis** (see `docs/piecewise-affine.md`):
   focal-point front-end + Filippov sliding-mode derivation; exact (not
-  merely sound) phase portraits for PWA-structured systems.
+  merely sound) phase portraits for PWA-structured systems. **Not an
+  in-repo implementation target.** The valuable half — identifying the
+  threshold partition, per-box affine fields, eigenstructure, and Filippov
+  tangency — is numeric dynamical-systems modeling this library has no home
+  for, and the ordinal envisionment half has no natural supply of PWA
+  models here (inputs would be hand-authored). The natural owner is a
+  numeric host that produces the PWA model and consumes qrlib across the
+  existing bridge (thresholds → landmark values, per-box signs →
+  `bridge.signs`, box adjacency → operating regions). The note stays as
+  portable design for that host; the seam it describes is the deliverable,
+  not an engine feature to build here.
 - Opportunistic reasoning layers: qualitative-phase-space non-intersection
   global filter (Lee & Kuipers); order-of-magnitude disambiguation (FOG);
   QPT / ENVISION-confluences model front-ends; dynamic (vs. static)
