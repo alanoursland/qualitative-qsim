@@ -35,7 +35,8 @@ src/qrlib/
 ├── tensor/
 │   ├── encoding.py      # qcodes, frontier codecs, per-frame constraint tables
 │   ├── engine.py        # tensorized prune/assemble, batched frontiers
-│   └── abstraction.py   # batched (B,T,V) quantize/directions
+│   ├── abstraction.py   # batched (B,T,V) quantize/directions
+│   └── losses.py        # differentiable constraint losses (autograd)
 ├── bridge/
 │   ├── abstraction.py   # trajectories (+ mode channel) -> behaviors
 │   ├── coverage.py      # coverage oracle: witness / diagnosis / score

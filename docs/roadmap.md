@@ -352,7 +352,19 @@ in recommended order:
   parameter perturbations (not transient timing or landmark/space changes).
   (Temporal-logic queries over behavior graphs were the other reading of
   "comparative"; those are `qrlib.guide.classify`.)
-- Soft differentiable constraint losses (layered above the exact core).
+- ~~Soft differentiable constraint losses~~ **(done —
+  `qrlib.tensor.losses`)**: a torch-autograd rendering of the constraint
+  predicates over *numeric* trajectories, zero exactly when the data
+  qualitatively satisfies each constraint (at margin 0) and growing with
+  violation. Value identities (Add/Minus/Mult/At) are scale-normalized
+  squared residuals; monotone relations (M+/M-) and integration (Deriv)
+  are step-agreement hinges; Constant is squared increments; Negligible a
+  same-scale magnitude hinge. Gradients flow to whatever produced the
+  trajectory, so a qualitative model becomes a training signal — fit
+  parameters to a model, regularize a differentiable simulator toward its
+  sign structure, or score soft consistency. Strictly above the exact
+  core: it never feeds the boolean engine. Recovers a balancing parameter
+  by gradient descent and pushes a trajectory monotone in the tests.
 - Batched/tensorized interval propagation; GPU benchmark runs (needs a
   CUDA box); first-class declarative `EnergyFilter`
   (docs/open-questions.md #7).

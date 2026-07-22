@@ -102,7 +102,21 @@ nothing, which is why `SimConfig.use_tensor` defaults off. GPU
 measurements pend a CUDA environment; the code is device-neutral and the
 integer core makes CPU/GPU results identical.
 
-## 6. Interval extension (semi-quantitative, later)
+## 6. Differentiable constraint losses (`tensor/losses.py`)
+
+A soft, autograd-friendly rendering of the boolean predicates over numeric
+trajectories: each constraint becomes a smooth penalty that is zero exactly
+when the data qualitatively satisfies it (at margin 0). Value identities are
+scale-normalized squared residuals; monotone/derivative relations are
+step-agreement hinges; constancy is squared increments; order-of-magnitude
+a same-scale hinge. Because it is pure torch, gradients flow back to
+whatever produced the trajectory, turning a qualitative model into a
+training signal (parameter fitting, structural regularization, soft
+consistency scoring). It layers strictly above the exact integer core — it
+never feeds the sound boolean engine, and adopts SIMGEN's lesson (when
+numbers are available, use them) without touching the qualitative path.
+
+## 7. Interval extension (semi-quantitative, later)
 
 Q2-style interval annotations ride along as a float tensor `(B, V, 2)` of
 `(lo, hi)` bounds; interval arithmetic for ADD/MULT/monotonic envelopes is
