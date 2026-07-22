@@ -339,11 +339,11 @@ their fit is genuinely open, not judged:
 - **Temporal-logic falsification / conformance testing** of hybrid systems.
   Adjacent to the coverage oracle (search for a violating trajectory vs.
   check a given one).
-- **Semi-quantitative variants** (Q3, NSIM, SQSIM), **comparative analysis /
-  exaggeration** (Weld), and **QDE induction from data** (the GENMODEL/MISQ/
-  QSI/ILP lineage) — named but unverified here; induction in particular
-  pairs naturally with our trajectory-abstraction pipeline and is worth its
-  own survey.
+- **Semi-quantitative variants** (Q3, NSIM, SQSIM) and **comparative
+  analysis / exaggeration** (Weld) — named but unverified here.
+  **QDE induction from data** (the GENMODEL/MISQ/QSI/ILP lineage) is now
+  built as `qrlib.induce` (structure selection over a parsimony ladder,
+  validated by the data-consistency checker).
 
 ## Recommended sequence
 

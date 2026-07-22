@@ -324,8 +324,21 @@ in recommended order:
   subgraph, and the spring's oscillation is the portrait's one
   recurrent SCC. Hard `max_states` cap (a partial total envisionment is
   a contradiction in terms); `ignore_qdir` supported.
-- QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
-  pairs naturally with the trajectory-abstraction pipeline.
+- ~~QDE induction from trajectories (GENMODEL/MISQ lineage)~~ **(done —
+  `qrlib.induce`)**: structure selection over a parsimony ladder,
+  validated by the data-consistency checker. A pooled least-squares rate
+  fit yields signed influence coefficients with confidences; a descending
+  confidence threshold sweeps candidate structures from dense to
+  all-constant; each compiles to a QDE (Deriv + M+/M-/Add, or Constant)
+  whose latent influence-term and derivative variables carry the fitted
+  values, so `bridge.signs.check_consistency` scores every asserted
+  constraint against the data. Candidates rank consistent-first, then by
+  parsimony, then by violation mass. Recovers the true sparse structure on
+  first-order decay, decoupled decay, and undamped/damped oscillators
+  (the damping influence is exactly the one a too-sparse structure drops,
+  refuted by its derivative row). `tol` is the sparsity/fidelity knob;
+  the result is a ranked set, not a unique model (the governing caveat:
+  consistency is not proof of uniqueness).
 - Comparative analysis. (Temporal-logic queries over behavior graphs:
   covered by `qrlib.guide.classify`.)
 - Soft differentiable constraint losses (layered above the exact core).

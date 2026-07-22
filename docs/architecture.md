@@ -19,6 +19,7 @@ src/qrlib/
 ├── diagnosis.py         # consistency-based fault diagnosis (modes + coverage)
 ├── guide.py             # temporal-logic guided simulation + verdicts (LTL)
 ├── decompose.py         # DecSIM-style component decomposition + join
+├── induce.py            # QDE induction: learn model structure from data
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── frontends/
 │   ├── qpt.py           # process-centric authoring (QPT) -> Model + regions
