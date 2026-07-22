@@ -75,6 +75,9 @@ def check(cc: CompiledConstraint, vals: Sequence[QVal]) -> bool:
     if kind == "constant":
         return vals[0].dir is Qdir.STD
 
+    if kind == "at":  # magnitude pinned at a landmark (operating point)
+        return vals[0].mag == cc.cvals[0][0]
+
     if kind == "mplus":  # y = f(x), f monotonically increasing
         x, y = vals
         if x.dir != y.dir:

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
+from .constraints import Add, At, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
 
@@ -54,6 +54,7 @@ _KIND: dict[type, str] = {
     Minus: "minus",
     Deriv: "deriv",
     Constant: "constant",
+    At: "at",
 }
 _CLASS: dict[str, type] = {v: k for k, v in _KIND.items()}
 
@@ -351,6 +352,8 @@ class Model:
             return out
 
         def constraint_dict(c: Constraint) -> dict:
+            if isinstance(c, At):  # the landmark is an argument, not a cval
+                return {"kind": "at", "args": [c.x, c.landmark]}
             out = {"kind": _KIND[type(c)], "args": list(c.variables)}
             if c.corresponding_values:
                 out["cvals"] = [list(cv) for cv in c.corresponding_values]
@@ -421,6 +424,9 @@ class Model:
                 upper_unbounded=v.get("upper_unbounded", False),
             )
         for c in data["constraints"]:
+            if c["kind"] == "at":
+                m.constrain(At(c["args"][0], c["args"][1]))
+                continue
             cls_ = _CLASS[c["kind"]]
             args = c["args"]
             kwargs: dict = {}

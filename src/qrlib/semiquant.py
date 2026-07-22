@@ -265,6 +265,11 @@ def refine(
                     changed |= narrow(si, vs[2], x.add(y), "add")
                     changed |= narrow(si, vs[0], b[vs[2]].sub(b[vs[1]]), "add")
                     changed |= narrow(si, vs[1], b[vs[2]].sub(b[vs[0]]), "add")
+                elif cc.kind == "at":
+                    space = frame.spaces[cc.vars[0]]
+                    changed |= narrow(
+                        si, vs[0], _mag_range(space, cc.cvals[0][0]), "at"
+                    )
                 elif cc.kind == "minus":
                     changed |= narrow(si, vs[1], b[vs[0]].neg(), "minus")
                     changed |= narrow(si, vs[0], b[vs[1]].neg(), "minus")

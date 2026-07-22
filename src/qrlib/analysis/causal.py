@@ -54,6 +54,7 @@ _RELATION = {
     "mult": "×",
     "deriv": "d/dt",
     "constant": "const",
+    "at": "@",
 }
 
 
@@ -149,9 +150,9 @@ def causal_order(
     determiner: dict[str, int] = {}
     consumed_eq: set[int] = set()
 
-    # 1. CONSTANT fixes its variable (exogenous).
+    # 1. CONSTANT / AT fix their variable (exogenous).
     for i, (kind, names, _src) in enumerate(eqs):
-        if kind == "constant" and names[0] not in determiner:
+        if kind in ("constant", "at") and names[0] not in determiner:
             determiner[names[0]] = i
             consumed_eq.add(i)
 

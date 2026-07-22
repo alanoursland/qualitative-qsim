@@ -14,8 +14,8 @@ from .behavior import (
     SimStatus,
     TerminalClass,
 )
-from .constraints import Add, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
-from . import semiquant, viz
+from .constraints import Add, At, Constant, Constraint, Deriv, Minus, MMinus, MPlus, Mult
+from . import diagnosis, semiquant, viz
 from .engines.qsim import qsim
 from .model import (
     CompiledModel,
@@ -30,6 +30,7 @@ from .state import QState, TimeTag
 
 __all__ = [
     "Add",
+    "At",
     "Constant",
     "Constraint",
     "Deriv",
@@ -56,6 +57,7 @@ __all__ = [
     "SimStatus",
     "TerminalClass",
     "qsim",
+    "diagnosis",
     "semiquant",
     "viz",
 ]

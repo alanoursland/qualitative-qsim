@@ -262,6 +262,17 @@ def check_consistency(
                 sy = (y_val > eps_y) - (y_val < -eps_y)
                 if sd != sy:
                     bad += 1
+        elif kind == "at":
+            try:
+                target = model.variables[c.x].space.landmark(c.landmark).value
+            except KeyError:
+                target = None  # infinite landmark: nothing checkable
+            if target is not None:
+                i = col[c.x]
+                for t in range(T):
+                    n += 1
+                    if abs(rows[t][i] - target) > eps_rel * scale[c.x]:
+                        bad += 1
         elif kind == "constant":
             i = col[c.x]
             mean = sum(rows[t][i] for t in range(T)) / T

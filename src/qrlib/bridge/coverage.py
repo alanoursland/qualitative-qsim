@@ -78,6 +78,22 @@ def check(
     if total == 0:
         return CoverageResult(True, (), 0, 0, config=cfg)
 
+    # A quiescent node's constant continuation is implicit (...P,I,P,... at
+    # the same values forever): an all-steady observation — e.g. a window
+    # watching an equilibrium — matches it directly, whatever its time tags.
+    for nid, node in graph.nodes.items():
+        if node.terminal is TerminalClass.QUIESCENT and _quiescent_absorbs(
+            node, states, graph
+        ):
+            return CoverageResult(
+                True,
+                (nid,),
+                total,
+                total,
+                note="constant quiescent continuation",
+                config=cfg,
+            )
+
     parents: dict[tuple[int, int], tuple[int, int] | None] = {}
     frontier: deque[tuple[int, int]] = deque()
     best_matched = 0

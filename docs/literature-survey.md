@@ -66,7 +66,12 @@ result. **Buys:** models that currently blow the state budget become
 tractable — the single biggest lever on what size of system the library can
 handle. Highest-priority addition.
 
-### 2. Model-based diagnosis — QDOCS
+### 2. Model-based diagnosis — QDOCS — **implemented**
+
+> Built in `qrlib.diagnosis` (mode-carrying components, coverage-oracle
+> consistency, cardinality-ordered minimal-diagnosis search) plus the
+> `At` operating-point constraint. The rest is the original assessment.
+
 
 **What it does.** Consistency-based multiple-fault diagnosis over
 *continuous dynamic* systems: attach behavioral/fault modes to components,
@@ -290,8 +295,7 @@ their fit is genuinely open, not judged:
 By value-per-effort against the current architecture:
 
 1. ~~**Causal ordering** (§4)~~ — **done** (`qrlib.analysis.causal`).
-2. **Model-based diagnosis** (§2) — reuses the coverage oracle + regions;
-   high-value new capability class.
+2. ~~**Model-based diagnosis** (§2)~~ — **done** (`qrlib.diagnosis`).
 3. **Guided simulation / exogenous inputs** (§3) — fills a real gap
    (time-varying inputs) and is broadly useful.
 4. **DecSIM decomposition** (§1) — the big scaling lever; larger effort, do

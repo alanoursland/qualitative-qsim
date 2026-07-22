@@ -20,6 +20,7 @@ __all__ = [
     "Minus",
     "Deriv",
     "Constant",
+    "At",
 ]
 
 CorrespondingValues = tuple[tuple[str, ...], ...]
@@ -148,3 +149,27 @@ class Constant(Constraint):
     @property
     def variables(self) -> tuple[str, ...]:
         return (self.x,)
+
+
+@dataclass(frozen=True)
+class At(Constraint):
+    """``x`` is pinned at ``landmark`` — an operating-point assertion.
+
+    Constrains magnitude only; pair with :class:`Constant` to also pin the
+    direction (otherwise successors that move off the landmark are filtered
+    into dead ends). The landmark rides the corresponding-values machinery,
+    so per-branch rank shifts from landmark discovery are handled
+    automatically. Introduced for fault-mode modeling (a nominal operating
+    point is what makes 'stuck at zero' distinguishable from 'normally
+    zero'), and generally useful for assumption pinning."""
+
+    x: str
+    landmark: str
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return (self.x,)
+
+    @property
+    def corresponding_values(self) -> tuple[tuple[str, ...], ...]:
+        return ((self.landmark,),)

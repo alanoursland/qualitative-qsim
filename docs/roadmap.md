@@ -211,10 +211,16 @@ in recommended order:
   feedback edges, feedback loops (SCCs), and structural singularity
   (under-/over-determined); prose via `narrate_causes`, plain-data
   `to_dict`. Per-region for multi-region models.
-- **Model-based diagnosis** (QDOCS / GDE lineage): fault-mode model
-  variants (via the region machinery) + a conflict→candidate layer fed by
-  the coverage oracle's refutations. New capability class; reuses what we
-  shipped. High value.
+- ~~Model-based diagnosis~~ **(done)** — `qrlib.diagnosis`: components
+  with behavioral modes (constraint sets), candidates checked by
+  simulate-and-cover (the coverage oracle is the consistency check;
+  refutations are the conflicts), cardinality-ordered search with
+  minimal-fault-set pruning, sound-refutation / consistent-not-proven
+  semantics, vacuous-evidence flagging on truncation. Added the `At`
+  operating-point constraint (magnitude pinned at a landmark) — what
+  makes "stuck at zero" distinguishable from "normally zero" — wired
+  through predicates, schema, causal ordering, semiquant, and the
+  consistency checker.
 - **Guided simulation / exogenous inputs** (TeQSIM): temporal-logic
   trajectory constraints + an incremental behavior-graph model-checker on
   the agenda loop; the first-class story for time-varying inputs we lack.
