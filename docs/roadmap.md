@@ -200,20 +200,41 @@ moved up; analysis/queries attach to the phases that make them possible.
 
 ## Backlog (demand-driven — pick up when a use case asks)
 
-- **Piecewise-affine qualitative analysis** (near-term candidate; see
-  `docs/piecewise-affine.md`): focal-point model front-end compiling
-  thresholds + per-box affine coefficients onto the region + sign-matrix
-  machinery; Filippov sliding-mode derivation on switching domains (the
-  one genuinely new engine capability); focal-point-in-box stability
-  tagging. Exact (not merely sound) qualitative phase portraits for
-  PWA-structured or PWA-abstractable numeric systems.
+Fuller assessments (what each does, whether we subsume it, cost/benefit)
+are in `docs/literature-survey.md`; the highest value-per-effort items,
+in recommended order:
+
+- **Causal ordering** (Simon / Iwasaki-Simon): self-contained algorithm
+  over the compiled constraint graph deriving which variable determines
+  which; strengthens explanation into causal narration. Small, low-risk.
+- **Model-based diagnosis** (QDOCS / GDE lineage): fault-mode model
+  variants (via the region machinery) + a conflict→candidate layer fed by
+  the coverage oracle's refutations. New capability class; reuses what we
+  shipped. High value.
+- **Guided simulation / exogenous inputs** (TeQSIM): temporal-logic
+  trajectory constraints + an incremental behavior-graph model-checker on
+  the agenda loop; the first-class story for time-varying inputs we lack.
+- **Decomposition / scaling** (DecSIM): constraint-graph partitioner +
+  interacting-histories coordinator to break the `2^n` successor blowup.
+  The big scaling lever; larger effort — do it when model size binds.
+- **Piecewise-affine qualitative analysis** (see `docs/piecewise-affine.md`):
+  focal-point front-end + Filippov sliding-mode derivation; exact (not
+  merely sound) phase portraits for PWA-structured systems.
+- Opportunistic reasoning layers: qualitative-phase-space non-intersection
+  global filter (Lee & Kuipers); order-of-magnitude disambiguation (FOG);
+  QPT / ENVISION-confluences model front-ends; dynamic (vs. static)
+  chatter abstraction.
 - Total envisionment (enumerate all consistent states, then connect).
-- QDE induction from abstracted trajectories (GENMODEL/MISQ lineage).
+- QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
+  pairs naturally with the trajectory-abstraction pipeline.
 - Comparative analysis; temporal-logic queries over behavior graphs.
 - Soft differentiable constraint losses (layered above the exact core).
 - Batched/tensorized interval propagation; GPU benchmark runs (needs a
   CUDA box); first-class declarative `EnergyFilter`
   (docs/open-questions.md #7).
+- Not yet assessed (worth a follow-up survey): monotone dynamical-systems
+  theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
+  reachability tooling; hybrid-system falsification / conformance testing.
 
 ## Deliberately not scheduled
 
