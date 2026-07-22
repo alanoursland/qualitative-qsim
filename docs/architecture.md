@@ -25,6 +25,7 @@ src/qrlib/
 │   ├── transitions.py   # P-/I-transition tables
 │   ├── filters.py       # predicates, tuple/Waltz filtering, assembly
 │   ├── landmarks.py     # new-landmark introduction (per-branch frames)
+│   ├── chatter.py       # structural chatter detection (dynamic abstraction)
 │   └── phase.py         # phase-space non-intersection global filter
 ├── tensor/
 │   ├── encoding.py      # qcodes, frontier codecs, per-frame constraint tables

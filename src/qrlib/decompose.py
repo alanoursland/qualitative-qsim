@@ -564,7 +564,16 @@ def decsim(
                 ),
             )
             spec = formula if spec is None else spec & formula
-        sub_cfg = replace(cfg, ignore_qdir=tuple(ignore), guide=spec)
+        # guided interface vars carry direction conjuncts in their words:
+        # keep their directions tracked even under dynamic chatter
+        tracked = tuple(
+            dict.fromkeys(
+                list(cfg.track_qdir) + [v for v in words if v not in ignore]
+            )
+        )
+        sub_cfg = replace(
+            cfg, ignore_qdir=tuple(ignore), guide=spec, track_qdir=tracked
+        )
         sub_initial = QState.from_dict(
             {v: initial[v] for v in part.model.variables}, initial.time
         )

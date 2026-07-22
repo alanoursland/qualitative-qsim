@@ -467,9 +467,18 @@ def guided(
     compiled = model.compile() if isinstance(model, Model) else model
     cfg = config or SimConfig()
     _validate_spec(spec, compiled, cfg.ignore_qdir)
-    result = qsim(
-        compiled, initial, config=replace(cfg, guide=spec), **overrides
-    )
+    cfg = replace(cfg, guide=spec)
+    if cfg.dynamic_chatter:
+        # directions the spec mentions must stay tracked
+        atoms: list[Formula] = []
+        _subformulas(spec, atoms)
+        dir_vars = tuple(
+            a.var
+            for a in atoms
+            if isinstance(a, Atom) and a.op == "dir" and a.var not in cfg.track_qdir
+        )
+        cfg = replace(cfg, track_qdir=cfg.track_qdir + dir_vars)
+    result = qsim(compiled, initial, config=cfg, **overrides)
     return classify(result, spec, _validated=True)
 
 

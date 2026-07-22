@@ -90,6 +90,18 @@ class SimConfig:
       (chatter abstraction): candidates are generated over all concrete
       directions, filtered normally, then projected to ``Qdir.IGN`` and
       merged — collapsing chatter branching soundly.
+    - ``dynamic_chatter``: detect chatter automatically instead of naming
+      variables in ``ignore_qdir``. Structural analysis (per region) finds
+      the variables whose direction nothing pins (``engines.chatter``);
+      during expansion, successors identical except for those variables'
+      directions are merged, with the wiggling directions projected to
+      ``Qdir.IGN`` — the abstraction applies exactly where chatter
+      branching manifests, and a candidate whose direction is forced at
+      some state keeps it concrete there.
+    - ``track_qdir``: variables ``dynamic_chatter`` must never abstract
+      (their direction stays tracked even if it chatters). Phase-pair
+      variables and directions a guide spec mentions are force-tracked
+      automatically.
     - ``successor_filters``: user vetoes applied to assembled successors —
       the hook for analytic knowledge (e.g. energy arguments) that prunes
       spurious behaviors without touching core semantics.
@@ -122,6 +134,8 @@ class SimConfig:
     discover_landmarks: bool = True
     max_landmarks: int = 6
     ignore_qdir: tuple[str, ...] = ()
+    dynamic_chatter: bool = False
+    track_qdir: tuple[str, ...] = ()
     successor_filters: tuple[SuccessorFilter, ...] = ()
     envisionment: bool = False
     use_tensor: bool = False

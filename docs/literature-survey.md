@@ -282,10 +282,18 @@ self-explanatory/narration path on large, numerically-instantiated models.
 
 ## Incremental (not a new class)
 
-- **Dynamic chatter abstraction** (Clancy & Kuipers, AAAI-97). Detects
-  chattering subspaces *during* simulation rather than requiring the user to
-  name them via `ignore_qdir` up front. An upgrade to existing chatter
-  handling — worthwhile, lower priority than the new classes above.
+- ~~**Dynamic chatter abstraction** (Clancy & Kuipers, AAAI-97)~~ —
+  **implemented** (`engines.chatter` + `SimConfig.dynamic_chatter`).
+  Structural per-region analysis finds direction-unanchored constraint
+  classes (rigid M+/M-/MINUS links; ADD/MULT rigid only via Constant
+  operands; anchors = state variables and constants); during expansion,
+  successors identical except in candidates' directions merge with the
+  wiggling directions projected to `Qdir.IGN`. Candidacy is permission,
+  not sentence: a candidate whose direction filtering pins stays
+  concrete (the U-tube's flow class is a candidate yet its graph is
+  untouched — precision static abstraction loses). `track_qdir`
+  force-tracks; guide dir-atoms and DecSIM guided interface variables
+  are force-tracked automatically.
 
 ## Not yet assessed (honest gaps — candidates for a follow-up pass)
 

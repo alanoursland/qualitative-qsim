@@ -45,7 +45,7 @@ from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, Ter
 from ..model import CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
-from . import filters, phase
+from . import chatter, filters, phase
 from .landmarks import introduce_landmarks
 from .transitions import interval_successors, point_successors
 
@@ -78,6 +78,19 @@ def qsim(
         raise ValueError(f"ignore_qdir names unknown variables: {sorted(unknown)}")
     ignored = frozenset(root_frame.index(name) for name in cfg.ignore_qdir)
     phase_pairs = phase.validate_pairs(root_frame, cfg)
+
+    chatter_by_region: dict[str, frozenset[int]] = {}
+    if cfg.dynamic_chatter:
+        unknown = set(cfg.track_qdir) - set(root_frame.var_order)
+        if unknown:
+            raise ValueError(f"track_qdir names unknown variables: {sorted(unknown)}")
+        # never abstract force-tracked, already-ignored, or phase-pair vars
+        keep = {root_frame.index(n) for n in cfg.track_qdir} | ignored
+        keep |= {vi for pair in phase_pairs for vi in pair}
+        chatter_by_region = {
+            r.name: chatter.candidates(root_frame, r.name) - keep
+            for r in root_frame.regions
+        }
 
     root_region = root_frame.initial_region
     _validate_initial(root_frame, initial, root_region)
@@ -112,8 +125,14 @@ def qsim(
         "region_crossings": 0,
         "spec_filtered": 0,
         "phase_filtered": 0,
+        "chatter_merged": 0,
         "deadends": 0,
     }
+    if cfg.dynamic_chatter:
+        stats["chatter_candidates"] = {
+            r: sorted(root_frame.var_order[i] for i in s)
+            for r, s in chatter_by_region.items()
+        }
     truncated = False
     if root_guide is not None and root_guide == _SPEC_FALSE:
         nodes[0].terminal = TerminalClass.SPEC_PRUNED
@@ -184,7 +203,8 @@ def qsim(
                 spec_killed = False
                 for tr in firing:
                     for entry in _entry_states(
-                        frame, vals, tr.target, cfg, stats, ignored
+                        frame, vals, tr.target, cfg, stats, ignored,
+                        chatter_by_region.get(tr.target, frozenset()),
                     ):
                         spec_killed |= attach(node, entry, frame, tr.target) == "spec"
                 if not node.children:
@@ -201,7 +221,9 @@ def qsim(
                 # Explore departures (unstable equilibria); the identity
                 # continuation is the quiescent behavior itself.
                 succ = _expand(
-                    frame, state, vals, cfg, stats, ignored, active_idx, exclude=vals
+                    frame, state, vals, cfg, stats, ignored, active_idx,
+                    chatter_by_region.get(node.region, frozenset()),
+                    exclude=vals,
                 )
                 for child_state, child_frame in succ or []:
                     attach(node, child_state, child_frame, node.region)
@@ -217,7 +239,9 @@ def qsim(
 
         exclude = vals if (not is_point and cfg.no_change_filter) else None
         children = _expand(
-            frame, state, vals, cfg, stats, ignored, active_idx, exclude=exclude
+            frame, state, vals, cfg, stats, ignored, active_idx,
+            chatter_by_region.get(node.region, frozenset()),
+            exclude=exclude,
         )
         if children is None:  # some variable has no legal transition
             node.terminal = (
@@ -283,6 +307,7 @@ def _entry_states(
     cfg: SimConfig,
     stats: dict,
     ignored: frozenset[int],
+    chatter: frozenset[int] = frozenset(),
 ) -> list[QState]:
     """Region-entry states: magnitudes carry over, directions re-derive
     under the target region's constraints (the vector field may change
@@ -293,12 +318,18 @@ def _entry_states(
     ]
     out: list[QState] = []
     emitted: set[QState] = set()
+    survivors = []
     for combo in _filtered_combos(frame, domains, active_idx, cfg):
         stats["candidates"] += 1
-        projected = tuple(
-            QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
-            for vi, qv in enumerate(combo)
+        survivors.append(
+            tuple(
+                QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
+                for vi, qv in enumerate(combo)
+            )
         )
+    if chatter:
+        survivors = _merge_chatter(survivors, chatter, stats)
+    for projected in survivors:
         entry = QState.from_dict(
             dict(zip(frame.var_order, projected)), TimeTag.POINT
         )
@@ -317,6 +348,7 @@ def _expand(
     stats: dict,
     ignored: frozenset[int],
     active_idx: tuple[int, ...],
+    chatter: frozenset[int] = frozenset(),
     *,
     exclude: tuple[QVal, ...] | None,
 ) -> list[tuple[QState, CompiledModel]] | None:
@@ -345,8 +377,7 @@ def _expand(
     if any(not d for d in domains):
         return None
 
-    out: list[tuple[QState, CompiledModel]] = []
-    emitted: set[QState] = set()
+    survivors: list[tuple[QVal, ...]] = []
     for combo in _filtered_combos(frame, domains, active_idx, cfg):
         stats["candidates"] += 1
         if (
@@ -356,10 +387,18 @@ def _expand(
         ):
             stats["infinity_filtered"] += 1
             continue
-        projected = tuple(
-            QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
-            for vi, qv in enumerate(combo)
+        survivors.append(
+            tuple(
+                QVal(qv.mag, Qdir.IGN) if vi in ignored else qv
+                for vi, qv in enumerate(combo)
+            )
         )
+    if chatter:
+        survivors = _merge_chatter(survivors, chatter, stats)
+
+    out: list[tuple[QState, CompiledModel]] = []
+    emitted: set[QState] = set()
+    for projected in survivors:
         if exclude is not None and projected == exclude:
             stats["no_change_filtered"] += 1
             continue
@@ -387,6 +426,38 @@ def _expand(
                     dict(zip(frame.var_order, minted_vals)), next_time
                 )
         out.append((child_state, child_frame))
+    return out
+
+
+def _merge_chatter(
+    combos: list[tuple[QVal, ...]], chatter: frozenset[int], stats: dict
+) -> list[tuple[QVal, ...]]:
+    """Dynamic chatter abstraction: successors identical except in chatter
+    candidates' directions merge into one, the wiggling directions
+    projected to IGN. A candidate whose direction is uniform across a
+    group (filtering pinned it) stays concrete."""
+    groups: dict[tuple, list[tuple[QVal, ...]]] = {}
+    for combo in combos:
+        key = tuple(
+            (qv.mag, None if vi in chatter else qv.dir)
+            for vi, qv in enumerate(combo)
+        )
+        groups.setdefault(key, []).append(combo)
+    out = []
+    for members in groups.values():
+        if len(members) == 1:
+            out.append(members[0])
+            continue
+        varying = {
+            vi for vi in chatter if len({m[vi].dir for m in members}) > 1
+        }
+        out.append(
+            tuple(
+                QVal(qv.mag, Qdir.IGN) if vi in varying else qv
+                for vi, qv in enumerate(members[0])
+            )
+        )
+        stats["chatter_merged"] += len(members) - 1
     return out
 
 

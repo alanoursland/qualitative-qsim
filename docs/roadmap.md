@@ -274,9 +274,20 @@ in recommended order:
   families); undamped spring with discovery drops 199 → 119 behaviors
   while the golden no-discovery cycle graph is untouched;
   numeric-trajectory coverage retained.
+- ~~Dynamic chatter abstraction (Clancy & Kuipers)~~ **(done —
+  `engines.chatter`, `SimConfig.dynamic_chatter`)**: per-region
+  structural detection of direction-unanchored variables + merge-at-
+  manifestation (successors identical modulo candidate directions
+  collapse, wiggling directions to `IGN`; forced directions stay
+  concrete). Removes the hand-written `ignore_qdir` lists: the cascade
+  completes automatically (TRUNCATED → COMPLETE, 19 nodes, the golden 5
+  behaviors), the damped spring is tamed to the hand-tuned budget, and
+  candidate-but-never-wiggling models (U-tube) come out export-
+  identical. Composes with the guide (dir-atoms auto-tracked via
+  `track_qdir`), DecSIM (guided interface vars auto-tracked), and the
+  phase filter (pair vars never abstracted).
 - Opportunistic reasoning layers: order-of-magnitude disambiguation (FOG);
-  QPT / ENVISION-confluences model front-ends; dynamic (vs. static)
-  chatter abstraction.
+  QPT / ENVISION-confluences model front-ends.
 - Total envisionment (enumerate all consistent states, then connect).
 - QDE induction from abstracted trajectories (GENMODEL/MISQ lineage) —
   pairs naturally with the trajectory-abstraction pipeline.
