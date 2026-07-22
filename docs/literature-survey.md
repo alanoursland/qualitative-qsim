@@ -36,7 +36,12 @@ it reasons on.
 
 ## Tier 1 — high-value new capability classes
 
-### 1. Decomposition / scaling — DecSIM
+### 1. Decomposition / scaling — DecSIM — **implemented**
+
+> Built in `qrlib.decompose` (variable partitioner, per-constraint
+> ownership with interface variables, upstream-guided component runs via
+> `qrlib.guide` words, episode-sequence join with terminal-aware suffix
+> semantics). The rest is the original assessment.
 
 **What it does.** Partitions a model's variables into components (tightly
 coupled together, loosely coupled apart), simulates each component
@@ -304,8 +309,7 @@ By value-per-effort against the current architecture:
 2. ~~**Model-based diagnosis** (§2)~~ — **done** (`qrlib.diagnosis`).
 3. ~~**Guided simulation / exogenous inputs** (§3)~~ — **done**
    (`qrlib.guide`).
-4. **DecSIM decomposition** (§1) — the big scaling lever; larger effort, do
-   it when model size becomes the binding constraint.
+4. ~~**DecSIM decomposition** (§1)~~ — **done** (`qrlib.decompose`).
 5. Opportunistic: the **non-intersection global filter** (§6), **FOG**
    disambiguation (§5), and a **QPT/ENVISION** front-end (§7–8) as authoring
    demand appears.

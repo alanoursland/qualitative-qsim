@@ -236,9 +236,19 @@ in recommended order:
   export. `universal` is a sound all-real-behaviors proof (empty
   violated + undetermined); satisfied behaviors are possible, not
   proven.
-- **Decomposition / scaling** (DecSIM): constraint-graph partitioner +
-  interacting-histories coordinator to break the `2^n` successor blowup.
-  The big scaling lever; larger effort — do it when model size binds.
+- ~~**Decomposition / scaling** (DecSIM)~~ **(done — `qrlib.decompose`)**:
+  variable partitioner (user-declared or connected-components), one
+  constraint owner per constraint (foreign variables become the
+  component's interface), per-component simulation with upstream
+  components guiding downstream ones — each upstream behavior's
+  shared-variable episode word is compiled into a `qrlib.guide` spec, so
+  DecSIM's coordination rides the TeQSIM machinery — and a post-hoc join
+  on shared-variable magnitude episodes (declared-landmark projection
+  dissolves per-branch discovered landmarks). Cyclic coupling falls back
+  to chatter-abstracted interfaces + join only. Twin-bathtub headline:
+  10 component nodes / 9 joint tuples vs 33 monolithic nodes / 23
+  interleaved behaviors, coverage-tested; guided cascade: downstream
+  drops from budget-blowing to 15 nodes, joint behaviors == monolithic.
 - **Piecewise-affine qualitative analysis** (see `docs/piecewise-affine.md`):
   focal-point front-end + Filippov sliding-mode derivation; exact (not
   merely sound) phase portraits for PWA-structured systems.
