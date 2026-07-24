@@ -1,5 +1,7 @@
 """Phase-space non-intersection filter (after Lee & Kuipers).
 
+Research lineage: [LeeKuipers1988] in ``docs/references.md``.
+
 A trajectory of an autonomous planar flow cannot cross itself. Projected
 onto a declared phase pair ``(x, y)`` — ``y = dx/dt`` via a ``Deriv``
 constraint — every behavior traces a curve in the (x, y) plane, and the

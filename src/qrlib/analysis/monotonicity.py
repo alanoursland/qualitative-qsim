@@ -1,5 +1,8 @@
 """Signed-graph consistency for qualitative monotone relationships.
 
+Research lineage: the classical signed-graph balance characterization
+[Harary1953] in ``docs/references.md``.
+
 ``M+`` requires two variables to have the same order polarity; ``M-`` and
 ``Minus`` require opposite polarities.  A set of such requirements is
 *orthant-consistent* exactly when every signed cycle has positive sign, or

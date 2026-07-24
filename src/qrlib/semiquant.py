@@ -1,5 +1,8 @@
 """Q2-style semi-quantitative refinement of qualitative behaviors.
 
+Research lineage: [KuipersBerleant1988] and [BerleantKuipers1997] in
+``docs/references.md``.
+
 Landmarks may carry numeric knowledge (exact ``value`` or ``(lo, hi)``
 bounds — in the schema since phase 2) and M+/M- constraints may carry
 numeric **envelopes** (``lower(x) <= f(x) <= upper(x)``). Given one

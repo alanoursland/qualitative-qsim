@@ -51,4 +51,33 @@ general hybrid-system conformance, spatial reasoning, and a GUI model
 builder—are discussed in the design documents, not presented as tutorial
 capabilities.
 
+## Research lineage for tutorial features
+
+The table below distinguishes research-derived functionality from original
+library engineering. Complete annotated records are in
+[`docs/references.md`](../references.md).
+
+| Tutorial capability | Direct lineage |
+|---|---|
+| QSIM states, transitions, landmark discovery, and coverage semantics | [Kuipers1986](../references.md#kuipers1986), [Kuipers1994](../references.md#kuipers1994) |
+| Semi-quantitative refinement | [KuipersBerleant1988](../references.md#kuipersberleant1988) |
+| Energy pruning | [FoucheKuipers1992](../references.md#fouchekuipers1992) |
+| Dynamic chatter abstraction | [ClancyKuipers1997Chatter](../references.md#clancykuipers1997chatter) |
+| Phase-space non-intersection | [LeeKuipers1988](../references.md#leekuipers1988) |
+| Guided simulation and temporal classification | [BrajnikClancy1998](../references.md#brajnikclancy1998), [ShultsKuipers1997](../references.md#shultskuipers1997) |
+| Diagnosis with behavioral modes | [SubramanianMooney1996](../references.md#subramanianmooney1996) |
+| Decomposed simulation | [ClancyKuipers1997](../references.md#clancykuipers1997) |
+| Process-centered authoring | [Forbus1984](../references.md#forbus1984) |
+| Device composition and total envisionment | [deKleerBrown1984](../references.md#dekleerbrown1984) |
+| Causal ordering | [IwasakiSimon1986](../references.md#iwasakisimon1986), [deKleerBrown1986](../references.md#dekleerbrown1986) |
+| Comparative analysis | [ChiuKuipers1992](../references.md#chiukuipers1992) |
+| Negligibility / order of magnitude | [Raiman1986](../references.md#raiman1986) |
+| Signed-graph consistency | [Harary1953](../references.md#harary1953) |
+| QDE induction | [RichardsKraanKuipers1992](../references.md#richardskraankuipers1992) |
+
+Tensor encoding, backend selection, numeric-bridge schemas, provenance
+records, compact constraint syntax, SVG rendering, and the exact public APIs
+are qrlib engineering contributions. PyTorch is the tensor execution
+dependency ([PaszkeEtAl2019](../references.md#paszkeetal2019)).
+
 ← [Back to the tutorial index](README.md)

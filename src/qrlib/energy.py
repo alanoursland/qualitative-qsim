@@ -1,5 +1,7 @@
 """Declarative energy filter (open-questions.md #7).
 
+Research lineage: [FoucheKuipers1992] in ``docs/references.md``.
+
 The canonical spurious-behavior killer is an *energy argument*: a
 conserved or dissipated quantity constrains how far a system can swing.
 QSIM's pluggable ``successor_filters`` hook can express it, but the

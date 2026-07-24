@@ -191,17 +191,15 @@ have are:
 
 ## References (domain-neutral)
 
-- A. F. Filippov, *Differential Equations with Discontinuous Righthand
-  Sides*, Kluwer (1988) — the sliding-mode / set-valued resolution used in §3.
-- E. D. Sontag, *Nonlinear Regulation: The Piecewise Linear Approach*, IEEE
-  Transactions on Automatic Control 26(2) (1981) — PWA systems in control.
-- A. Bemporad & M. Morari, *Control of Systems Integrating Logic, Dynamics,
-  and Constraints*, Automatica 35(3) (1999) — PWA/hybrid modeling and the
-  box-partition view.
-- M. Johansson & A. Rantzer, *Computation of Piecewise Quadratic Lyapunov
-  Functions for Hybrid Systems*, IEEE Transactions on Automatic Control 43(4)
-  (1998) — stability analysis over a PWA partition.
+- [Filippov1988](references.md#filippov1988) — sliding-mode and set-valued
+  resolution used in §3.
+- [Sontag1981](references.md#sontag1981) — piecewise-linear systems in
+  control.
+- [BemporadMorari1999](references.md#bemporadmorari1999) — hybrid modeling
+  and the mixed logical/dynamical view.
+- [JohanssonRantzer1998](references.md#johanssonrantzer1998) — stability
+  analysis over a piecewise partition.
 
-> A broader QR literature survey (`docs/literature-survey.md`, in progress)
-> will cross-reference this note; the technique is documented separately here
-> because it is a concrete, near-term incorporation candidate.
+These are adjacent-work references, not claims that qrlib implements a
+general Filippov or hybrid-systems solver. See the
+[canonical bibliography](references.md#piecewise-affine-and-hybrid-background).

@@ -1,23 +1,28 @@
 # QR literature survey: what else is worth incorporating
 
-A survey of qualitative-reasoning techniques *not* currently in the library,
-each assessed for what it does, whether something we already have subsumes
-it, and what incorporating it would take and buy. Findings are ranked by
-value, weighting **new capability classes** (diagnosis, guided simulation,
-decomposition/scaling, causal reasoning, phase-space reasoning) over
-incremental variants of what exists.
+A survey that guided the library's post-QSIM additions. Each technique was
+assessed for what it does, whether an existing component subsumed it, and what
+incorporating it would take and buy. Most findings are now implemented; the
+original assessments are preserved beneath current-status notes. Findings
+were ranked by value, weighting **new capability classes** (diagnosis, guided
+simulation, decomposition/scaling, causal reasoning, phase-space reasoning)
+over incremental variants.
 
 ## How this was produced
 
 Multi-source literature search with adversarial verification: each claim
 below was checked by independent skeptics against primary sources (AAAI/
 IJCAI proceedings, Springer/IEEE journals, author archives) and kept only on
-a majority-confirm vote. The ten findings here survived that filter; the
+a majority-confirm vote. The nine findings here survived that filter; the
 honest coverage gaps are listed in §"Not yet assessed". Everything is
 assessed against the library as of v0.1.0a0 (full QSIM + landmark discovery,
 chatter abstraction, analytic filters, attainable envisionment, operating
 regions; the numeric bridge + coverage oracle; sign-structure intake; Q2
 semi-quantitative refinement; explanation; the tensor engine).
+
+The complete, normalized records and an implementation-lineage map are in
+the [canonical bibliography](references.md). Bracketed keys below are stable
+across the repository and resolve there.
 
 ## Governing caveat (shapes everything below)
 
@@ -30,7 +35,7 @@ witnessing behavior might be spurious. The coverage oracle already lives on
 the sound side of this line (it refutes, it doesn't certify existence). Any
 capability added below inherits this asymmetry and should state which side
 it reasons on.
-*Kuipers, "Qualitative Simulation" (encyclopedia article, 2001).*
+Source: [Kuipers2001](references.md#kuipers2001).
 
 ---
 
@@ -53,8 +58,7 @@ successor states; events internal to one component no longer force branches
 in the others, giving exponential reduction on decomposable models while
 yielding a behavior set equivalent to monolithic QSIM (modulo
 cross-component event ordering).
-*Clancy & Kuipers, "Model decomposition and simulation: a component-based
-qualitative simulation algorithm," AAAI-97.*
+Source: [ClancyKuipers1997](references.md#clancykuipers1997).
 
 **Subsumed by us?** No. Our tensor engine makes each expansion *faster* but
 does nothing about the *number* of states; this is the one technique that
@@ -85,8 +89,7 @@ which the qualitative model is consistent with what was seen. Extends the
 GDE/Sherlock lineage (static logic circuits) to dynamics by checking
 temporal consistency of an observed behavior against the model and
 propagating conflicts to candidate fault sets.
-*Subramanian & Mooney, "Qualitative multiple-fault diagnosis of continuous
-dynamic systems using behavioral modes," AAAI-96 / IJCAI-95.*
+Source: [SubramanianMooney1996](references.md#subramanianmooney1996).
 
 **Subsumed by us?** No — but we already have the hard half. The **coverage
 oracle** ("is this observed behavior a path in the predicted graph?") is
@@ -121,8 +124,9 @@ focusing a large simulation on behaviors of interest, **non-autonomous /
 piecewise-continuous** systems (time-varying exogenous inputs expressed as
 temporal constraints), boundary-condition problems, and folding observations
 into the simulation.
-*Brajnik & Clancy, "Focusing Qualitative Simulation Using Temporal Logic,"
-Annals of Mathematics and AI (1998).*
+Sources: [BrajnikClancy1998](references.md#brajnikclancy1998) for TeQSIM and
+[ShultsKuipers1997](references.md#shultskuipers1997) for temporal
+model-checking over QSIM behavior graphs.
 
 **Subsumed by us?** No. Our `successor_filters` are *internal, physics-based*
 vetoes (e.g. energy). TeQSIM adds *external, specification-based* guidance
@@ -155,7 +159,8 @@ a minimal variable set whose equations mention only those variables, pick
 the subset maximizing `|E|−|V|`, "plunk" (fix) a variable, and iterate; for
 `n` independent equations in `n` unknowns this recovers Simon's causal
 order. Feedback loops correctly yield *no* internal ordering.
-*Iwasaki & Simon (1986); de Kleer & Brown; "Theories of Causal Ordering".*
+Sources: [IwasakiSimon1986](references.md#iwasakisimon1986) and
+[deKleerBrown1986](references.md#dekleerbrown1986).
 
 **Subsumed by us?** No. Our explanation layer narrates *what* changes, not
 *what causes what*. Causal ordering is a distinct structural analysis over
@@ -185,7 +190,7 @@ below) is the alternative there.
 canonical example: a sign-only analysis of a large-mass/small-mass elastic
 collision leaves five possibilities; adding `m Ne M` derives the unique
 physical answer.
-*Raiman, "Order of Magnitude Reasoning," AAAI-86.*
+Source: [Raiman1986](references.md#raiman1986).
 
 **Subsumed by us?** Partly overlaps the semi-quantitative layer (interval
 bounds also disambiguate), but FOG works *symbolically* from ordering
@@ -213,8 +218,8 @@ no numeric input required.
 (a real trajectory can't cross itself except at closure — a sound global
 pruning rule), and **QPORTRAIT**, constructing 2-D phase portraits from a
 QDE.
-*Lee & Kuipers, AAAI-88 (non-intersection); Lee & Kuipers, AAAI-93
-(QPORTRAIT).*
+Sources: [LeeKuipers1988](references.md#leekuipers1988) for non-intersection
+and [LeeKuipers1993](references.md#leekuipers1993) for QPORTRAIT.
 
 **Subsumed by us?** No. The non-intersection constraint is a *global path*
 property; our filters are largely local/per-successor.
@@ -245,7 +250,7 @@ rule; treat QPORTRAIT as optional.
 (flow, transfer, motion) are the primitives that create influences — versus
 our constraint/QDE ontology. Widely compiled *down* to QDEs, so it can feed
 the existing engine.
-*Forbus, "Qualitative Process Theory," Artificial Intelligence 24 (1984).*
+Source: [Forbus1984](references.md#forbus1984).
 
 **Subsumed by us?** The *engine* subsumes compiled QPT; the *authoring
 ontology* is new. Value is ergonomic — some domains are far more natural to
@@ -275,8 +280,7 @@ generic-component library ("no function in structure"). Confluences are
 QDEs over a three-valued sign space; multiplication is exact but addition is
 inherently ambiguous — the structural root of qualitative ambiguity — and
 *total* envisionment enumerates all states.
-*de Kleer & Brown, "A Qualitative Physics Based on Confluences," AI 24
-(1984).*
+Source: [deKleerBrown1984](references.md#dekleerbrown1984).
 
 **Subsumed by us?** Confluences ≈ our sign-matrix intake; what's new is
 **component-topology composition** (build a model by wiring library parts)
@@ -295,8 +299,7 @@ thousands of parameters, by **minimizing** qualitative reasoning: no
 transitivity closure, no influence resolution, no limit analysis — because
 full envisionment is exponential and unnecessary *when quantitative
 information is available*.
-*Forbus & Falkenhainer; Forbus, "Polynomial-time compilation of
-self-explanatory simulators," QR-94 / IJCAI-95.*
+Source: [ForbusFalkenhainer1995](references.md#forbusfalkenhainer1995).
 
 **Subsumed by us?** It's a strategic lesson more than a module: when numbers
 exist, skip the expensive qualitative steps. Dovetails with our Q2 layer.
@@ -310,7 +313,8 @@ self-explanatory/narration path on large, numerically-instantiated models.
 
 ## Incremental (not a new class)
 
-- ~~**Dynamic chatter abstraction** (Clancy & Kuipers, AAAI-97)~~ —
+- ~~**Dynamic chatter abstraction**~~
+  ([ClancyKuipers1997Chatter](references.md#clancykuipers1997chatter)) —
   **implemented** (`engines.chatter` + `SimConfig.dynamic_chatter`).
   Structural per-region analysis finds direction-unanchored constraint
   classes (rigid M+/M-/MINUS links; ADD/MULT rigid only via Constant
@@ -344,7 +348,8 @@ their fit is genuinely open, not judged:
   (Weld's differential-qualitative analysis) is now built as
   `qrlib.analysis.compare` in its comparative-statics form (parameter
   perturbation → equilibrium-shift signs by constraint sign propagation).
-  **QDE induction from data** (the GENMODEL/MISQ/QSI/ILP lineage) is now
+  **QDE induction from data** (the
+  [MISQ/QDE-abduction lineage](references.md#richardskraankuipers1992)) is now
   built as `qrlib.induce` (structure selection over a parsimony ladder,
   validated by the data-consistency checker).
 

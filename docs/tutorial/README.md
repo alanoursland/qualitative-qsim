@@ -31,7 +31,7 @@ total envisionment, alternative authoring front ends, decomposition, tensor
 execution, and differentiable losses.
 
 See the [feature map](feature-map.md) for an explicit accounting of every
-public package area.
+public package area and the research lineage of the features it teaches.
 
 ## Core track
 

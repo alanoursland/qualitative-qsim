@@ -3,7 +3,9 @@
 Implemented package layout and core abstractions. This document describes the
 current `src/qrlib/` package; future work is tracked separately in
 `docs/roadmap.md`. Host-facing requirements that shaped the design are
-collected in `docs/host-integration.md`.
+collected in `docs/host-integration.md`. Research-derived modules carry stable
+citation keys whose full records and implementation relationships are in
+[`docs/references.md`](references.md).
 
 ## Package layout
 

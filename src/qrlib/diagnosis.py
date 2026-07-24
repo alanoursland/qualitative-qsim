@@ -1,5 +1,7 @@
 """Consistency-based model-based diagnosis over qualitative dynamic models.
 
+Research lineage: [SubramanianMooney1996] in ``docs/references.md``.
+
 The GDE/Sherlock lineage extended to continuous dynamics in the manner of
 QDOCS (docs/literature-survey.md §2): components carry **behavioral modes**
 (a normal mode plus fault modes, each a set of constraints); a **candidate**

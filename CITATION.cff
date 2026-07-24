@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use qualitative-qsim in research, please cite the software using this metadata. A JOSS article citation will replace it after publication."
+type: software
+title: "qualitative-qsim: Qualitative reasoning about dynamical systems"
+abstract: >-
+  A Python and PyTorch library for QSIM-style qualitative simulation,
+  semi-quantitative refinement, numeric-trajectory abstraction and coverage,
+  temporal guidance, diagnosis, decomposition, model induction, and related
+  qualitative analyses of dynamical systems.
+authors:
+  - family-names: Oursland
+    given-names: Alan
+version: 0.1.0a0
+repository-code: "https://github.com/alanoursland/qualitative_reasoning_lib"
+url: "https://github.com/alanoursland/qualitative_reasoning_lib"
+keywords:
+  - qualitative reasoning
+  - qualitative simulation
+  - QSIM
+  - qualitative differential equations
+  - dynamical systems
+  - PyTorch

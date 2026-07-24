@@ -1,6 +1,8 @@
 """Process-centric model authoring (after Forbus's Qualitative Process
 Theory).
 
+Research lineage: [Forbus1984] in ``docs/references.md``.
+
 A :class:`System` is written in QPT vocabulary: **quantities**,
 **qualitative proportionalities** (``target`` moves monotonically with
 ``source``), and **processes** that exert **direct influences**

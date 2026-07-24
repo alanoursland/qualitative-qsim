@@ -1,5 +1,8 @@
 """Total envisionment: the complete state-transition graph of a model.
 
+Research lineage: [deKleerBrown1984], with QSIM state semantics from
+[Kuipers1986] and [Kuipers1994], in ``docs/references.md``.
+
 Attainable envisionment (``SimConfig.envisionment``) explores what is
 reachable *from an initial state*. Total envisionment — ENVISION's and
 early QSIM's original product — asks the initial-state-free question:

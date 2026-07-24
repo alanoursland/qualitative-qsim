@@ -59,6 +59,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
 - **`docs/`** — design notes: [vision](docs/vision.md),
   the hands-on [tutorial](docs/tutorial/README.md),
   [QR landscape survey](docs/landscape.md),
+  [research references and implementation lineage](docs/references.md),
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
   [compact constraint syntax](docs/constraint-syntax.md),
   [signed-graph consistency](docs/monotonicity.md),
@@ -169,13 +170,19 @@ orthant ordering, returning a contradictory signed cycle when they do not.
 5. **Soundness is sacred, spuriousness is managed.** Like QSIM itself: never
    drop a real behavior; add filters to prune impossible ones.
 
-## References (orientation)
+## Research lineage and citation
 
-- B. Kuipers, *Qualitative Simulation*, Artificial Intelligence 29 (1986).
-- B. Kuipers, *Qualitative Reasoning: Modeling and Simulation with Incomplete
-  Knowledge*, MIT Press (1994).
-- K. Forbus, *Qualitative Process Theory*, Artificial Intelligence 24 (1984).
-- J. de Kleer & J. S. Brown, *A Qualitative Physics Based on Confluences*,
-  Artificial Intelligence 24 (1984).
-- Kuipers & Berleant, *Using Incomplete Quantitative Knowledge in Qualitative
-  Reasoning* (Q2), AAAI (1988).
+The core semantics follow
+[Kuipers1986](docs/references.md#kuipers1986) and the authoritative
+[Kuipers1994](docs/references.md#kuipers1994) presentation. Process-centered
+authoring draws from [Forbus1984](docs/references.md#forbus1984),
+device composition and envisionment from
+[deKleerBrown1984](docs/references.md#dekleerbrown1984), and
+semi-quantitative refinement from
+[KuipersBerleant1988](docs/references.md#kuipersberleant1988).
+
+The [canonical annotated bibliography](docs/references.md) maps every
+research-derived feature to its source. Machine-readable records are in
+[`paper.bib`](paper.bib), software citation metadata is in
+[`CITATION.cff`](CITATION.cff), and the draft JOSS article is
+[`paper.md`](paper.md).

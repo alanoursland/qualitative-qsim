@@ -1,5 +1,8 @@
 """Causal ordering: which variable determines which.
 
+Research lineage: [IwasakiSimon1986] and [deKleerBrown1986] in
+``docs/references.md``.
+
 Derives causal structure from a model's constraints alone — no simulation —
 following the Simon / Iwasaki-Simon account (docs/literature-survey.md §4).
 The library's explanation layer narrates *what* changes along a behavior;

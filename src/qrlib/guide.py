@@ -1,5 +1,8 @@
 """Guided qualitative simulation: temporal-logic trajectory constraints.
 
+Research lineage: [BrajnikClancy1998] and [ShultsKuipers1997] in
+``docs/references.md``.
+
 TeQSIM-style guidance (docs/literature-survey.md §3): a propositional
 linear-temporal-logic specification over qualitative states is treated as
 part of the model. Simulation is interleaved with **formula progression**

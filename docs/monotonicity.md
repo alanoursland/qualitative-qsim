@@ -38,6 +38,8 @@ p(x) * p(y) == declared_sign(x, y)
 ```
 
 Equivalently, the product of signs around every cycle must be positive.
+This is the classical balance characterization for signed graphs
+([Harary1953](references.md#harary1953)).
 Disconnected components are independent; qrlib chooses polarity `+1` for
 the first declared variable in each component to make the returned
 assignment deterministic. Isolated variables receive `+1`.

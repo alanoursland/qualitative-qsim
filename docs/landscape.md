@@ -1,10 +1,14 @@
 # The qualitative reasoning landscape
 
-A short survey of the main QR formalisms, what each contributes, and what this
-library plans to do about them. This is orientation material, not a
-literature review.
+A short survey of the main QR formalisms, what each contributes, and how this
+library currently represents them. This is orientation material, not a
+literature review. Stable bibliographic records and implementation-lineage
+notes are in [`references.md`](references.md).
 
-## 1. QSIM — qualitative simulation (Kuipers, 1986; 1994)
+## 1. QSIM — qualitative simulation
+
+Sources: [Kuipers1986](references.md#kuipers1986) and
+[Kuipers1994](references.md#kuipers1994).
 
 **The centerpiece of this library.**
 
@@ -33,11 +37,13 @@ literature review.
   variables) are the classic practical issues; chatter-box abstraction and
   ignore-qdir treatments are the standard mitigations.
 
-**Plan:** full implementation — reference pure-Python engine first, then a
-tensorized engine. Corresponding values, new-landmark introduction, and
-chatter mitigation are all in scope (phased; see `roadmap.md`).
+**In qrlib:** implemented by the reference engine and behavior-equivalent
+tensor filtering. Corresponding values, new-landmark introduction, analytic
+and phase filters, and chatter mitigation are supported.
 
-## 2. Envisionment / confluences (de Kleer & Brown, 1984)
+## 2. Envisionment / confluences
+
+Source: [deKleerBrown1984](references.md#dekleerbrown1984).
 
 Qualitative physics based on **confluences** (qualitative differential
 equations over signs), with the **envisionment**: the graph of *all* possible
@@ -45,14 +51,13 @@ qualitative states and transitions of a device, not just those reachable from
 one initial state. Device-centric: models are compositions of component
 models with local behavior rules.
 
-**Plan:** an *attainable envisionment* (reachable-graph) mode falls out of
-QSIM almost for free (memoize states, share successors). A *total
-envisionment* mode (enumerate all consistent states, then connect) is a
-natural batch/GPU workload — generating and filtering the full state
-cross-product is exactly a tensor job. Component/device composition is
-lower priority than the state-graph machinery.
+**In qrlib:** attainable envisionment is a QSIM configuration; total
+envisionment is `qrlib.envision`; reusable component/device composition is
+`qrlib.frontends.devices`.
 
-## 3. Qualitative Process Theory (Forbus, 1984)
+## 3. Qualitative Process Theory
+
+Source: [Forbus1984](references.md#forbus1984).
 
 Physics organized around **processes** (heat flow, liquid flow, boiling) that
 are active when their preconditions hold and impose **influences** (direct
@@ -61,13 +66,14 @@ resolution combines all active processes to determine derivative signs. QPT
 shines at *model formulation* — deciding which equations apply when — where
 QSIM assumes the QDE is already given.
 
-**Plan:** medium-term. The clean landing spot in this architecture is
-**operating regions / mode transitions**: a piecewise QDE whose regions have
-guards, which QSIM already needs for models that change structure (tank
-overflows, valve opens). Full QPT process libraries and influence resolution
-can build on that later without changing the core.
+**In qrlib:** `qrlib.frontends.qpt` compiles process-centered descriptions,
+activation conditions, and influence resolution into ordinary QDE constraints
+and operating regions.
 
-## 4. Semi-quantitative reasoning (Q2/Q3, NSIM; Kuipers & Berleant et al.)
+## 4. Semi-quantitative reasoning
+
+Sources: [KuipersBerleant1988](references.md#kuipersberleant1988) for Q2 and
+[BerleantKuipers1997](references.md#berleantkuipers1997) for Q3.
 
 Annotate landmarks with **numeric interval bounds** and monotonic functions
 with **envelopes**; propagate intervals along the qualitative behaviors to
@@ -75,28 +81,37 @@ with **envelopes**; propagate intervals along the qualitative behaviors to
 numeric bounds on trajectories. This is the classic path from "pure symbols"
 toward numbers, and the most direct synergy with numeric dynamical systems.
 
-**Plan:** in scope after the core engine works. Interval propagation is also
-naturally tensorizable (interval arithmetic on stacked `(lo, hi)` tensors).
+**In qrlib:** `qrlib.semiquant` performs behavior-level interval and time
+refinement; `qrlib.tensor.interval` provides batched interval narrowing and
+feasibility screening.
 
 ## 5. Model learning / QDE induction (GENMODEL, MISQ, QSI lineage)
+
+Sources:
+[RichardsKraanKuipers1992](references.md#richardskraankuipers1992) and
+[RamachandranMooneyKuipers1994](references.md#ramachandranmooneykuipers1994).
 
 Inducing qualitative models from (numeric or qualitative) trajectory data:
 propose constraints consistent with observed qualitative behaviors, search
 model space. Attractive here because the upward bridge (trajectory
 abstraction) produces exactly the input these methods need.
 
-**Plan:** stretch goal; the abstraction pipeline (`numeric-bridge.md`) is a
-prerequisite and is planned regardless.
+**In qrlib:** `qrlib.induce` ranks candidate QDE structures using sign
+estimation, parsimony, and the data-consistency checker. It is part of this
+lineage, not a claim to reproduce every historical induction system.
 
-## 6. Other relatives (tracked, not planned)
+## 6. Other relatives
 
-- **Comparative analysis** (Weld): how does behavior change if a parameter
-  increases? Pairs well with ensembles-of-models batching.
+- **Comparative analysis:** how does behavior change if a parameter increases?
+  See [ChiuKuipers1992](references.md#chiukuipers1992);
+  `qrlib.analysis.compare` implements equilibrium comparative statics.
 - **Temporal-logic queries over behavior graphs** (model checking behaviors
-  against CTL-ish specs): behavior graphs are Kripke structures; a small
-  query layer may appear once graphs exist.
+  against trajectory specifications): `qrlib.guide` provides standalone
+  classification and interleaved guided simulation.
 - **Order-of-magnitude reasoning** (O(M), ROM): different algebra, same
-  "constraint tables over small enums" implementation shape.
+  "constraint tables over small enums" implementation shape;
+  `qrlib.Negligible` implements FOG's `Ne` relation in a sound instantaneous
+  form.
 - **Qualitative spatial reasoning:** out of scope.
 
 ## Implementation-relevant common structure

@@ -1,8 +1,10 @@
 # QSIM deep-dive and implementation plan
 
 Working notes on the algorithm we are committing to implement first.
-Primary sources: Kuipers 1986 (AIJ 29) and Kuipers 1994 (*Qualitative
-Reasoning*, MIT Press) — the 1994 book is the authoritative spec, including
+Primary sources:
+[Kuipers1986](references.md#kuipers1986) and
+[Kuipers1994](references.md#kuipers1994) — the 1994 book is the authoritative
+spec, including
 the transition tables.
 
 ## 1. Semantics in one paragraph

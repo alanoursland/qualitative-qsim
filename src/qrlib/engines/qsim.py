@@ -1,5 +1,8 @@
 """Reference QSIM engine.
 
+Research lineage: [Kuipers1986], [Kuipers1994], and [Kuipers2001] in
+``docs/references.md``.
+
 The classic agenda loop (docs/qsim.md §2): pop a state, classify terminals,
 generate per-variable candidates from the transition tables, filter
 (tuple/Waltz -> global assembly -> global filters), attach surviving

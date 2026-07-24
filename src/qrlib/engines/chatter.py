@@ -1,5 +1,7 @@
 """Structural chatter detection (after Clancy & Kuipers).
 
+Research lineage: [ClancyKuipers1997Chatter] in ``docs/references.md``.
+
 A variable **chatters** when nothing pins its direction of change: within
 one qualitative magnitude its qdir can wiggle dec/std/inc arbitrarily,
 multiplying behaviors that differ in nothing observable. Chatter is a

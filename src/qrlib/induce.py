@@ -1,5 +1,9 @@
 """QDE induction: learn qualitative models from trajectory data.
 
+Research lineage: [RichardsKraanKuipers1992] and
+[RamachandranMooneyKuipers1994] in ``docs/references.md``. The implementation
+is a qrlib-specific parsimony-ranked procedure, not a reproduction of MISQ.
+
 The inverse of simulation. Instead of authoring a :class:`~qrlib.model.Model`
 and predicting its behaviors, :func:`induce` searches for the model whose
 structure the observed trajectories are consistent with — the GENMODEL/MISQ

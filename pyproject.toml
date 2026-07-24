@@ -8,6 +8,9 @@ version = "0.1.0a0"
 description = "Qualitative reasoning about dynamical systems: QSIM and friends, with tensorized/GPU execution in PyTorch."
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    { name = "Alan Oursland" },
+]
 # License intentionally unset — see docs/open-questions.md #11.
 keywords = [
     "qualitative reasoning",

@@ -1,5 +1,8 @@
 """Comparative analysis: how an equilibrium depends on its parameters.
 
+Research lineage: [ChiuKuipers1992] in ``docs/references.md``. This module
+implements a narrower equilibrium comparative-statics procedure.
+
 Weld's *differential qualitative* analysis (docs/literature-survey.md §"not
 yet assessed") asks the perturbation question — *change a parameter in a
 known direction; which way does the behavior move?* — e.g. "raise the

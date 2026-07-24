@@ -1,12 +1,12 @@
 """DecSIM-style decomposed simulation.
 
+Research lineage: [ClancyKuipers1997] in ``docs/references.md``.
+
 Monolithic QSIM branches on every qualitative event of every variable: ``n``
 simultaneously moving but mutually unconstrained variables produce up to
 ``2**n`` successor orderings, so loosely coupled systems drown in
-interleavings of events that never interact. Decomposed simulation (after
-Clancy & Kuipers, "Model decomposition and simulation: a component-based
-qualitative simulation algorithm", AAAI-97) attacks the blowup at its
-source:
+interleavings of events that never interact. Decomposed simulation attacks
+the blowup at its source:
 
 1. **Partition** the model's variables into named components — user-chosen,
    or :func:`suggest_partition`'s connected-components split of the

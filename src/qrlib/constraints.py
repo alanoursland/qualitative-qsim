@@ -5,6 +5,9 @@ optional *corresponding values* (tuples of landmark names, one per variable,
 known to co-occur — e.g. ``f(0) = 0`` for an ``MPlus``). Consistency
 predicates and their compiled table forms live with the engines (phase 1;
 see docs/qsim.md §3), keeping the model description engine-agnostic.
+
+Research lineage: QSIM constraints [Kuipers1986; Kuipers1994] and the FOG
+negligibility relation [Raiman1986], all in ``docs/references.md``.
 """
 
 from __future__ import annotations
