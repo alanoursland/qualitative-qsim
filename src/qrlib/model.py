@@ -25,6 +25,8 @@ Models serialize to a versioned JSON-able schema (:meth:`Model.to_dict` /
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field, replace
 
 from .constraints import (
@@ -151,6 +153,7 @@ class CompiledModel:
     var_order: tuple[str, ...]
     spaces: tuple[QuantitySpace, ...]
     constraints: tuple[CompiledConstraint, ...]
+    model_hash: str
     regions: tuple[CompiledRegion, ...] = ()
     initial_region: str = DEFAULT_REGION
 
@@ -422,6 +425,25 @@ class Model:
             data["initial_region"] = self.initial_region
         return data
 
+    def content_hash(self) -> str:
+        """Deterministic semantic identity for this model.
+
+        The hash is computed from a canonical form of ``qrlib.model/v1``:
+        dictionary and authoring order do not matter for variables,
+        constraints, regions, transitions, guards, or corresponding-value
+        sets. Landmark order and constraint argument order remain significant
+        because they define quantity spaces and equations respectively.
+        """
+        payload = _canonical_model_payload(self.to_dict())
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+        return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
     @classmethod
     def from_dict(cls, data: dict) -> "Model":
         if data.get("schema") != MODEL_SCHEMA:
@@ -479,6 +501,7 @@ class Model:
 
     def compile(self) -> CompiledModel:
         """Freeze mappings and resolve constraints/regions."""
+        model_hash = self.content_hash()
         var_order = tuple(self.variables)
         spaces = tuple(self.variables[v].space for v in var_order)
 
@@ -610,10 +633,86 @@ class Model:
                     compiled[i] = replace(cc, dominant=doms[0])
 
         return CompiledModel(
-            self.name,
-            var_order,
-            spaces,
-            tuple(compiled),
-            tuple(regions),
-            initial,
+            name=self.name,
+            var_order=var_order,
+            spaces=spaces,
+            constraints=tuple(compiled),
+            model_hash=model_hash,
+            regions=tuple(regions),
+            initial_region=initial,
         )
+
+
+def _canonical_model_payload(data: dict) -> dict:
+    """Canonicalize ``qrlib.model/v1`` for semantic content hashing."""
+
+    def json_key(value: object) -> str:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+
+    def constraint(c: dict) -> dict:
+        out = {"kind": c["kind"], "args": list(c["args"])}
+        if "cvals" in c:
+            out["cvals"] = sorted(
+                (list(cv) for cv in c["cvals"]),
+                key=json_key,
+            )
+        return out
+
+    constraints = [constraint(c) for c in data["constraints"]]
+    payload: dict = {
+        "schema": data["schema"],
+        "name": data["name"],
+        "variables": sorted(
+            (
+                {
+                    "name": v["name"],
+                    "landmarks": [dict(lm) for lm in v["landmarks"]],
+                    "lower_unbounded": v.get("lower_unbounded", False),
+                    "upper_unbounded": v.get("upper_unbounded", False),
+                }
+                for v in data["variables"]
+            ),
+            key=lambda v: v["name"],
+        ),
+        "constraints": sorted(constraints, key=json_key),
+    }
+    if "regions" in data:
+        regions = []
+        for region in data["regions"]:
+            subset = region["constraints"]
+            regions.append(
+                {
+                    "name": region["name"],
+                    "constraints": (
+                        None
+                        if subset is None
+                        else sorted(
+                            (constraints[i] for i in subset),
+                            key=json_key,
+                        )
+                    ),
+                }
+            )
+        payload["regions"] = sorted(regions, key=lambda r: r["name"])
+        payload["transitions"] = sorted(
+            (
+                {
+                    "source": t["source"],
+                    "target": t["target"],
+                    "when": sorted(
+                        (list(guard) for guard in t["when"]),
+                        key=json_key,
+                    ),
+                }
+                for t in data.get("transitions", [])
+            ),
+            key=json_key,
+        )
+        payload["initial_region"] = data.get("initial_region")
+    return payload

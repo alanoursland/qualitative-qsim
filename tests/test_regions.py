@@ -185,7 +185,8 @@ def test_result_export_carries_schema_and_regions():
     m, initial, _ = two_region_bathtub()
     result = qr.qsim(m, initial)
     data = result.to_dict()
-    assert data["schema"] == "qrlib.result/v1"
+    assert data["schema"] == "qrlib.result/v2"
+    assert data["model_hash"] == m.content_hash()
     regions = {n["region"] for n in data["graph"]["nodes"]}
     assert regions == {"filling", "overflowing"}
 

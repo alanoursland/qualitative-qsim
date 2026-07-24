@@ -32,8 +32,8 @@ moved up; analysis/queries attach to the phases that make them possible.
   FULL, overflow region-exit), U-tube (single equilibrium behavior), and
   frictionless spring (single sustained oscillation, 8-transition cycle)
   match the literature.
-- Deferred within phase: model hash in results (with the phase-4 schema);
-  `to_dict()` round-trip tests.
+- Model hashing and result provenance landed with the result-v2 schema:
+  canonical model identity plus replayable built-in filter descriptors.
 
 ## Phase 2 — Full-fidelity QSIM *(done)*
 
@@ -126,8 +126,8 @@ moved up; analysis/queries attach to the phases that make them possible.
   masses against data; localizes corrupted structure).
 - **Versioned schemas frozen**: `qrlib.model/v1`
   (`Model.to_dict/from_dict`, JSON round-trip preserving semantics,
-  regions and landmark values included) and `qrlib.result/v1`
-  (region-tagged graph export).
+  regions and landmark values included) and `qrlib.result/v2`
+  (region-tagged graph export plus model/config provenance).
 
 ## Phase 5 — Tensorized engine *(done)*
 

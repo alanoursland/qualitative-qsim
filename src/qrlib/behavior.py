@@ -15,7 +15,7 @@ landmark is minted.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Callable
 
@@ -31,7 +31,10 @@ __all__ = [
     "Behavior",
     "BehaviorGraph",
     "SimResult",
+    "RESULT_SCHEMA",
 ]
+
+RESULT_SCHEMA = "qrlib.result/v2"
 
 
 class TerminalClass(Enum):
@@ -315,28 +318,53 @@ class BehaviorGraph:
 
 @dataclass(frozen=True)
 class SimResult:
-    """Engine output: graph + status + statistics + the config that made it."""
+    """Engine output with replay-oriented model/config provenance."""
 
     graph: BehaviorGraph
     status: SimStatus
     stats: dict
     config: SimConfig
+    model_hash: str
 
     def behaviors(self) -> tuple[Behavior, ...]:
         return self.graph.behaviors()
 
     def to_dict(self) -> dict:
-        config = asdict(self.config)
-        # callables are not serializable; record how many were active
-        config["successor_filters"] = len(self.config.successor_filters)
+        # Shallow extraction avoids deepcopying arbitrary user callables;
+        # the non-data fields are replaced with explicit descriptors below.
+        config = {
+            item.name: getattr(self.config, item.name)
+            for item in fields(self.config)
+        }
+        config["successor_filters"] = [
+            _successor_filter_descriptor(keep)
+            for keep in self.config.successor_filters
+        ]
         if self.config.guide is not None:
             from .guide import format_formula
 
             config["guide"] = format_formula(self.config.guide)
         return {
-            "schema": "qrlib.result/v1",
+            "schema": RESULT_SCHEMA,
+            "model_hash": self.model_hash,
             "status": self.status.value,
             "stats": dict(self.stats),
             "config": config,
             "graph": self.graph.export(),
         }
+
+
+def _successor_filter_descriptor(keep: SuccessorFilter) -> dict:
+    """Stable provenance for built-ins; explicit opacity for user callables."""
+    from .energy import EnergyFilter
+
+    if isinstance(keep, EnergyFilter):
+        return {"replayable": True, **keep.to_dict()}
+    module = getattr(keep, "__module__", type(keep).__module__)
+    qualname = getattr(keep, "__qualname__", type(keep).__qualname__)
+    return {
+        "kind": "opaque",
+        "replayable": False,
+        "module": module,
+        "qualname": qualname,
+    }

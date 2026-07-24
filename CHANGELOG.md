@@ -7,5 +7,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- No public release has been made.
-
+- Added deterministic semantic model hashes to simulation results.
+- Added stable built-in successor-filter provenance and explicit opaque
+  descriptors for non-replayable user callables.
+- Advanced the result export schema to `qrlib.result/v2`.

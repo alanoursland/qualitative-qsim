@@ -266,7 +266,7 @@ def qsim(
 
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
-    return SimResult(graph, status, stats, cfg)
+    return SimResult(graph, status, stats, cfg, root_frame.model_hash)
 
 
 def _bounces(
