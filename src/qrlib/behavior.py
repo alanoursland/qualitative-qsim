@@ -109,7 +109,10 @@ class SimConfig:
       automatically.
     - ``successor_filters``: user vetoes applied to assembled successors —
       the hook for analytic knowledge (e.g. energy arguments) that prunes
-      spurious behaviors without touching core semantics.
+      spurious behaviors without touching core semantics. A declarative
+      ``LyapunovCertificate`` also rejects a recurrent path when its scalar
+      made strict progress inside an unchanged qualitative interval; because
+      that check is path-dependent, it is incompatible with ``envisionment``.
     - ``envisionment``: merge identical (frame, state) pairs globally,
       producing the attainable envisionment graph instead of a tree.
     - ``backend``: successor-filtering backend: ``"auto"`` selects from
@@ -402,9 +405,9 @@ class SimResult:
 
 def _successor_filter_descriptor(keep: SuccessorFilter) -> dict:
     """Stable provenance for built-ins; explicit opacity for user callables."""
-    from .energy import EnergyFilter
+    from .energy import EnergyFilter, LyapunovCertificate
 
-    if isinstance(keep, EnergyFilter):
+    if isinstance(keep, (EnergyFilter, LyapunovCertificate)):
         return {"replayable": True, **keep.to_dict()}
     module = getattr(keep, "__module__", type(keep).__module__)
     qualname = getattr(keep, "__qualname__", type(keep).__qualname__)

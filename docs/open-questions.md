@@ -65,7 +65,11 @@ spirit) with their resolutions; new questions raised by that design follow.
    (dissipative), with the point/interval landmark semantics handled once.
    It reproduces the bespoke frictionless-spring filter byte-for-byte
    (the single 17-node cycle) and keeps the numeric soundness harness
-   covered.
+   covered. Conditional strict decrease is also shipped as
+   `qrlib.LyapunovCertificate`: a replayable scalar/equilibrium declaration
+   with optional landmark predicates for when strict descent holds. QSIM
+   uses it both as a local successor filter and to reject recurrence whose
+   numeric progress is hidden inside an unchanged qualitative interval.
 11. **License and distribution.** Deliberately deferred by the owner —
     do not add a license file until they choose one. Until then the
     default applies (all rights reserved; not publishable/distributable).

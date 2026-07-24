@@ -178,10 +178,15 @@ Phase-2 additions:
   and never block quiescence.
 - **The energy-argument slot.** `successor_filters` receive
   `(parent_state, candidate, frame)` with the candidate in the parent's
-  (pre-mint) frame. The undamped-spring energy filter in the test suite is
-  the canonical use: veto unnamed extrema on a side that already has a
-  named one, and veto motion beyond a named extremum. A first-class
-  declarative `EnergyFilter` remains open (docs/open-questions.md #7).
+  (pre-mint) frame. `EnergyFilter` supplies conserved and nonincreasing
+  amplitude policies through discovered extrema. `LyapunovCertificate`
+  supplies conditional strict decrease for an explicit scalar variable:
+  it enforces the scalar's minimum at a declared equilibrium, checks its
+  direction locally, and rejects a recurrent path if strict descent occurred
+  somewhere around the proposed cycle. This last check matters when the
+  numeric scalar falls without leaving one open qualitative interval.
+  Lyapunov recurrence checking is path-dependent and therefore cannot be
+  combined with `envisionment=True`.
 
 Phase-4 additions — operating regions:
 

@@ -11,7 +11,7 @@ engine (phase 5) must agree with it exactly.
 
 Phase-2 machinery (docs/qsim.md §8): landmark discovery (per-branch
 frames), chatter abstraction (``ignore_qdir``), user successor filters,
-and envisionment mode.
+path-aware Lyapunov recurrence pruning, and envisionment mode.
 
 Phase-4 machinery — operating regions: every node carries its region; the
 region's constraint subset governs filtering. At a point state, if a
@@ -47,6 +47,7 @@ from dataclasses import replace
 from math import prod
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
+from ..energy import LyapunovCertificate
 from ..model import CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
@@ -84,6 +85,18 @@ def qsim(
         raise ValueError(f"ignore_qdir names unknown variables: {sorted(unknown)}")
     ignored = frozenset(root_frame.index(name) for name in cfg.ignore_qdir)
     phase_pairs = phase.validate_pairs(root_frame, cfg)
+    lyapunov = tuple(
+        keep
+        for keep in cfg.successor_filters
+        if isinstance(keep, LyapunovCertificate)
+    )
+    for certificate in lyapunov:
+        certificate.validate(root_frame)
+    if cfg.envisionment and lyapunov:
+        raise ValueError(
+            "LyapunovCertificate is path-dependent and incompatible with "
+            "envisionment=True"
+        )
 
     chatter_by_region: dict[str, frozenset[int]] = {}
     if cfg.dynamic_chatter:
@@ -101,6 +114,11 @@ def qsim(
     root_region = root_frame.initial_region
     _validate_initial(root_frame, initial, root_region)
     init_state = _project(root_frame, initial, ignored)
+    for certificate in lyapunov:
+        if not certificate(init_state, init_state, root_frame):
+            raise ValueError(
+                f"initial state violates {certificate.describe()}"
+            )
 
     progress_fn = None
     root_guide = None
@@ -126,6 +144,7 @@ def qsim(
         "no_change_filtered": 0,
         "infinity_filtered": 0,
         "user_filtered": 0,
+        "lyapunov_cycles_filtered": 0,
         "merged": 0,
         "landmarks_minted": 0,
         "region_crossings": 0,
@@ -161,6 +180,19 @@ def qsim(
             # the path's phase-plane curve would have to cross itself
             stats["phase_filtered"] += 1
             return "phase"
+        if state.time is TimeTag.POINT and lyapunov:
+            hit = _matching_candidate_ancestor(
+                nodes, parent, state, frame, region, child_guide
+            )
+            if hit is not None and any(
+                not certificate.admits_cycle(
+                    _candidate_cycle(nodes, parent, hit, state, frame)
+                )
+                for certificate in lyapunov
+            ):
+                stats["lyapunov_cycles_filtered"] += 1
+                stats["user_filtered"] += 1
+                return "lyapunov"
         if seen is not None:
             key = (frame, state, region, child_guide)
             hit = seen.get(key)
@@ -585,6 +617,51 @@ def _matching_ancestor(nodes: dict[int, Node], node: Node) -> int | None:
             return pid
         pid = anc.parent
     return None
+
+
+def _matching_candidate_ancestor(
+    nodes: dict[int, Node],
+    parent: Node,
+    state: QState,
+    frame: CompiledModel,
+    region: str,
+    guide: object | None,
+) -> int | None:
+    """Ancestor matched by a not-yet-attached point successor."""
+    pid: int | None = parent.id
+    while pid is not None:
+        anc = nodes[pid]
+        if (
+            anc.state == state
+            and anc.model == frame
+            and anc.region == region
+            and anc.guide == guide
+        ):
+            return pid
+        pid = anc.parent
+    return None
+
+
+def _candidate_cycle(
+    nodes: dict[int, Node],
+    parent: Node,
+    ancestor: int,
+    state: QState,
+    frame: CompiledModel,
+) -> tuple[tuple[QState, CompiledModel], ...]:
+    """States on the candidate recurrence, including its closing state."""
+    path: list[tuple[QState, CompiledModel]] = []
+    node = parent
+    while True:
+        path.append((node.state, node.model))
+        if node.id == ancestor:
+            break
+        if node.parent is None:  # defensive: ancestor came from this chain
+            return ()
+        node = nodes[node.parent]
+    path.reverse()
+    path.append((state, frame))
+    return tuple(path)
 
 
 def _validate_initial(

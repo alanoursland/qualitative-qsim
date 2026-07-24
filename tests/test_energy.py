@@ -3,7 +3,7 @@
 import pytest
 
 import qrlib as qr
-from qrlib import EnergyFilter, Trend
+from qrlib import EnergyFilter, LyapunovCertificate, Trend
 from qrlib.quantity import Landmark, Qdir, QuantitySpace, QVal
 from qrlib.state import QState, TimeTag
 
@@ -154,3 +154,200 @@ def test_describe_and_to_dict():
         "reference": "0",
     }
     assert EnergyFilter().describe() == "energy(conserved, all variables, ref='0')"
+
+
+# --- conditional strict Lyapunov decrease ----------------------------------
+
+
+def _lyapunov_model():
+    model = qr.Model("lyapunov-candidates")
+    for name in ("x", "v"):
+        model.variable(
+            name,
+            landmarks=("NEG", "0", "POS"),
+            lower_unbounded=True,
+            upper_unbounded=True,
+        )
+    model.variable("V", landmarks=("0", "LEVEL"), upper_unbounded=True)
+    return model
+
+
+def test_lyapunov_certificate_enforces_conditional_strict_decrease():
+    model = _lyapunov_model()
+    frame = model.compile()
+    certificate = LyapunovCertificate(
+        "V",
+        equilibrium={"x": "0", "v": "0"},
+        strict_when=(("v", "!=", "0"),),
+    )
+
+    def state(V, Vdir, x, v):
+        return model.state(V=(V, Vdir), x=(x, Qdir.STD), v=(v, Qdir.STD))
+
+    parent = state(("0", "LEVEL"), Qdir.DEC, "POS", "POS")
+    # Moving away from equilibrium requires strict descent.
+    assert certificate(
+        parent,
+        state(("0", "LEVEL"), Qdir.DEC, "POS", "POS"),
+        frame,
+    )
+    assert not certificate(
+        parent,
+        state(("0", "LEVEL"), Qdir.STD, "POS", "POS"),
+        frame,
+    )
+    # At an isolated turning point, v=0 makes the derivative condition
+    # inactive, so temporary steadiness is permitted.
+    assert certificate(
+        parent,
+        state(("0", "LEVEL"), Qdir.STD, "POS", "0"),
+        frame,
+    )
+    # Positive definiteness: V reaches its minimum exactly at equilibrium.
+    assert certificate(parent, state("0", Qdir.STD, "0", "0"), frame)
+    assert not certificate(
+        parent,
+        state(("0", "LEVEL"), Qdir.DEC, "0", "0"),
+        frame,
+    )
+    assert not certificate(parent, state("0", Qdir.STD, "POS", "0"), frame)
+    assert not certificate(
+        parent,
+        state(("0", "LEVEL"), Qdir.INC, "POS", "0"),
+        frame,
+    )
+
+
+def _strict_progress_spring():
+    """A spring plus a scalar that falls inside one open interval."""
+    model = qr.Model("strict-progress-spring")
+    for name in ("x", "v", "a"):
+        model.variable(name, landmarks=("0",), unbounded=True)
+    model.variable("V", landmarks=("0", "LEVEL"), upper_unbounded=True)
+    model.variable(
+        "loss", landmarks=("NEG", "0"), lower_unbounded=True
+    )
+    model.constrain(qr.Deriv("x", "v"))
+    model.constrain(qr.Deriv("v", "a"))
+    model.constrain(qr.Minus("x", "a"))
+    model.constrain(qr.Deriv("V", "loss"))
+    model.constrain(qr.Constant("loss"))
+    initial = model.state(
+        time=TimeTag.POINT,
+        x=("0", Qdir.INC),
+        v=(("0", "+inf"), Qdir.STD),
+        a=("0", Qdir.DEC),
+        V=(("0", "LEVEL"), Qdir.DEC),
+        loss=("NEG", Qdir.STD),
+    )
+    return model, initial
+
+
+def test_lyapunov_certificate_prunes_recurrence_within_one_interval():
+    model, initial = _strict_progress_spring()
+    amplitude = EnergyFilter(("x", "v", "a"))
+    baseline = qr.qsim(
+        model,
+        initial,
+        config=qr.SimConfig(successor_filters=(amplitude,), max_states=200),
+    )
+    assert any(
+        behavior.terminal is qr.TerminalClass.CYCLE
+        for behavior in baseline.behaviors()
+    )
+
+    certificate = LyapunovCertificate(
+        "V",
+        equilibrium={"x": "0", "v": "0"},
+        strict_when=(("v", "!=", "0"),),
+    )
+    certified = {}
+    for backend in ("reference", "tensor"):
+        certified[backend] = qr.qsim(
+            model,
+            initial,
+            config=qr.SimConfig(
+                successor_filters=(amplitude, certificate),
+                max_states=200,
+                backend=backend,
+            ),
+        )
+        assert certified[backend].status is qr.SimStatus.COMPLETE
+        assert certified[backend].stats["lyapunov_cycles_filtered"] == 1
+        assert all(
+            behavior.terminal is not qr.TerminalClass.CYCLE
+            for behavior in certified[backend].behaviors()
+        )
+    assert (
+        certified["reference"].graph.export()
+        == certified["tensor"].graph.export()
+    )
+
+
+def test_lyapunov_certificate_is_replayable_and_validated():
+    certificate = LyapunovCertificate(
+        "V",
+        equilibrium={"x": "0", "v": "0"},
+        strict_when=(("v", "!=", "0"),),
+    )
+    assert certificate.to_dict() == {
+        "kind": "lyapunov",
+        "variable": "V",
+        "minimum": "0",
+        "equilibrium": {"x": "0", "v": "0"},
+        "strict_when": [["v", "!=", "0"]],
+    }
+    assert certificate.describe() == (
+        "lyapunov(V, min='0', equilibrium=(x=0, v=0), "
+        "strict when v!=0)"
+    )
+    model = _lyapunov_model()
+    initial = model.state(
+        x=("POS", Qdir.STD),
+        v=("0", Qdir.STD),
+        V=(("0", "LEVEL"), Qdir.STD),
+    )
+    descriptor = qr.qsim(
+        model,
+        initial,
+        config=qr.SimConfig(successor_filters=(certificate,)),
+    ).to_dict()["config"]["successor_filters"][0]
+    assert descriptor == {"replayable": True, **certificate.to_dict()}
+    with pytest.raises(ValueError, match="unknown variable 'missing'"):
+        qr.qsim(
+            model,
+            initial,
+            config=qr.SimConfig(
+                successor_filters=(
+                    LyapunovCertificate(
+                        "missing", equilibrium={"x": "0", "v": "0"}
+                    ),
+                )
+            ),
+        )
+    with pytest.raises(ValueError, match="incompatible with envisionment"):
+        qr.qsim(
+            model,
+            initial,
+            config=qr.SimConfig(
+                successor_filters=(certificate,),
+                envisionment=True,
+            ),
+        )
+    invalid_initial = model.state(
+        x=("POS", Qdir.STD),
+        v=("POS", Qdir.STD),
+        V=(("0", "LEVEL"), Qdir.STD),
+    )
+    with pytest.raises(ValueError, match="initial state violates lyapunov"):
+        qr.qsim(
+            model,
+            invalid_initial,
+            config=qr.SimConfig(successor_filters=(certificate,)),
+        )
+    with pytest.raises(ValueError, match="operator"):
+        LyapunovCertificate(
+            "V",
+            equilibrium={"x": "0", "v": "0"},
+            strict_when=(("v", "~", "0"),),
+        )

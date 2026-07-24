@@ -81,6 +81,39 @@ conservative spring; applying it to a driven spring could remove a real
 growing-amplitude behavior and therefore invalidate coverage. Treat a filter
 like any other model constraint: it is trusted knowledge, not a heuristic.
 
+## Strict decrease inside one qualitative interval
+
+`EnergyFilter(trend="nonincreasing")` rules out amplitude growth, but it does
+not assert that an explicit Lyapunov scalar makes strict progress. A numeric
+scalar may decrease while staying in the same open magnitude interval, so a
+plain qualitative state can appear to repeat. Use `LyapunovCertificate` for
+that proof pattern:
+
+```python
+certificate = qr.LyapunovCertificate(
+    "V",
+    minimum="0",
+    equilibrium={"angle": "0", "velocity": "0"},
+    strict_when=(("velocity", "!=", "0"),),
+)
+strict_config = qr.SimConfig(successor_filters=(certificate,))
+# result = qr.qsim(model_with_V, initial, config=strict_config)
+# assert result.stats["lyapunov_cycles_filtered"] > 0
+```
+
+Here the model contains the scalar `V` and its qualitative derivative. The
+certificate requires `V` to be nonincreasing, requires `V.dir == DEC` whenever
+`velocity != 0`, and requires `V` to reach its `0` landmark exactly at the
+declared equilibrium. A proposed recurrence is rejected if the condition was
+active somewhere around the cycle; isolated turning points with
+`velocity == 0` may still have a zero derivative.
+
+If `strict_when` is omitted, strict decrease is required at every state
+outside the equilibrium. Conditions are conjunctions of landmark predicates
+using `==`, `!=`, `<`, `>`, `<=`, or `>=`. This is a trusted analytic
+certificate, not something inferred from the QDE. It is path-dependent, so
+use tree-mode QSIM rather than `envisionment=True`.
+
 ## A second source of clutter: chatter
 
 Sometimes a variable's *direction* wobbles meaninglessly — increasing,

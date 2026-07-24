@@ -15,6 +15,7 @@ an implementation detail.
 | Landmark discovery | Per-branch introduction of newly important values | Lesson 6 |
 | Dynamic chatter abstraction | Structural merging of unobservable direction distinctions | Lesson 6 |
 | `EnergyFilter` | Declarative conserved/nonincreasing amplitude pruning | Lesson 6 |
+| `LyapunovCertificate` | Conditional strict scalar decrease and recurrence pruning | Lesson 6 |
 | Phase-pair filtering | Sound phase-space non-intersection pruning | Lesson 13 |
 | Attainable envisionment | Reachable graph merging from an initial state | Lesson 13 |
 | `envision` | Total consistent-state portrait for a region | Lesson 13 |
@@ -61,7 +62,7 @@ library engineering. Complete annotated records are in
 |---|---|
 | QSIM states, transitions, landmark discovery, and coverage semantics | [Kuipers1986](../references.md#kuipers1986), [Kuipers1994](../references.md#kuipers1994) |
 | Semi-quantitative refinement | [KuipersBerleant1988](../references.md#kuipersberleant1988) |
-| Energy pruning | [FoucheKuipers1992](../references.md#fouchekuipers1992) |
+| Energy and Lyapunov pruning | [FoucheKuipers1992](../references.md#fouchekuipers1992) |
 | Dynamic chatter abstraction | [ClancyKuipers1997Chatter](../references.md#clancykuipers1997chatter) |
 | Phase-space non-intersection | [LeeKuipers1988](../references.md#leekuipers1988) |
 | Guided simulation and temporal classification | [BrajnikClancy1998](../references.md#brajnikclancy1998), [ShultsKuipers1997](../references.md#shultskuipers1997) |

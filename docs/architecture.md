@@ -22,7 +22,7 @@ src/qrlib/
 ├── guide.py             # temporal-logic guided simulation + verdicts (LTL)
 ├── decompose.py         # DecSIM-style component decomposition + join
 ├── induce.py            # QDE induction: learn model structure from data
-├── energy.py            # declarative EnergyFilter (energy-argument pruning)
+├── energy.py            # EnergyFilter + strict Lyapunov certificates
 ├── graph.py             # small graph algorithms: reachability, Tarjan SCC
 ├── frontends/
 │   ├── qpt.py           # process-centric authoring (QPT) -> Model + regions
@@ -150,6 +150,8 @@ filters are a plugin point: built-ins (no-change, quiescence, cycle,
 divergence) plus user-supplied path/state predicates — the hook through
 which analytic knowledge (e.g. a declared energy-like variable that must not
 increase) prunes spurious behaviors without touching core semantics.
+`LyapunovCertificate` additionally refutes recurrent paths that contain
+declared strict scalar progress hidden inside one qualitative interval.
 
 ## Cross-cutting decisions
 

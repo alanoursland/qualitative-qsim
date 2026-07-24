@@ -26,7 +26,7 @@ from .constraints import (
     Mult,
     Negligible,
 )
-from .energy import EnergyFilter, Trend
+from .energy import EnergyFilter, LyapunovCertificate, Trend
 from .constraint_syntax import (
     ConstraintSyntaxError,
     format_constraint,
@@ -76,6 +76,7 @@ __all__ = [
     "SimStatus",
     "TerminalClass",
     "EnergyFilter",
+    "LyapunovCertificate",
     "Trend",
     "ConstraintSyntaxError",
     "parse_constraint",

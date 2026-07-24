@@ -53,6 +53,11 @@ moved up; analysis/queries attach to the phases that make them possible.
   (spurious growing/shrinking amplitudes, truncation); with the energy
   filter it completes as the single true cycle (17 nodes: one
   landmark-discovery period, then closure).
+- Conditional strict Lyapunov certificates (`LyapunovCertificate`): declare
+  a scalar, its minimum/equilibrium, and optional landmark conditions under
+  which descent is strict. Local candidates must satisfy positive
+  definiteness and nonincrease; path-aware cycle closure is rejected when
+  strict progress occurred inside a repeated qualitative interval.
 - Attainable-envisionment mode (`SimConfig.envisionment`): global
   (frame, state) merging; cycles become back-edges enumerated by
   `behaviors()` (spring: 8-node cycle graph).
@@ -395,6 +400,11 @@ in recommended order:
   the point/interval landmark semantics handled once. Reproduces the
   hand-written frictionless-spring filter byte-for-byte (17-node cycle,
   8 vetoes) and stays covered by the numeric soundness harness.
+- **Strict Lyapunov decrease** is first-class through
+  `qrlib.LyapunovCertificate`, including conditional descent predicates,
+  replayable provenance, reference/tensor parity, and path-aware recurrence
+  pruning. It intentionally rejects `envisionment=True`, which erases the
+  branch history needed to justify the certificate.
 - CUDA abstraction correctness and benchmark methodology are implemented.
   Periodic benchmark results still require a CUDA qualification machine.
 - Production-shaped scale qualification is implemented in
