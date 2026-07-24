@@ -21,9 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
 import torch
 
 import qrlib as qr
-from qrlib import SimConfig
+from qrlib import QVal, Qdir, SimConfig
 from qrlib.bridge import abstraction as rabs
 from qrlib.engines import filters
+from qrlib.engines.qsim import _select_backend
 from qrlib.engines.transitions import interval_successors, point_successors
 from qrlib.state import TimeTag
 from qrlib.tensor import abstraction as tabs
@@ -137,11 +138,59 @@ def bench_engine():
 
     m, initial = damped_spring()
     cfg = SimConfig(discover_landmarks=False, max_states=400)
-    ref = clock(lambda: qr.qsim(m, initial, config=cfg))
     from dataclasses import replace
 
-    ten = clock(lambda: qr.qsim(m, initial, config=replace(cfg, use_tensor=True)))
-    print(f"engine (CPU; chattery damped spring, 400 states)   reference {ref*1e3:7.1f}ms   tensor {ten*1e3:7.1f}ms   ratio x{ref/ten:.2f}")
+    ref_cfg = replace(cfg, backend="reference")
+    ten_cfg = replace(cfg, backend="tensor")
+    ref = clock(lambda: qr.qsim(m, initial, config=ref_cfg))
+    ten = clock(lambda: qr.qsim(m, initial, config=ten_cfg))
+    auto = clock(lambda: qr.qsim(m, initial, config=cfg))
+    used = qr.qsim(m, initial, config=cfg).stats["backend"]
+    print(
+        "engine (CPU; chattery damped spring, 400 states)   "
+        f"reference {ref*1e3:7.1f}ms   tensor {ten*1e3:7.1f}ms   "
+        f"auto {auto*1e3:7.1f}ms "
+        f"(calls ref={used['reference_filter_calls']}, "
+        f"tensor={used['tensor_filter_calls']})"
+    )
+
+
+def bench_backend_policy():
+    """Single-state crossover used by SimConfig(backend='auto')."""
+    print("backend policy (CPU; constrained single-state filtering)")
+    for V in (6, 8):
+        model = qr.Model(f"chain-{V}")
+        for vi in range(V):
+            model.variable(f"x{vi}", landmarks=("0",), unbounded=True)
+        for vi in range(V - 1):
+            model.constrain(qr.MPlus(f"x{vi}", f"x{vi + 1}"))
+        frame = model.compile()
+        active_idx = frame.region_named(frame.initial_region).constraint_idx
+        active = tuple(frame.constraints[i] for i in active_idx)
+        domain = [
+            QVal(1, direction)
+            for direction in (Qdir.DEC, Qdir.STD, Qdir.INC)
+        ]
+        domains = [domain[:] for _ in range(V)]
+
+        def reference():
+            pruned = filters.prune_domains(frame, domains, active)
+            return [] if pruned is None else list(
+                filters.assemble(frame, pruned, active)
+            )
+
+        tengine.filtered_combos(frame, domains, active_idx)  # warm tables
+        ref = clock(reference, 5)
+        ten = clock(
+            lambda: tengine.filtered_combos(frame, domains, active_idx),
+            5,
+        )
+        selected, reason = _select_backend(SimConfig(), domains, active_idx)
+        print(
+            f"  V={V} product={3**V:6d}: reference {ref*1e3:7.2f}ms, "
+            f"tensor {ten*1e3:7.2f}ms, speedup x{ref/ten:.2f}; "
+            f"auto={selected} ({reason})"
+        )
 
 
 def bench_frontier(B=2048):
@@ -183,5 +232,6 @@ if __name__ == "__main__":
             f"compute capability {props.major}.{props.minor}; dtype float64"
         )
     bench_abstraction()
+    bench_backend_policy()
     bench_frontier()
     bench_engine()

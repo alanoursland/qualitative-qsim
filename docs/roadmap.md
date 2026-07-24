@@ -138,7 +138,9 @@ moved up; analysis/queries attach to the phases that make them possible.
 - `tensor/engine.py`: tensorized prune + interpretation filtering, single
   and batched-frontier (`filtered_combos_batch`, shared padded grid,
   order-preserving), with the reference generator as fallback above an
-  interpretation-product cap. Activated via `SimConfig(use_tensor=True)`.
+  interpretation-product cap. `SimConfig(backend="auto")` selects reference
+  below 2,048 interpretations (and for unconstrained products) and tensor at
+  or above the measured constrained crossover; explicit overrides remain.
 - `tensor/abstraction.py`: batched quantization/direction estimation over
   `(B, T, V)` tensors mirroring the reference arithmetic
   expression-for-expression (float64, bit-identical ranks/dirs); run
@@ -150,11 +152,11 @@ moved up; analysis/queries attach to the phases that make them possible.
 - **Measured (CPU, this environment)** via `benchmarks/bench_tensor.py`:
   trajectory abstraction ~×22 (0.07 → 1.6M samples/s, B=8 × T=50k);
   batched frontier filtering ×1.5 at B=2048; single-state engine
-  expansion ×0.25 — the tensor path *loses* on one small model at a
-  time, exactly as `docs/gpu-tensorization.md` predicted, which is why
-  `use_tensor` defaults off. CUDA correctness is covered by hardware-gated
-  parity tests; the benchmark reports synchronized warm samples for dense
-  device work and end-to-end abstraction separately.
+  expansion ×0.25 on the small chattery model. Workload-aware dispatch keeps
+  those small products on reference and selects tensor at the measured
+  constrained crossover. CUDA correctness is covered by hardware-gated parity
+  tests; the benchmark reports synchronized warm samples for dense device
+  work and end-to-end abstraction separately.
 
 ## Phase 6 — Semi-quantitative layer (Q2-style) *(done)*
 

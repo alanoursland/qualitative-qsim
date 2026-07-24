@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import replace
+from math import prod
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
 from ..model import CompiledModel, CompiledTransition, Model
@@ -52,6 +53,7 @@ from .transitions import interval_successors, point_successors
 __all__ = ["qsim"]
 
 _TRACKED_STEADY = (Qdir.STD, Qdir.IGN)
+AUTO_TENSOR_PRODUCT = 1 << 11
 
 
 def qsim(
@@ -127,6 +129,7 @@ def qsim(
         "phase_filtered": 0,
         "chatter_merged": 0,
         "deadends": 0,
+        "backend": _new_backend_stats(cfg),
     }
     if cfg.dynamic_chatter:
         stats["chatter_candidates"] = {
@@ -305,18 +308,74 @@ def _guards_hold(
     return True
 
 
-def _filtered_combos(frame, domains, active_idx, cfg):
-    """Consistent complete assignments — reference pipeline or the
-    tensorized tables (identical results by contract)."""
-    if cfg.use_tensor:
-        from ..tensor.engine import filtered_combos
+def _filtered_combos(frame, domains, active_idx, cfg, stats):
+    """Consistent assignments with workload-aware backend selection."""
+    backend, reason = _select_backend(cfg, domains, active_idx)
+    backend_stats = stats["backend"]
+    _increment(backend_stats["selection_reasons"], reason)
+    if backend == "tensor":
+        try:
+            from ..tensor.engine import filtered_combos
+        except (ImportError, ModuleNotFoundError) as exc:
+            if cfg.backend_mode == "tensor":
+                raise RuntimeError(
+                    "tensor backend requested but PyTorch tensor filtering "
+                    "is unavailable"
+                ) from exc
+            backend_stats["reference_filter_calls"] += 1
+            _increment(backend_stats["fallback_reasons"], "tensor_unavailable")
+            return _reference_filtered_combos(frame, domains, active_idx)
+        telemetry: dict = {}
+        result = filtered_combos(
+            frame,
+            domains,
+            active_idx,
+            telemetry=telemetry,
+        )
+        backend_stats["tensor_filter_calls"] += 1
+        if "fallback" in telemetry:
+            _increment(backend_stats["fallback_reasons"], telemetry["fallback"])
+        return result
+    backend_stats["reference_filter_calls"] += 1
+    return _reference_filtered_combos(frame, domains, active_idx)
 
-        return filtered_combos(frame, domains, active_idx)
+
+def _select_backend(cfg, domains, active_idx) -> tuple[str, str]:
+    """Return the backend and auditable reason for one filter workload."""
+    requested = cfg.backend_mode
+    if requested == "reference":
+        return "reference", "explicit_reference"
+    if requested == "tensor":
+        return "tensor", "explicit_tensor"
+    if not active_idx:
+        return "reference", "auto_no_active_constraints"
+    interpretations = prod(len(domain) for domain in domains)
+    if interpretations < AUTO_TENSOR_PRODUCT:
+        return "reference", "auto_below_threshold"
+    return "tensor", "auto_at_or_above_threshold"
+
+
+def _reference_filtered_combos(frame, domains, active_idx):
     active = tuple(frame.constraints[i] for i in active_idx)
     pruned = filters.prune_domains(frame, domains, active)
     if pruned is None:
         return []
     return filters.assemble(frame, pruned, active)
+
+
+def _increment(counts: dict[str, int], key: str) -> None:
+    counts[key] = counts.get(key, 0) + 1
+
+
+def _new_backend_stats(cfg: SimConfig) -> dict:
+    return {
+        "requested": cfg.backend_mode,
+        "auto_tensor_product_threshold": AUTO_TENSOR_PRODUCT,
+        "reference_filter_calls": 0,
+        "tensor_filter_calls": 0,
+        "selection_reasons": {},
+        "fallback_reasons": {},
+    }
 
 
 def _entry_states(
@@ -338,7 +397,7 @@ def _entry_states(
     out: list[QState] = []
     emitted: set[QState] = set()
     survivors = []
-    for combo in _filtered_combos(frame, domains, active_idx, cfg):
+    for combo in _filtered_combos(frame, domains, active_idx, cfg, stats):
         stats["candidates"] += 1
         survivors.append(
             tuple(
@@ -397,7 +456,7 @@ def _expand(
         return None
 
     survivors: list[tuple[QVal, ...]] = []
-    for combo in _filtered_combos(frame, domains, active_idx, cfg):
+    for combo in _filtered_combos(frame, domains, active_idx, cfg, stats):
         stats["candidates"] += 1
         if (
             next_time is TimeTag.POINT

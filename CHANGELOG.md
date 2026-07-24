@@ -11,3 +11,5 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Added stable built-in successor-filter provenance and explicit opaque
   descriptors for non-replayable user callables.
 - Advanced the result export schema to `qrlib.result/v2`.
+- Added workload-aware QSIM backend selection with explicit reference/tensor
+  overrides and per-result dispatch telemetry.

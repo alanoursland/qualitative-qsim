@@ -35,6 +35,8 @@ def filtered_combos(
     frame: CompiledModel,
     domains: list[list[QVal]],
     active_idx: tuple[int, ...],
+    *,
+    telemetry: dict | None = None,
 ) -> list[tuple[QVal, ...]]:
     """All consistent complete assignments from per-variable candidate
     domains, under the region's active constraints."""
@@ -42,6 +44,8 @@ def filtered_combos(
     doms = [list(d) for d in domains]
     if any(not d for d in doms):
         return []
+    if telemetry is not None:
+        telemetry["input_product"] = _product_size(doms)
 
     # tuple + Waltz pruning via table lookups, to a fixpoint
     changed = True
@@ -71,10 +75,12 @@ def filtered_combos(
                     doms[vi] = [doms[vi][i] for i in keep]
                     changed = True
 
-    total = 1
-    for d in doms:
-        total *= len(d)
+    total = _product_size(doms)
+    if telemetry is not None:
+        telemetry["pruned_product"] = total
     if total > ASSEMBLE_CAP:  # fallback backtracker: correctness first
+        if telemetry is not None:
+            telemetry["fallback"] = "oversized_product"
         active = tuple(frame.constraints[i] for i in active_idx)
         return list(filters.assemble(frame, doms, active))
 
@@ -96,6 +102,13 @@ def filtered_combos(
         tuple(doms[v][i] for v, i in enumerate(row))
         for row in grid[keep].tolist()
     ]
+
+
+def _product_size(domains: list[list[QVal]]) -> int:
+    total = 1
+    for domain in domains:
+        total *= len(domain)
+    return total
 
 
 def filtered_combos_batch(

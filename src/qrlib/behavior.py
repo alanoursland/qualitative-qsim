@@ -110,9 +110,11 @@ class SimConfig:
       spurious behaviors without touching core semantics.
     - ``envisionment``: merge identical (frame, state) pairs globally,
       producing the attainable envisionment graph instead of a tree.
-    - ``use_tensor``: route successor filtering through the tensorized
-      tables (``qrlib.tensor``; requires torch). Results are identical to
-      the reference path by contract — this is purely a performance knob.
+    - ``backend``: successor-filtering backend: ``"auto"`` selects from
+      workload shape, ``"reference"`` forces readable Python predicates,
+      and ``"tensor"`` forces tensor lookup tables. Results are identical
+      by contract. ``use_tensor`` remains a compatibility override:
+      ``True`` forces tensor and ``False`` forces reference.
     - ``guide``: a temporal-logic spec (``qrlib.guide.Formula``) progressed
       along every path; successors whose residual collapses to false are
       pruned (sound: only behaviors none of whose extensions satisfy the
@@ -141,9 +143,33 @@ class SimConfig:
     track_qdir: tuple[str, ...] = ()
     successor_filters: tuple[SuccessorFilter, ...] = ()
     envisionment: bool = False
-    use_tensor: bool = False
+    backend: str = "auto"
+    use_tensor: bool | None = None
     guide: object | None = None
     phase_pairs: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        valid = ("auto", "reference", "tensor")
+        if self.backend not in valid:
+            raise ValueError(f"backend must be one of {valid}, got {self.backend!r}")
+        if self.use_tensor is not None and not isinstance(self.use_tensor, bool):
+            raise TypeError(
+                f"use_tensor must be bool or None, got {type(self.use_tensor).__name__}"
+            )
+        if self.use_tensor is not None:
+            legacy = "tensor" if self.use_tensor else "reference"
+            if self.backend != "auto" and self.backend != legacy:
+                raise ValueError(
+                    f"backend={self.backend!r} conflicts with "
+                    f"use_tensor={self.use_tensor!r}"
+                )
+
+    @property
+    def backend_mode(self) -> str:
+        """Resolved request, including the legacy ``use_tensor`` override."""
+        if self.use_tensor is not None:
+            return "tensor" if self.use_tensor else "reference"
+        return self.backend
 
 
 @dataclass

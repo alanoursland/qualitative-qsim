@@ -98,9 +98,14 @@ identically ordered, and whole-graph equivalence is asserted in tests.
 Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory
 abstraction ~×22 (run boundaries detected in tensor land; Python touches
 O(runs)); batched frontier filtering ×1.5 at B=2048; single-state
-expansion ×0.25 — confirming §1's table: one small model at a time gains
-nothing, which is why `SimConfig.use_tensor` defaults off. The CUDA path is
-device-neutral and hardware-gated tests assert exact CPU/reference parity.
+expansion ×0.25 for the small chattery model. QSIM therefore defaults to
+`SimConfig(backend="auto")`: constrained interpretation products below 2,048
+use the reference path, products at or above 2,048 use tensor tables, and
+unconstrained products stay on reference. Explicit `backend="reference"` and
+`backend="tensor"` modes, plus the legacy `use_tensor` override, remain
+available. Every result reports requested mode, actual per-backend call
+counts, selection reasons, and fallbacks. The CUDA path is device-neutral and
+hardware-gated tests assert exact CPU/reference parity.
 
 The benchmark uses five post-warm-up CUDA samples with explicit
 synchronization before and after every timed region, reporting the median,
@@ -132,6 +137,22 @@ lists. Dense device work itself took under 3 ms. During the run, 10.71 GiB of
 CPU-only frontier expansion measured 175.3 ms reference versus 168.3 ms
 tensor-batched, and the small chattery engine measured 73.9 ms reference
 versus 507.4 ms tensor, reinforcing that these workloads are not GPU claims.
+
+### Automatic backend qualification (2026-07-23)
+
+The single-state policy was checked on constrained M+ chains with three
+candidate values per variable:
+
+| Variables | Interpretation product | Reference | Tensor | Auto choice |
+|---:|---:|---:|---:|---|
+| 6 | 729 | 1.04 ms | 1.43 ms | reference |
+| 8 | 6,561 | 9.93 ms | 3.48 ms | tensor |
+
+On the 400-state chattery spring, reference took 78.2 ms, forced tensor took
+537.6 ms, and auto took 71.1 ms while selecting reference for all 267 filter
+calls. The 2,048 threshold is deliberately between the measured losing and
+winning products. Unconstrained products always remain on reference because
+tensor lookup tables have no predicates to accelerate.
 
 ## 6. Differentiable constraint losses (`tensor/losses.py`)
 

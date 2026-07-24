@@ -69,6 +69,10 @@ ENGINE_CASES = [
 ]
 
 
+def semantic_stats(result):
+    return {key: value for key, value in result.stats.items() if key != "backend"}
+
+
 @pytest.mark.parametrize("name,maker,cfg", ENGINE_CASES, ids=[c[0] for c in ENGINE_CASES])
 def test_engine_equivalence(name, maker, cfg):
     m, initial = maker()
@@ -77,7 +81,9 @@ def test_engine_equivalence(name, maker, cfg):
     ref = qr.qsim(m, initial, config=replace(cfg, use_tensor=False))
     ten = qr.qsim(m, initial, config=replace(cfg, use_tensor=True))
     assert ref.status == ten.status
-    assert ref.stats == ten.stats
+    assert semantic_stats(ref) == semantic_stats(ten)
+    assert ref.stats["backend"]["reference_filter_calls"] > 0
+    assert ten.stats["backend"]["tensor_filter_calls"] > 0
     assert ref.graph.export() == ten.graph.export()
     assert len(ref.behaviors()) == len(ten.behaviors())
 
@@ -86,7 +92,7 @@ def test_engine_equivalence_regions():
     m, initial, _ = two_region_bathtub()
     ref = qr.qsim(m, initial)
     ten = qr.qsim(m, initial, config=SimConfig(use_tensor=True))
-    assert ref.stats == ten.stats
+    assert semantic_stats(ref) == semantic_stats(ten)
     assert ref.graph.export() == ten.graph.export()
 
 

@@ -7,9 +7,10 @@ Contents (docs/gpu-tensorization.md):
   (agreement by construction).
 - ``engine`` — tensorized prune + interpretation filtering, single-state
   and batched-frontier forms, with a reference fallback for oversized
-  products. Activated inside the QSIM engine via
-  ``SimConfig(use_tensor=True)``; results are identical to the reference
-  path by contract (equivalence-tested on whole behavior graphs).
+  products. QSIM selects it automatically for sufficiently large constrained
+  interpretation products; ``SimConfig(backend="tensor")`` forces it.
+  Results are identical to the reference path by contract
+  (equivalence-tested on whole behavior graphs).
 - ``abstraction`` — batched quantization/direction estimation for
   ``(B, T, V)`` trajectory tensors, mirroring the reference arithmetic
   exactly; segmentation reuses the reference tail.

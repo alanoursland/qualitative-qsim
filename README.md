@@ -83,7 +83,9 @@ pip install qualitative-reasoning-lib
 
 PyTorch is imported lazily: ordinary model construction, reference
 simulation, analysis, and the pure-Python bridge do not import it, while
-`SimConfig(use_tensor=True)` and `qrlib.tensor` use the installed dependency.
+`SimConfig(backend="auto")` uses tensor filtering only when the measured
+workload shape benefits; explicit `"reference"` / `"tensor"` modes and
+`qrlib.tensor` use the installed dependency directly.
 
 ## Quick taste
 
