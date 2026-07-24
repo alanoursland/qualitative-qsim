@@ -95,8 +95,9 @@ class System:
             )
         self._props.append((target, source, sign, tuple(cvals)))
 
-    def constrain(self, constraint: Constraint) -> Constraint:
-        """Escape hatch: structural equations stated directly."""
+    def constrain(self, constraint: Constraint | str) -> Constraint:
+        """Escape hatch: structural equations stated directly or as compact
+        string expressions."""
         return self._model.constrain(constraint)
 
     def process(

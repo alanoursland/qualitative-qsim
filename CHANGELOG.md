@@ -22,3 +22,5 @@ and versions follow [Semantic Versioning](https://semver.org/).
   per-run CUDA synchronization.
 - Added production-shaped scale and model-ensemble qualification profiles,
   machine-readable benchmark results, and measured CPU/CUDA device guidance.
+- Added safe compact constraint parsing/formatting and support for passing
+  expressions such as `"M+(level, outflow)"` to `Model.constrain`.

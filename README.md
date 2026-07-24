@@ -59,6 +59,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
 - **`docs/`** — design notes: [vision](docs/vision.md),
   [QR landscape survey](docs/landscape.md),
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
+  [compact constraint syntax](docs/constraint-syntax.md),
   [tensorization & GPU strategy](docs/gpu-tensorization.md),
   [production-shaped scale profiles](docs/scale-profiles.md),
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
@@ -128,6 +129,10 @@ Behavior of 'bathtub': 3 states, ending in quiescent.
   2. At the next instant, amount becomes steady at amount*0 (a newly
      identified value); ... — the system is in equilibrium ...
 ```
+
+Constraints may equivalently use the optional compact authoring syntax, for
+example `m.constrain("Deriv(amount, netflow)")`; models still store and
+serialize ordinary constraint objects.
 
 From here: `qrlib.bridge.coverage` checks numeric trajectories against the
 graph (witness paths / localized refutations), `qrlib.semiquant` turns

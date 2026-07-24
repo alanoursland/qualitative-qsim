@@ -38,6 +38,11 @@ spirit) with their resolutions; new questions raised by that design follow.
    containing the exact time, declared landmark, and complete solver state.
    Events are protected from debounce, original sample spans are retained,
    and physical-time bounds distinguish exact events from inferred brackets.
+9. **String constraint syntax.** → Resolved. `parse_constraint` and
+   `format_constraint` cover every built-in constraint, including
+   corresponding values. `Model.constrain` accepts objects or strings and
+   stores the same frozen constraint objects either way. The parser is
+   literal-only, never uses `eval`, and leaves `qrlib.model/v1` unchanged.
 10. **Confidence semantics for estimated signs.** → Resolved. The calibrated
     estimator uses deterministic bootstrap sign agreement in `[0, 1]`, with
     explicit seed and resample metadata. It is documented as stability under
@@ -61,10 +66,6 @@ spirit) with their resolutions; new questions raised by that design follow.
    It reproduces the bespoke frictionless-spring filter byte-for-byte
    (the single 17-node cycle) and keeps the numeric soundness harness
    covered.
-9. **String constraint syntax.** `"M+(level, outflow)"` parsing is cheap and
-   host-ergonomic, but a second authoring path to maintain.
-   *Provisional:* add in phase 4 alongside the schema freeze, as a thin
-   layer over the schema only.
 11. **License and distribution.** Deliberately deferred by the owner —
     do not add a license file until they choose one. Until then the
     default applies (all rights reserved; not publishable/distributable).

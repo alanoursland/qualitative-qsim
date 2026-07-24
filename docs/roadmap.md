@@ -404,6 +404,12 @@ in recommended order:
   independently schedule heterogeneous models (the real in-library shape is
   2–12), with no first-class padded model axis, int8 conversion, or
   `torch.compile` work currently justified.
+- Optional compact constraint authoring is implemented by
+  `qrlib.constraint_syntax`: safe literal-only parsing for every built-in
+  kind (`M+`, `M-`, algebraic, derivative, constant, pinning, and
+  negligible), canonical formatting with round-trip tests, and direct
+  `Model.constrain(str)` integration. It is sugar over ordinary constraint
+  objects and does not alter the versioned model schema.
 - Not yet assessed (worth a follow-up survey): monotone dynamical-systems
   theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
   reachability tooling; hybrid-system falsification / conformance testing.

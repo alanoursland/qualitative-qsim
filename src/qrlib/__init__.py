@@ -27,6 +27,11 @@ from .constraints import (
     Negligible,
 )
 from .energy import EnergyFilter, Trend
+from .constraint_syntax import (
+    ConstraintSyntaxError,
+    format_constraint,
+    parse_constraint,
+)
 from . import decompose, diagnosis, frontends, guide, induce, semiquant, viz
 from .engines.envision import Envisionment, envision
 from .engines.qsim import qsim
@@ -72,6 +77,9 @@ __all__ = [
     "TerminalClass",
     "EnergyFilter",
     "Trend",
+    "ConstraintSyntaxError",
+    "parse_constraint",
+    "format_constraint",
     "qsim",
     "envision",
     "Envisionment",

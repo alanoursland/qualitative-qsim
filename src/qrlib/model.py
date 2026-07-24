@@ -43,6 +43,7 @@ from .constraints import (
 )
 from .quantity import Landmark, Qdir, QuantitySpace, QVal
 from .state import QState, TimeTag
+from .constraint_syntax import parse_constraint
 
 __all__ = [
     "Variable",
@@ -236,7 +237,17 @@ class Model:
         self.variables[name] = var
         return var
 
-    def constrain(self, constraint: Constraint) -> Constraint:
+    def constrain(self, constraint: Constraint | str) -> Constraint:
+        """Add a constraint object or compact string expression.
+
+        String syntax is authoring sugar parsed by
+        :func:`qrlib.parse_constraint`; the model stores the resulting
+        ordinary constraint object.
+        """
+        if isinstance(constraint, str):
+            constraint = parse_constraint(constraint)
+        elif not isinstance(constraint, Constraint):
+            raise TypeError("constraint must be a Constraint or string")
         for ref in constraint.variables:
             if ref not in self.variables:
                 raise ValueError(

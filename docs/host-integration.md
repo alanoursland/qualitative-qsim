@@ -57,9 +57,10 @@ Two hard rules follow:
 - **Models are programmatically authored, serializable data.** The `Model`
   schema (variables, spaces, constraints, corresponding values, regions) has
   a versioned JSON form so hosts can generate, store, and ship QDEs as
-  artifacts. A convenience text syntax for constraints (`"M+(level, outflow)"`)
-  is a parsing layer over the same schema, provided so host factory functions
-  can stay one-liners.
+  artifacts. The convenience text syntax for constraints
+  (`"M+(level, outflow)"`) is implemented as a safe, literal-only parser into
+  the existing constraint objects; it never evaluates code and does not
+  change the model schema (`docs/constraint-syntax.md`).
 - **Corresponding values and orderings** are first-class in the schema — they
   are the main channel by which host knowledge (e.g. "f(0)=0", "the two
   equilibria are ordered") sharpens qualitative predictions.
