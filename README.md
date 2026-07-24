@@ -12,12 +12,14 @@ QR formalisms (envisionment, process-based modeling, semi-quantitative
 refinement) and tensorized/GPU-accelerated execution can slot in alongside it.
 
 > **Status: functional, pre-release.** Phases 0-7 of the
-> [roadmap](docs/roadmap.md) are implemented and tested (128 tests):
+> [roadmap](docs/roadmap.md) are implemented and covered by the test suite:
 > full QSIM (landmark discovery, chatter abstraction, analytic filters,
 > envisionment, operating regions), the numeric bridge (trajectory
 > abstraction, the coverage oracle, sign-structure intake/estimation),
 > Q2-style semi-quantitative bounds, a torch-backed tensor layer proven
-> equivalent to the reference engine, explanation, and visualization.
+> equivalent to the reference engine, model induction and diagnosis,
+> temporal-logic-guided simulation, decomposition, comparative and causal
+> analysis, process/device front ends, explanation, and visualization.
 > No license has been chosen yet; APIs are stable-ish but unversioned.
 
 ## Why qualitative reasoning?
@@ -71,6 +73,18 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
   against predicted behavior graphs). **`benchmarks/`** — measured
   reference-vs-tensor comparisons.
 
+## Installation
+
+The supported install includes PyTorch:
+
+```console
+pip install qualitative-reasoning-lib
+```
+
+PyTorch is imported lazily: ordinary model construction, reference
+simulation, analysis, and the pure-Python bridge do not import it, while
+`SimConfig(use_tensor=True)` and `qrlib.tensor` use the installed dependency.
+
 ## Quick taste
 
 ```python
@@ -117,6 +131,9 @@ graph (witness paths / localized refutations), `qrlib.semiquant` turns
 landmark bounds and monotone-function envelopes into guaranteed value and
 transition-time bounds (and prunes numerically impossible behaviors), and
 `qrlib.viz` renders timelines and behavior trees as plain data or SVG.
+Additional modules provide total envisionment, temporal-logic guidance,
+model induction and diagnosis, comparative/causal analysis, decomposition,
+differentiable constraint losses, and process/device modeling front ends.
 
 ## Design commitments (early)
 

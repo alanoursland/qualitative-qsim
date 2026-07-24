@@ -70,8 +70,9 @@ over rows; hashing is cheap.
 - **Precision/dtype:** all-integer; no float anywhere in the core loops, so
   no tolerance questions and CPU/GPU results are identical.
 - **Device neutrality:** engine follows the device of its input tensors;
-  every kernel-shaped function is exercised on CPU in CI (GPU runs are a
-  perf concern, not a correctness concern).
+  every kernel-shaped function is exercised on CPU in CI, and
+  hardware-gated CUDA tests check abstraction parity, time placement,
+  one-step trajectories, and error behavior.
 - **Padding over raggedness:** per-variable candidate counts vary; use
   fixed-K padding + masks rather than nested tensors until profiling says
   otherwise.
@@ -98,9 +99,39 @@ Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory
 abstraction ~×22 (run boundaries detected in tensor land; Python touches
 O(runs)); batched frontier filtering ×1.5 at B=2048; single-state
 expansion ×0.25 — confirming §1's table: one small model at a time gains
-nothing, which is why `SimConfig.use_tensor` defaults off. GPU
-measurements pend a CUDA environment; the code is device-neutral and the
-integer core makes CPU/GPU results identical.
+nothing, which is why `SimConfig.use_tensor` defaults off. The CUDA path is
+device-neutral and hardware-gated tests assert exact CPU/reference parity.
+
+The benchmark uses five post-warm-up CUDA samples with explicit
+synchronization before and after every timed region, reporting the median,
+minimum, and raw samples. It separates dense quantization/direction work
+(outputs remain on device) from end-to-end abstraction (including the ragged
+Python tail and its device-to-host result copies). Host-to-device input
+transfer is excluded and stated in the output. Each CUDA run records the
+Torch and CUDA runtime versions, GPU model and compute capability, dtype,
+batch shape, and free/process memory. Frontier and engine measurements are
+explicitly labeled CPU-only.
+
+### CUDA qualification result (2026-07-23)
+
+Validated with PyTorch 2.3.0, CUDA runtime 11.8, NVIDIA driver 591.86, and an
+NVIDIA GeForce RTX 3080 Ti (compute capability 8.6), using float64 input of
+shape `(8, 50000, 3)`. The host-to-device input copy was excluded.
+
+| Stage | Median | Minimum | Throughput |
+|---|---:|---:|---:|
+| Dense CUDA quantization + directions | 0.002435 s | 0.002365 s | — |
+| End-to-end CUDA abstraction | 0.682635 s | 0.633363 s | 0.586 M samples/s |
+| End-to-end tensor CPU abstraction | 0.21 s | — | 1.95 M samples/s |
+| Reference Python abstraction | 4.94 s | — | 0.08 M samples/s |
+
+The CUDA end-to-end path was 7.24× faster than the reference but slower than
+tensor CPU because the ragged tail materializes device results as Python
+lists. Dense device work itself took under 3 ms. During the run, 10.71 GiB of
+12.00 GiB was free; the process had 0.01 GiB allocated and 0.06 GiB reserved.
+CPU-only frontier expansion measured 175.3 ms reference versus 168.3 ms
+tensor-batched, and the small chattery engine measured 73.9 ms reference
+versus 507.4 ms tensor, reinforcing that these workloads are not GPU claims.
 
 ## 6. Differentiable constraint losses (`tensor/losses.py`)
 

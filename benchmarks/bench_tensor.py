@@ -10,8 +10,10 @@ trajectory batches (per-sample stages) and large/batched frontiers.
 """
 
 import sys
+import subprocess
 import time
 from pathlib import Path
+from statistics import median
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
@@ -28,13 +30,52 @@ from qrlib.tensor import abstraction as tabs
 from qrlib.tensor import engine as tengine
 
 
-def clock(fn, repeat=3):
-    best = float("inf")
+def samples(fn, repeat=3, warmup=0, synchronize=None):
+    """Return wall-clock samples, synchronizing asynchronous devices."""
+    for _ in range(warmup):
+        fn()
+        if synchronize is not None:
+            synchronize()
+    observed = []
     for _ in range(repeat):
+        if synchronize is not None:
+            synchronize()
         t0 = time.perf_counter()
         fn()
-        best = min(best, time.perf_counter() - t0)
-    return best
+        if synchronize is not None:
+            synchronize()
+        observed.append(time.perf_counter() - t0)
+    return observed
+
+
+def clock(fn, repeat=3):
+    return median(samples(fn, repeat))
+
+
+def report_samples(label, observed):
+    values = ", ".join(f"{value:.6f}" for value in observed)
+    print(
+        f"{label} median {median(observed):.6f}s "
+        f"(min {min(observed):.6f}s; samples [{values}])"
+    )
+
+
+def cuda_driver_version():
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=driver_version",
+                "--format=csv,noheader",
+                "--id=0",
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unavailable"
 
 
 def bench_abstraction(B=8, T=50_000):
@@ -48,14 +89,47 @@ def bench_abstraction(B=8, T=50_000):
 
     ref = clock(lambda: [rabs.abstract_trajectory(x, m, config=CFG) for x in batch], 1)
     x = torch.tensor(batch, dtype=torch.float64)
-    ten = clock(lambda: tabs.abstract_batch_tensor(x, m, config=CFG), 1)
+    ten = clock(lambda: tabs.abstract_batch_tensor(x, m, config=CFG))
     rows_per_s = B * T
     print(f"abstraction  B={B} T={T}   reference {ref:8.2f}s ({rows_per_s/ref/1e6:5.2f}M samp/s)   tensor(cpu) {ten:8.2f}s ({rows_per_s/ten/1e6:5.2f}M samp/s)   speedup x{ref/ten:.1f}")
     if torch.cuda.is_available():
         xg = x.cuda()
-        torch.cuda.synchronize()
-        teng = clock(lambda: tabs.abstract_batch_tensor(xg, m, config=CFG), 1)
-        print(f"                                tensor(cuda) {teng:8.2f}s   speedup x{ref/teng:.1f}")
+        ts = torch.arange(T, dtype=torch.float64, device=xg.device).expand(B, T)
+        frame = m.compile()
+        sync = torch.cuda.synchronize
+        dense = samples(
+            lambda: (
+                tabs.quantize_batch(xg, frame, CFG.landmark_atol),
+                tabs.directions_batch(xg, ts, CFG),
+            ),
+            repeat=5,
+            warmup=2,
+            synchronize=sync,
+        )
+        end_to_end = samples(
+            lambda: tabs.abstract_batch_tensor(xg, m, config=CFG),
+            repeat=5,
+            warmup=2,
+            synchronize=sync,
+        )
+        report_samples("  tensor(cuda) dense quantize+directions:", dense)
+        report_samples("  tensor(cuda) end-to-end abstraction:", end_to_end)
+        teng = median(end_to_end)
+        print(
+            f"  end-to-end throughput {rows_per_s/teng/1e6:.3f}M samples/s; "
+            f"speedup vs reference x{ref/teng:.2f}"
+        )
+        free, total = torch.cuda.mem_get_info()
+        print(
+            "  transfer policy: input host-to-device copy excluded; dense output "
+            "stays on device; end-to-end timing includes ragged result copies "
+            "back to Python"
+        )
+        print(
+            f"  memory: {free/2**30:.2f} GiB free / {total/2**30:.2f} GiB total; "
+            f"process allocated {torch.cuda.memory_allocated()/2**30:.2f} GiB, "
+            f"reserved {torch.cuda.memory_reserved()/2**30:.2f} GiB"
+        )
 
 
 def bench_engine():
@@ -67,7 +141,7 @@ def bench_engine():
     from dataclasses import replace
 
     ten = clock(lambda: qr.qsim(m, initial, config=replace(cfg, use_tensor=True)))
-    print(f"engine (chattery damped spring, 400 states)   reference {ref*1e3:7.1f}ms   tensor {ten*1e3:7.1f}ms   ratio x{ref/ten:.2f}")
+    print(f"engine (CPU; chattery damped spring, 400 states)   reference {ref*1e3:7.1f}ms   tensor {ten*1e3:7.1f}ms   ratio x{ref/ten:.2f}")
 
 
 def bench_frontier(B=2048):
@@ -95,12 +169,19 @@ def bench_frontier(B=2048):
     tengine.filtered_combos_batch(frame, domains_list[:4], active_idx)  # warm tables
     r = clock(ref)
     t = clock(lambda: tengine.filtered_combos_batch(frame, domains_list, active_idx))
-    print(f"frontier expansion  B={B} states   reference {r*1e3:7.1f}ms   tensor-batched {t*1e3:7.1f}ms   speedup x{r/t:.1f}")
+    print(f"frontier expansion (CPU)  B={B} states   reference {r*1e3:7.1f}ms   tensor-batched {t*1e3:7.1f}ms   speedup x{r/t:.1f}")
 
 
 if __name__ == "__main__":
     dev = "cuda" if torch.cuda.is_available() else "cpu-only"
     print(f"torch {torch.__version__} ({dev})")
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        print(
+            f"CUDA runtime {torch.version.cuda}; driver {cuda_driver_version()}; "
+            f"GPU {props.name}; "
+            f"compute capability {props.major}.{props.minor}; dtype float64"
+        )
     bench_abstraction()
     bench_frontier()
     bench_engine()

@@ -129,7 +129,7 @@ moved up; analysis/queries attach to the phases that make them possible.
   regions and landmark values included) and `qrlib.result/v1`
   (region-tagged graph export).
 
-## Phase 5 — Tensorized engine *(done; GPU measurements pending a GPU box)*
+## Phase 5 — Tensorized engine *(done)*
 
 - `tensor/encoding.py`: qcode packing, canonical `(B, 2V)` frontier
   codecs, and per-frame dense constraint tables **built by exhaustively
@@ -152,8 +152,9 @@ moved up; analysis/queries attach to the phases that make them possible.
   batched frontier filtering ×1.5 at B=2048; single-state engine
   expansion ×0.25 — the tensor path *loses* on one small model at a
   time, exactly as `docs/gpu-tensorization.md` predicted, which is why
-  `use_tensor` defaults off. GPU runs of the same benchmark are the
-  remaining item, pending an environment with CUDA.
+  `use_tensor` defaults off. CUDA correctness is covered by hardware-gated
+  parity tests; the benchmark reports synchronized warm samples for dense
+  device work and end-to-end abstraction separately.
 
 ## Phase 6 — Semi-quantitative layer (Q2-style) *(done)*
 
@@ -179,8 +180,9 @@ moved up; analysis/queries attach to the phases that make them possible.
   drain (OMAX > inflow) kills the overflow and at-FULL branches; a weak
   drain (OMAX < inflow) kills both equilibria. Unannotated models are
   never refuted (sound no-op).
-- Deferred: batched/tensorized interval propagation `(B, V, 2)` (rides
-  the phase-5 layer when a workload demands it).
+- Batched/tensorized interval propagation is implemented in
+  `qrlib.tensor.interval`; see the completed backlog entry below for its
+  scope and parity guarantees.
 
 ## Phase 7 — Analysis polish *(done)*
 
@@ -385,7 +387,8 @@ in recommended order:
   the point/interval landmark semantics handled once. Reproduces the
   hand-written frictionless-spring filter byte-for-byte (17-node cycle,
   8 vetoes) and stays covered by the numeric soundness harness.
-- GPU benchmark runs (needs a CUDA box).
+- CUDA abstraction correctness and benchmark methodology are implemented.
+  Periodic benchmark results still require a CUDA qualification machine.
 - Not yet assessed (worth a follow-up survey): monotone dynamical-systems
   theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
   reachability tooling; hybrid-system falsification / conformance testing.

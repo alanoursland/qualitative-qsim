@@ -12,3 +12,4 @@ venv/
 .coverage
 htmlcov/
 .ipynb_checkpoints/
+gaps/**

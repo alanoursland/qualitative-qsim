@@ -15,16 +15,19 @@ spirit) with their resolutions; new questions raised by that design follow.
    irregularly sampled, **with hybrid/mode-switching support required
    early** — operating regions moved to phase 4 and the abstraction
    pipeline reserves a mode channel from day one.
-3. **Differentiability?** → Not near-term. Hosts consume qualitative
-   structure as *data* (sign structure for constrained regression, coverage
-   scores for model selection); soft losses remain a possible phase-7 layer
-   strictly above the exact core.
+3. **Differentiability?** → Implemented as `qrlib.tensor.losses`, a soft
+   autograd layer strictly above the exact core. Hosts may still consume
+   qualitative structure as data when differentiation is unnecessary.
 4. **Model interchange format?** → Yes, needed: hosts author and ship QDEs
    programmatically. Versioned JSON schema for models and results; frozen at
    the end of phase 4, marked unstable before that.
 5. **Symbolic values on landmarks?** → No CAS dependency, ever, in core.
    Landmarks carry optional numeric `value`/bounds; symbolic identities stay
    host-side keyed by landmark name (Surface 1).
+12. **Order of the phase-7 extras.** → Resolved. Explanation,
+    visualization, total envisionment, induction, comparative analysis,
+    temporal-logic queries, and soft losses are implemented. Their completed
+    entries remain in `docs/roadmap.md` as a development record.
 
 ## Open
 
@@ -61,8 +64,3 @@ spirit) with their resolutions; new questions raised by that design follow.
     default applies (all rights reserved; not publishable/distributable).
     PyPI name (`qualitative-reasoning-lib`? `qrlib` availability) to
     check alongside that decision.
-12. **Order of the phase-7 extras.** *Partially resolved:* explanation
-    and viz are built; the rest (total envisionment, induction,
-    comparative analysis, temporal-logic queries, soft losses) now live
-    as the demand-driven backlog in `docs/roadmap.md` — pick up when the
-    first host adapter asks.

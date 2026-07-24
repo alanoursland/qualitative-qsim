@@ -41,7 +41,7 @@ def quantize_batch(
     interval located by counting strictly-smaller landmark values;
     out-of-space values raise."""
     B, T, V = x.shape
-    out = torch.empty((B, T, V), dtype=torch.long)
+    out = torch.empty((B, T, V), dtype=torch.long, device=x.device)
     for vi in range(V):
         space = compiled.spaces[vi]
         missing = [lm.name for lm in space.landmarks if lm.value is None]
@@ -51,7 +51,9 @@ def quantize_batch(
                 f"numeric values: {missing}"
             )
         vals = torch.tensor(
-            [lm.value for lm in space.landmarks], dtype=torch.float64
+            [lm.value for lm in space.landmarks],
+            dtype=x.dtype,
+            device=x.device,
         )
         xv = x[..., vi]
         near = (xv.unsqueeze(-1) - vals).abs() <= atol  # (B, T, L)
@@ -113,7 +115,9 @@ def directions_batch(
             d[:, 0] = step
             d[:, 1] = step
 
-    eps = torch.full((B, 1, V), cfg.direction_eps, dtype=torch.float64)
+    eps = torch.full(
+        (B, 1, V), cfg.direction_eps, dtype=x.dtype, device=x.device
+    )
     if cfg.eps_relative:
         max_deriv = d.abs().amax(dim=1, keepdim=True)
         scale = x.abs().amax(dim=1, keepdim=True)
@@ -122,7 +126,9 @@ def directions_batch(
             duration == 0, torch.ones_like(duration), duration
         )
         eps = cfg.direction_eps * torch.maximum(max_deriv, scale / duration)
-    codes = torch.full((B, T, V), int(Qdir.STD), dtype=torch.long)
+    codes = torch.full(
+        (B, T, V), int(Qdir.STD), dtype=torch.long, device=x.device
+    )
     codes[d > eps] = int(Qdir.INC)
     codes[d < -eps] = int(Qdir.DEC)
     return codes
@@ -149,10 +155,16 @@ def abstract_batch_tensor(
     if V != len(compiled.var_order):
         raise ValueError(f"trajectories have {V} columns, model has {len(compiled.var_order)}")
     if times is None:
-        ts = torch.arange(T, dtype=torch.float64).unsqueeze(0).expand(B, T)
+        ts = (
+            torch.arange(T, dtype=torch.float64, device=x.device)
+            .unsqueeze(0)
+            .expand(B, T)
+        )
     else:
-        ts = torch.as_tensor(times, dtype=torch.float64)
+        ts = torch.as_tensor(times, dtype=torch.float64, device=x.device)
         ts = ts.unsqueeze(0).expand(B, T) if ts.dim() == 1 else ts
+    if ts.shape != (B, T):
+        raise ValueError(f"times must have shape ({T},) or ({B}, {T})")
 
     ranks = quantize_batch(x, compiled, cfg.landmark_atol)
     dirs = directions_batch(x, ts, cfg)
@@ -160,7 +172,7 @@ def abstract_batch_tensor(
     if T > 1:
         change = ((ranks[:, 1:] != ranks[:, :-1]) | (dirs[:, 1:] != dirs[:, :-1])).any(-1)
     else:
-        change = torch.zeros((B, 0), dtype=torch.bool)
+        change = torch.zeros((B, 0), dtype=torch.bool, device=x.device)
 
     out = []
     for b in range(B):

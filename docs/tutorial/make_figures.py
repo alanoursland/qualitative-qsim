@@ -23,7 +23,7 @@ FIG = os.path.join(HERE, "figures")
 
 
 def write(name: str, svg: str) -> None:
-    with open(os.path.join(FIG, name), "w") as f:
+    with open(os.path.join(FIG, name), "w", encoding="utf-8") as f:
         f.write(svg)
     print("wrote", name, f"({len(svg)} bytes)")
 

@@ -186,3 +186,55 @@ def test_quantize_batch_out_of_space_raises():
     # bathtub landmarks carry no numeric values -> informative error
     with pytest.raises(ValueError, match="without"):
         tabs.quantize_batch(torch.zeros((1, 2, 5), dtype=torch.float64), frame, 1e-9)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+def test_cuda_abstraction_default_and_explicit_times_match_cpu():
+    from test_soundness import CFG, spring_instance
+
+    m, _, rows = spring_instance(0)
+    rows = rows[:32]
+    x_cpu = torch.tensor(rows, dtype=torch.float64)
+    x_cuda = x_cpu.cuda()
+
+    (cpu_default,) = tabs.abstract_batch_tensor(x_cpu, m, config=CFG)
+    (cuda_default,) = tabs.abstract_batch_tensor(x_cuda, m, config=CFG)
+    assert cuda_default == cpu_default
+
+    times = torch.linspace(0.0, 0.31, len(rows), dtype=torch.float64)
+    (cpu_timed,) = tabs.abstract_batch_tensor(x_cpu, m, times=times, config=CFG)
+    # CPU times are accepted and placed with the CUDA trajectory.
+    (cuda_timed,) = tabs.abstract_batch_tensor(x_cuda, m, times=times, config=CFG)
+    assert cuda_timed == cpu_timed
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+def test_cuda_one_step_and_out_of_space_behavior():
+    from test_soundness import CFG, bathtub_instance, spring_instance
+
+    m, _, rows = spring_instance(0)
+    one_cpu = torch.tensor([rows[0]], dtype=torch.float64)
+    one_cuda = one_cpu.cuda()
+    (cpu_result,) = tabs.abstract_batch_tensor(one_cpu, m, config=CFG)
+    (cuda_result,) = tabs.abstract_batch_tensor(one_cuda, m, config=CFG)
+    assert cuda_result == cpu_result
+
+    bounded, _, bounded_rows, _ = bathtub_instance(0, overflow=True)
+    bad = torch.tensor(
+        [[bounded_rows[0]]], dtype=torch.float64, device="cuda"
+    )
+    bad[..., 0] = 1e9
+    with pytest.raises(ValueError, match="space"):
+        tabs.quantize_batch(bad, bounded.compile(), CFG.landmark_atol)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+def test_cuda_full_abstraction_matches_reference():
+    from qrlib.bridge import abstraction as rabs
+    from test_soundness import CFG, bathtub_instance
+
+    m, _, rows, times = bathtub_instance(0, overflow=True)
+    reference = rabs.abstract_trajectory(rows, m, times=times, config=CFG)
+    x = torch.tensor(rows, dtype=torch.float64, device="cuda")
+    (actual,) = tabs.abstract_batch_tensor(x, m, times=times, config=CFG)
+    assert actual == reference

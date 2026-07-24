@@ -1,9 +1,9 @@
 # Architecture
 
-Provisional package layout and core abstractions. Everything here is a
-proposal; the skeleton in `src/qrlib/` mirrors it so the proposal stays
-honest. Host-facing requirements that shaped this design are collected in
-`docs/host-integration.md`.
+Implemented package layout and core abstractions. This document describes the
+current `src/qrlib/` package; future work is tracked separately in
+`docs/roadmap.md`. Host-facing requirements that shaped the design are
+collected in `docs/host-integration.md`.
 
 ## Package layout
 
@@ -147,7 +147,7 @@ divergence) plus user-supplied path/state predicates — the hook through
 which analytic knowledge (e.g. a declared energy-like variable that must not
 increase) prunes spurious behaviors without touching core semantics.
 
-## Cross-cutting decisions (proposed)
+## Cross-cutting decisions
 
 - **Immutability at the boundary:** models compile to frozen artifacts;
   states and results are values. Engines may mutate private scratch only.
@@ -160,8 +160,9 @@ increase) prunes spurious behaviors without touching core semantics.
   Device/dtype follow inputs.
 - **Naming:** QR-literature names in docs (`M+`, `deriv`, `landmark`,
   `envisionment`), ASCII-safe in code (`MPlus`, `Deriv`).
-- **Python ≥ 3.10**, `torch` required but imported lazily outside
-  `tensor/`/`bridge/` so the symbolic core works in torch-free environments.
+- **Python ≥ 3.10**, with `torch` as a required distribution dependency.
+  Torch is imported lazily by `qrlib.tensor`, so symbolic/reference imports
+  remain lightweight even though Torch is part of every supported install.
 
 ## Testing strategy
 

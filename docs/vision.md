@@ -51,11 +51,9 @@ Three reasons, in decreasing order of importance:
 2. **Adjacency to numeric work.** Trajectory abstraction consumes tensors that
    numeric simulators and datasets already produce. Staying in torch avoids
    copies and keeps device placement trivial.
-3. **Optionality for learning.** If qualitative structure is ever used inside
-   a training loop (e.g., soft/relaxed constraint penalties, or learning
-   monotonic function envelopes), being in torch keeps that door open. This is
-   explicitly *not* a near-term goal; the core semantics are discrete and
-   exact.
+3. **Optionality for learning.** Qualitative structure can be used inside a
+   training loop through the implemented soft constraint losses. This layer
+   uses torch autograd but remains strictly above the discrete, exact core.
 
 ## Design principles
 
@@ -77,8 +75,9 @@ Three reasons, in decreasing order of importance:
 - **Batch-shaped by default.** Public tensor interfaces take and return
   batched tensors with a documented layout, so scaling from 1 to 10⁶ states
   is a non-event.
-- **Small dependency surface.** `torch` plus the standard library for the
-  core; visualization and notebook conveniences stay optional extras.
+- **Small dependency surface.** The symbolic implementation uses only the
+  standard library, while the supported distribution includes PyTorch for
+  tensor execution. Visualization and notebook conveniences stay optional.
 
 ## Non-goals (for now)
 
