@@ -184,6 +184,55 @@ def test_abstraction_batch_with_modes_matches_reference():
     assert ten == ref
 
 
+def test_ragged_tail_packs_only_actual_runs_and_endpoint_times():
+    ranks = torch.tensor(
+        [
+            [[1], [1], [2], [2], [3]],
+            [[4], [4], [4], [4], [4]],
+        ],
+        dtype=torch.long,
+    )
+    dirs = torch.full_like(ranks, int(Qdir.STD))
+    times = torch.tensor(
+        [[0.0, 0.5, 2.0, 3.0, 5.0], [10.0, 11.0, 13.0, 16.0, 20.0]],
+        dtype=torch.float64,
+    )
+    change = ((ranks[:, 1:] != ranks[:, :-1]) | (
+        dirs[:, 1:] != dirs[:, :-1]
+    )).any(-1)
+    packed, endpoints = tabs._pack_runs_for_host(
+        ranks, dirs, times, change
+    )
+    # Three actual runs in batch 0 and one in batch 1: no B*max_runs padding,
+    # and only two timestamps per run cross into the host view.
+    assert packed.device.type == "cpu"
+    assert endpoints.device.type == "cpu"
+    assert packed.shape == (4, 5)  # batch/start/end + one rank + one direction
+    assert endpoints.shape == (4, 2)
+    assert packed[:, :3].tolist() == [
+        [0, 0, 2],
+        [0, 2, 4],
+        [0, 4, 5],
+        [1, 0, 5],
+    ]
+    assert endpoints.tolist() == [
+        [0.0, 0.5],
+        [2.0, 3.0],
+        [5.0, 5.0],
+        [10.0, 20.0],
+    ]
+
+
+def test_tensor_abstraction_validates_mode_shape():
+    from test_soundness import CFG, spring_instance
+
+    m, _, rows = spring_instance(0)
+    with pytest.raises(ValueError, match="modes must have shape"):
+        tabs.abstract_batch_tensor(
+            rows[:5], m, modes=[["only-one"]], config=CFG
+        )
+
+
 def test_quantize_batch_out_of_space_raises():
     from test_qsim_golden import bathtub
 

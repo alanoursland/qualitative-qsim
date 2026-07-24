@@ -2,10 +2,11 @@
 trajectory-batch axis — the embarrassingly parallel case).
 
 The per-sample stages of the pipeline — quantization against landmark
-values and direction estimation — vectorize over ``(B, T, V)`` tensors.
-Segmentation/debounce/emission are inherently ragged and reuse the
-reference implementation per trajectory (their cost is O(runs), not
-O(samples)).
+values, direction estimation, and run-boundary detection — vectorize over
+``(B, T, V)`` tensors. Run starts and their codes are gathered into a compact
+``O(runs)`` representation on-device and copied to the host in bulk.
+Debounce/emission remain the small Python view layer shared with the reference
+implementation; they never inspect the full sample tensors.
 
 Parity contract: identical results to
 :func:`qrlib.bridge.abstraction.abstract_trajectory` — the tensor stages
@@ -24,12 +25,82 @@ from ..bridge.abstraction import (
     AbstractionConfig,
     _debounce,
     _emit,
-    _time_bounds,
 )
 from ..model import CompiledModel, Model
 from ..quantity import Qdir
 
 __all__ = ["quantize_batch", "directions_batch", "abstract_batch_tensor"]
+
+
+def _normalize_modes(modes, B: int, T: int):
+    """Return mode rows plus a CPU change mask.
+
+    Region labels may be arbitrary Python objects, so their equality cannot
+    generally run as a tensor operation. Normalize them once and construct one
+    compact boolean mask; the no-mode hot path does no host work here.
+    """
+    if modes is None:
+        return None, None
+    raw = modes.tolist() if hasattr(modes, "tolist") else modes
+    rows = [list(row) for row in raw]
+    if len(rows) != B or any(len(row) != T for row in rows):
+        raise ValueError(f"modes must have shape ({B}, {T})")
+    changes = [
+        [rows[b][t] != rows[b][t - 1] for t in range(1, T)]
+        for b in range(B)
+    ]
+    return rows, torch.tensor(changes, dtype=torch.bool)
+
+
+def _pack_runs_for_host(
+    ranks: torch.Tensor,
+    dirs: torch.Tensor,
+    ts: torch.Tensor,
+    change: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Gather the ragged run stream on-device, then copy it to CPU in bulk.
+
+    The integer result has one row per actual run:
+    ``[batch, start, end, ranks[V], directions[V]]``. The time result carries
+    only ``[time[start], time[end - 1]]`` for each run. This avoids both
+    per-run device synchronization and a ``B*T`` timestamp copy.
+    """
+    B, T, V = ranks.shape
+    starts_mask = torch.empty((B, T), dtype=torch.bool, device=ranks.device)
+    starts_mask[:, 0] = True
+    if T > 1:
+        starts_mask[:, 1:] = change
+    coords = starts_mask.nonzero(as_tuple=False)
+    batches = coords[:, 0]
+    starts = coords[:, 1]
+    ends = torch.full_like(starts, T)
+    if len(starts) > 1:
+        same_batch = batches[:-1] == batches[1:]
+        ends[:-1] = torch.where(same_batch, starts[1:], ends[:-1])
+
+    run_ranks = ranks[batches, starts]
+    run_dirs = dirs[batches, starts]
+    packed = torch.cat(
+        (coords, ends.unsqueeze(1), run_ranks, run_dirs), dim=1
+    ).to(device="cpu")
+    run_times = torch.stack(
+        (ts[batches, starts], ts[batches, ends - 1]), dim=1
+    ).to(device="cpu")
+    assert packed.shape == (len(starts), 3 + 2 * V)
+    return packed, run_times
+
+
+def _time_bounds_from_run_endpoints(spans, endpoint_times):
+    """Physical bounds using only times gathered at original run endpoints."""
+    bounds = []
+    for start, end in spans:
+        if start < end:
+            bounds.append((endpoint_times[start], endpoint_times[end - 1]))
+        elif start == 0:
+            bounds.append((endpoint_times[0], endpoint_times[0]))
+        else:
+            bounds.append((endpoint_times[start - 1], endpoint_times[start]))
+    return tuple(bounds)
 
 
 def quantize_batch(
@@ -155,6 +226,8 @@ def abstract_batch_tensor(
     B, T, V = x.shape
     if V != len(compiled.var_order):
         raise ValueError(f"trajectories have {V} columns, model has {len(compiled.var_order)}")
+    if T == 0:
+        raise ValueError("empty trajectories")
     if times is None:
         ts = (
             torch.arange(T, dtype=torch.float64, device=x.device)
@@ -169,30 +242,36 @@ def abstract_batch_tensor(
 
     ranks = quantize_batch(x, compiled, cfg.landmark_atol)
     dirs = directions_batch(x, ts, cfg)
-    # run boundaries in tensor land, so Python only touches O(runs), not O(T)
+    mode_rows, mode_change = _normalize_modes(modes, B, T)
+    # Run boundaries and row gathering stay in tensor land. Python receives
+    # one compact O(runs) stream, not B*T samples or per-run device views.
     if T > 1:
         change = ((ranks[:, 1:] != ranks[:, :-1]) | (dirs[:, 1:] != dirs[:, :-1])).any(-1)
+        if mode_change is not None:
+            change |= mode_change.to(device=x.device)
     else:
         change = torch.zeros((B, 0), dtype=torch.bool, device=x.device)
+    packed, packed_times = _pack_runs_for_host(ranks, dirs, ts, change)
+
+    runs_by_batch = [[] for _ in range(B)]
+    endpoint_times = [dict() for _ in range(B)]
+    for record, time_pair in zip(packed.tolist(), packed_times.tolist()):
+        b, start, end = record[:3]
+        row_r = record[3 : 3 + V]
+        row_d = record[3 + V :]
+        code = tuple((row_r[v], Qdir(row_d[v])) for v in range(V))
+        mode = mode_rows[b][start] if mode_rows is not None else None
+        runs_by_batch[b].append([(code, mode), start, end])
+        endpoint_times[b][start] = time_pair[0]
+        endpoint_times[b][end - 1] = time_pair[1]
 
     out = []
-    for b in range(B):
-        starts = [0] + (change[b].nonzero().flatten() + 1).tolist()
-        mo = list(modes[b]) if modes is not None else None
-        if mo is not None:
-            starts = sorted(
-                set(starts) | {t for t in range(1, T) if mo[t] != mo[t - 1]}
-            )
-        runs = []
-        for i, s0 in enumerate(starts):
-            end = starts[i + 1] if i + 1 < len(starts) else T
-            row_r = ranks[b, s0].tolist()
-            row_d = dirs[b, s0].tolist()
-            code = tuple((row_r[v], Qdir(row_d[v])) for v in range(V))
-            runs.append([(code, mo[s0] if mo is not None else None), s0, end])
+    for b, runs in enumerate(runs_by_batch):
         runs = _debounce(runs, cfg.debounce)
         states, spans, regions = _emit(runs, compiled.var_order)
-        time_bounds = _time_bounds(spans, ts[b].tolist())
+        time_bounds = _time_bounds_from_run_endpoints(
+            spans, endpoint_times[b]
+        )
         out.append(
             AbstractedBehavior(
                 states, spans, compiled.var_order, cfg, regions, time_bounds

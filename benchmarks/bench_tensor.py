@@ -107,6 +107,22 @@ def bench_abstraction(B=8, T=50_000):
             warmup=2,
             synchronize=sync,
         )
+
+        def packed_prefix():
+            ranks = tabs.quantize_batch(xg, frame, CFG.landmark_atol)
+            dirs = tabs.directions_batch(xg, ts, CFG)
+            change = (
+                (ranks[:, 1:] != ranks[:, :-1])
+                | (dirs[:, 1:] != dirs[:, :-1])
+            ).any(-1)
+            return tabs._pack_runs_for_host(ranks, dirs, ts, change)
+
+        packed_stage = samples(
+            packed_prefix,
+            repeat=5,
+            warmup=2,
+            synchronize=sync,
+        )
         end_to_end = samples(
             lambda: tabs.abstract_batch_tensor(xg, m, config=CFG),
             repeat=5,
@@ -114,7 +130,17 @@ def bench_abstraction(B=8, T=50_000):
             synchronize=sync,
         )
         report_samples("  tensor(cuda) dense quantize+directions:", dense)
+        report_samples("  tensor(cuda) dense+packed host transfer:", packed_stage)
         report_samples("  tensor(cuda) end-to-end abstraction:", end_to_end)
+        packed, packed_times = packed_prefix()
+        payload = (
+            packed.numel() * packed.element_size()
+            + packed_times.numel() * packed_times.element_size()
+        )
+        print(
+            f"  ragged payload {len(packed):,} actual runs, "
+            f"{payload / 2**20:.3f} MiB transferred"
+        )
         teng = median(end_to_end)
         print(
             f"  end-to-end throughput {rows_per_s/teng/1e6:.3f}M samples/s; "

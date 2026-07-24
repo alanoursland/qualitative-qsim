@@ -95,9 +95,12 @@ cache per content-hashed frame. `torch.cartesian_prod` enumerates in
 `itertools.product` order, so tensor results are not merely equal but
 identically ordered, and whole-graph equivalence is asserted in tests.
 
-Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory
-abstraction ~×22 (run boundaries detected in tensor land; Python touches
-O(runs)); batched frontier filtering ×1.5 at B=2048; single-state
+Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory abstraction
+uses tensor-native boundary detection and gathers a packed `O(actual runs)`
+stream on-device. One bulk host transfer replaces per-trajectory start
+copies, per-run code copies, and full timestamp copies; Python touches only
+the compact run stream and final result objects. Batched frontier filtering
+measured ×1.5 at B=2048; single-state
 expansion ×0.25 for the small chattery model. QSIM therefore defaults to
 `SimConfig(backend="auto")`: constrained interpretation products below 2,048
 use the reference path, products at or above 2,048 use tensor tables, and
@@ -109,13 +112,13 @@ hardware-gated tests assert exact CPU/reference parity.
 
 The benchmark uses five post-warm-up CUDA samples with explicit
 synchronization before and after every timed region, reporting the median,
-minimum, and raw samples. It separates dense quantization/direction work
-(outputs remain on device) from end-to-end abstraction (including the ragged
-Python tail and its device-to-host result copies). Host-to-device input
-transfer is excluded and stated in the output. Each CUDA run records the
-Torch and CUDA runtime versions, GPU model and compute capability, dtype,
-batch shape, and free/process memory. Frontier and engine measurements are
-explicitly labeled CPU-only.
+minimum, and raw samples. It separates dense quantization/direction work,
+dense work plus the packed host transfer, and end-to-end abstraction
+(including final Python result construction). Host-to-device input transfer
+is excluded and stated in the output. Each CUDA run records the Torch and
+CUDA runtime versions, GPU model and compute capability, dtype, batch shape,
+packed run count/bytes, and free/process memory. Frontier and engine
+measurements are explicitly labeled CPU-only.
 
 ### CUDA qualification result (2026-07-23)
 
@@ -125,18 +128,30 @@ shape `(8, 50000, 3)`. The host-to-device input copy was excluded.
 
 | Stage | Median | Minimum | Throughput |
 |---|---:|---:|---:|
-| Dense CUDA quantization + directions | 0.002435 s | 0.002365 s | — |
-| End-to-end CUDA abstraction | 0.682635 s | 0.633363 s | 0.586 M samples/s |
-| End-to-end tensor CPU abstraction | 0.21 s | — | 1.95 M samples/s |
-| Reference Python abstraction | 4.94 s | — | 0.08 M samples/s |
+| Dense CUDA quantization + directions | 0.002969 s | 0.002501 s | — |
+| Dense CUDA + packed host transfer | 0.003741 s | 0.003476 s | — |
+| End-to-end CUDA abstraction | 0.145893 s | 0.134814 s | 2.742 M samples/s |
+| End-to-end tensor CPU abstraction | 0.20 s | — | 2.03 M samples/s |
+| Reference Python abstraction | 5.67 s | — | 0.07 M samples/s |
 
-The CUDA end-to-end path was 7.24× faster than the reference but slower than
-tensor CPU because the ragged tail materializes device results as Python
-lists. Dense device work itself took under 3 ms. During the run, 10.71 GiB of
-12.00 GiB was free; the process had 0.01 GiB allocated and 0.06 GiB reserved.
-CPU-only frontier expansion measured 175.3 ms reference versus 168.3 ms
-tensor-batched, and the small chattery engine measured 73.9 ms reference
-versus 507.4 ms tensor, reinforcing that these workloads are not GPU claims.
+The workload produced 8,624 actual runs. Its packed host payload was 0.724
+MiB; it is proportional to actual runs and carries only two timestamps per
+run, with no `B × max_runs` padding. The packed transfer added less than 1 ms
+over dense device work. End-to-end CUDA abstraction was 38.86× faster than
+the reference and 4.68× faster than the previous per-run-transfer
+qualification (0.682635 s). Final Python `QState`/behavior construction now
+dominates the remaining time. During the run, 10.71 GiB of 12.00 GiB was
+free; the process had 0.01 GiB allocated and 0.06 GiB reserved.
+
+### Native-extension boundary
+
+qrlib-owned C, C++, CUDA, Cython, or pybind11 extensions are deferred
+indefinitely. The optimization strategy is to compose PyTorch's existing
+compiled kernels and keep representations tensor-native or compact for as
+long as practical. Native code should be reconsidered only after
+production-representative profiling, exhaustion of clean tensor approaches,
+and an explicit owner decision that the gain justifies toolchain, ABI,
+packaging, and maintenance costs.
 
 ### Automatic backend qualification (2026-07-23)
 

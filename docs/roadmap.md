@@ -144,13 +144,18 @@ moved up; analysis/queries attach to the phases that make them possible.
 - `tensor/abstraction.py`: batched quantization/direction estimation over
   `(B, T, V)` tensors mirroring the reference arithmetic
   expression-for-expression (float64, bit-identical ranks/dirs); run
-  boundaries detected in tensor land so Python touches O(runs), not O(T).
+  boundaries and run-row gathering stay on-device, followed by one packed
+  `O(actual runs)` host materialization with no worst-run padding and only
+  endpoint timestamps. Python handles debounce and final objects without
+  touching full sample tensors.
 - **Equivalence tests**: identical behavior-graph exports and stats
   across nine engine configurations (goldens, discovery, energy filter,
   chatter, envisionment, regions); batched ≡ per-state ≡ reference
   (order included); abstraction parity on soundness-harness trajectories.
-- **Measured (CPU, this environment)** via `benchmarks/bench_tensor.py`:
-  trajectory abstraction ~×22 (0.07 → 1.6M samples/s, B=8 × T=50k);
+- **Measured (this environment)** via `benchmarks/bench_tensor.py`:
+  packed-tail trajectory abstraction reaches 2.74M samples/s on CUDA and
+  2.03M samples/s on CPU for B=8 × T=50k; CUDA is ×38.9 versus reference
+  and ×4.7 versus the earlier per-run-transfer CUDA path;
   batched frontier filtering ×1.5 at B=2048; single-state engine
   expansion ×0.25 on the small chattery model. Workload-aware dispatch keeps
   those small products on reference and selects tensor at the measured

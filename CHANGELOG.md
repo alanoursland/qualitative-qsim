@@ -17,3 +17,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
   abstraction while preserving original sample-index provenance.
 - Added deterministic bootstrap sign estimation with bounded sign-agreement
   confidence and explicit `UNKNOWN` thresholding.
+- Reworked tensor trajectory abstraction to gather a compact ragged run stream
+  on-device and transfer it to Python in bulk, eliminating per-trajectory and
+  per-run CUDA synchronization.
