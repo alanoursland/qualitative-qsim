@@ -396,6 +396,14 @@ in recommended order:
   8 vetoes) and stays covered by the numeric soundness harness.
 - CUDA abstraction correctness and benchmark methodology are implemented.
   Periodic benchmark results still require a CUDA qualification machine.
+- Production-shaped scale qualification is implemented in
+  `benchmarks/bench_scale_profiles.py` with a committed machine-readable
+  RTX-3080-Ti result. It validates the V=64 and million-timestep targets,
+  identifies scalar volume plus run density as the useful size coordinates,
+  and resolves model ensembles: batch jobs sharing one compiled frame;
+  independently schedule heterogeneous models (the real in-library shape is
+  2–12), with no first-class padded model axis, int8 conversion, or
+  `torch.compile` work currently justified.
 - Not yet assessed (worth a follow-up survey): monotone dynamical-systems
   theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
   reachability tooling; hybrid-system falsification / conformance testing.

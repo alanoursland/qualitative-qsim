@@ -17,10 +17,11 @@ Qualitative simulation offers four independent batching axes:
 | **Trajectory batch** | numeric trajectories being abstracted (`numeric-bridge.md`) | always — this is the truly embarrassingly-parallel case |
 
 Textbook single models with small trees get **no** benefit from GPU — the
-reference engine stays the right tool there. The tensor engine targets the
-bottom three rows first (trajectory abstraction is the strongest case and the
-one adjacent to numeric dynamical systems work), and total-envisionment-style
-enumeration where the candidate space is a huge cross-product.
+reference engine stays the right tool there. The tensor engine targets
+trajectory abstraction (the strongest case), large interpretation/frontier
+batches, and homogeneous jobs sharing one compiled frame. Measured
+heterogeneous ensembles remain independently scheduled; see
+`docs/scale-profiles.md`.
 
 ## 2. State encoding
 
@@ -83,6 +84,10 @@ over rows; hashing is cheap.
   synthetic chattery models; trajectory batches for the bridge) lives in
   the repo so "GPU when helpful" is a measured claim, with the reference
   engine as the baseline.
+- **Scale contracts:** `benchmarks/bench_scale_profiles.py` qualifies
+  interactive, service-batch, million-timestep, V=64, high-run-density, and
+  model-ensemble shapes. `docs/scale-profiles.md` records the supported
+  target, device policy, memory model, and ensemble-axis decision.
 
 ## 5. As built (phase 5)
 

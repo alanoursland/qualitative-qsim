@@ -1,0 +1,451 @@
+{
+  "schema": "qrlib.scale-profile/v1",
+  "qualification": {
+    "python": "3.11.7",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
+    "logical_cpus": 24,
+    "torch": "2.3.0",
+    "cuda_runtime": "11.8",
+    "cuda_driver": "591.86",
+    "cuda_available": true,
+    "profiles": [
+      {
+        "name": "interactive",
+        "batch": 1,
+        "timesteps": 2048,
+        "variables": 4,
+        "pattern": "smooth",
+        "cycles": 2.0,
+        "purpose": "single trajectory used by an interactive analysis"
+      },
+      {
+        "name": "service_batch",
+        "batch": 32,
+        "timesteps": 4096,
+        "variables": 12,
+        "pattern": "smooth",
+        "cycles": 3.0,
+        "purpose": "moderate request batch with multivariate trajectories"
+      },
+      {
+        "name": "million_timesteps",
+        "batch": 16,
+        "timesteps": 62500,
+        "variables": 8,
+        "pattern": "smooth",
+        "cycles": 4.0,
+        "purpose": "documented upper target of one million trajectory timesteps"
+      },
+      {
+        "name": "wide_v64",
+        "batch": 8,
+        "timesteps": 8192,
+        "variables": 64,
+        "pattern": "smooth",
+        "cycles": 2.0,
+        "purpose": "documented upper target for variable count"
+      },
+      {
+        "name": "high_run_density",
+        "batch": 4,
+        "timesteps": 4096,
+        "variables": 8,
+        "pattern": "alternating",
+        "cycles": 0.0,
+        "purpose": "ragged-tail stress where nearly every sample changes code"
+      }
+    ],
+    "claim_scope": "production-shaped workload contracts; no external-user telemetry",
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 3080 Ti",
+      "compute_capability": "8.6",
+      "total_memory_bytes": 12884377600
+    }
+  },
+  "abstraction": [
+    {
+      "profile": "interactive",
+      "device": "cpu",
+      "batch": 1,
+      "timesteps": 2048,
+      "variables": 4,
+      "total_timesteps": 2048,
+      "scalar_values": 8192,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.0013525999966077507,
+      "packed_prefix_min_s": 0.0012639999622479081,
+      "latency_median_s": 0.0017520000110380352,
+      "latency_min_s": 0.0017328999820165336,
+      "samples_s": 1168949.7643248239,
+      "scalar_values_s": 4675799.057299295,
+      "actual_runs": 34,
+      "run_density": 0.0166015625,
+      "qualitative_states": 65,
+      "packed_payload_bytes": 3536,
+      "input_bytes": 65536,
+      "host_working_set_peak_bytes": 345890816,
+      "host_peak_delta_bytes": 335872,
+      "cuda_peak_allocated_bytes": null,
+      "packed_prefix_samples_s": [
+        0.002011900010984391,
+        0.0013525999966077507,
+        0.001271400018595159,
+        0.0012639999622479081,
+        0.0013696000096388161
+      ],
+      "timing_samples_s": [
+        0.0017520000110380352,
+        0.0017489000456407666,
+        0.0017328999820165336,
+        0.003597899980377406,
+        0.0029121999978087842
+      ]
+    },
+    {
+      "profile": "interactive",
+      "device": "cuda",
+      "batch": 1,
+      "timesteps": 2048,
+      "variables": 4,
+      "total_timesteps": 2048,
+      "scalar_values": 8192,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.0034983999794349074,
+      "packed_prefix_min_s": 0.0034436999703757465,
+      "latency_median_s": 0.0037831999943591654,
+      "latency_min_s": 0.0037258999655023217,
+      "samples_s": 541340.6647953091,
+      "scalar_values_s": 2165362.6591812363,
+      "actual_runs": 34,
+      "run_density": 0.0166015625,
+      "qualitative_states": 65,
+      "packed_payload_bytes": 3536,
+      "input_bytes": 65536,
+      "host_working_set_peak_bytes": 623267840,
+      "host_peak_delta_bytes": 258048,
+      "cuda_peak_allocated_bytes": 360448,
+      "packed_prefix_samples_s": [
+        0.003985999966971576,
+        0.0035362999769859016,
+        0.0034436999703757465,
+        0.0034983999794349074,
+        0.0034744999720714986
+      ],
+      "timing_samples_s": [
+        0.003771600022446364,
+        0.0037258999655023217,
+        0.0037831999943591654,
+        0.004171999986283481,
+        0.003786100016441196
+      ]
+    },
+    {
+      "profile": "service_batch",
+      "device": "cpu",
+      "batch": 32,
+      "timesteps": 4096,
+      "variables": 12,
+      "total_timesteps": 131072,
+      "scalar_values": 1572864,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.03189049998763949,
+      "packed_prefix_min_s": 0.031800600001588464,
+      "latency_median_s": 0.5900323000387289,
+      "latency_min_s": 0.5870556000154465,
+      "samples_s": 222143.77075864596,
+      "scalar_values_s": 2665725.2491037515,
+      "actual_runs": 6876,
+      "run_density": 0.052459716796875,
+      "qualitative_states": 12748,
+      "packed_payload_bytes": 1595232,
+      "input_bytes": 12582912,
+      "host_working_set_peak_bytes": 789381120,
+      "host_peak_delta_bytes": 70279168,
+      "cuda_peak_allocated_bytes": null,
+      "packed_prefix_samples_s": [
+        0.03302780003286898,
+        0.03189049998763949,
+        0.031800600001588464
+      ],
+      "timing_samples_s": [
+        0.5870556000154465,
+        0.5900323000387289,
+        0.6790765000041574
+      ]
+    },
+    {
+      "profile": "service_batch",
+      "device": "cuda",
+      "batch": 32,
+      "timesteps": 4096,
+      "variables": 12,
+      "total_timesteps": 131072,
+      "scalar_values": 1572864,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.010817900008987635,
+      "packed_prefix_min_s": 0.01055199996335432,
+      "latency_median_s": 0.545385500008706,
+      "latency_min_s": 0.5379767999984324,
+      "samples_s": 240329.08831992728,
+      "scalar_values_s": 2883949.059839127,
+      "actual_runs": 6876,
+      "run_density": 0.052459716796875,
+      "qualitative_states": 12748,
+      "packed_payload_bytes": 1595232,
+      "input_bytes": 12582912,
+      "host_working_set_peak_bytes": 795078656,
+      "host_peak_delta_bytes": 18219008,
+      "cuda_peak_allocated_bytes": 76590080,
+      "packed_prefix_samples_s": [
+        0.010817900008987635,
+        0.01055199996335432,
+        0.011216800019610673
+      ],
+      "timing_samples_s": [
+        0.5379767999984324,
+        0.579167999967467,
+        0.545385500008706
+      ]
+    },
+    {
+      "profile": "million_timesteps",
+      "device": "cpu",
+      "batch": 16,
+      "timesteps": 62500,
+      "variables": 8,
+      "total_timesteps": 1000000,
+      "scalar_values": 8000000,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.2077724999981001,
+      "packed_prefix_min_s": 0.20147349999751896,
+      "latency_median_s": 0.3735304999863729,
+      "latency_min_s": 0.3493011000100523,
+      "samples_s": 2677157.5548355007,
+      "scalar_values_s": 21417260.438684005,
+      "actual_runs": 3546,
+      "run_density": 0.003546,
+      "qualitative_states": 6002,
+      "packed_payload_bytes": 595728,
+      "input_bytes": 64000000,
+      "host_working_set_peak_bytes": 1065312256,
+      "host_peak_delta_bytes": 36864,
+      "cuda_peak_allocated_bytes": null,
+      "packed_prefix_samples_s": [
+        0.23403230000985786,
+        0.20147349999751896,
+        0.2077724999981001
+      ],
+      "timing_samples_s": [
+        0.3774595999857411,
+        0.3493011000100523,
+        0.3735304999863729
+      ]
+    },
+    {
+      "profile": "million_timesteps",
+      "device": "cuda",
+      "batch": 16,
+      "timesteps": 62500,
+      "variables": 8,
+      "total_timesteps": 1000000,
+      "scalar_values": 8000000,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.009583799983374774,
+      "packed_prefix_min_s": 0.009203299996443093,
+      "latency_median_s": 0.17808689997764304,
+      "latency_min_s": 0.1426560000400059,
+      "samples_s": 5615236.157884379,
+      "scalar_values_s": 44921889.26307503,
+      "actual_runs": 3546,
+      "run_density": 0.003546,
+      "qualitative_states": 6002,
+      "packed_payload_bytes": 595728,
+      "input_bytes": 64000000,
+      "host_working_set_peak_bytes": 1069850624,
+      "host_peak_delta_bytes": 28672,
+      "cuda_peak_allocated_bytes": 394381824,
+      "packed_prefix_samples_s": [
+        0.009583799983374774,
+        0.009923100005835295,
+        0.009203299996443093
+      ],
+      "timing_samples_s": [
+        0.17808689997764304,
+        0.17943660001037642,
+        0.1426560000400059
+      ]
+    },
+    {
+      "profile": "wide_v64",
+      "device": "cpu",
+      "batch": 8,
+      "timesteps": 8192,
+      "variables": 64,
+      "total_timesteps": 65536,
+      "scalar_values": 4194304,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.11157629999797791,
+      "packed_prefix_min_s": 0.10184519999893382,
+      "latency_median_s": 2.041579000011552,
+      "latency_min_s": 2.0282544999499805,
+      "samples_s": 32100.643668273024,
+      "scalar_values_s": 2054441.1947694735,
+      "actual_runs": 6039,
+      "run_density": 0.0921478271484375,
+      "qualitative_states": 10455,
+      "packed_payload_bytes": 6425496,
+      "input_bytes": 33554432,
+      "host_working_set_peak_bytes": 1014398976,
+      "host_peak_delta_bytes": 206757888,
+      "cuda_peak_allocated_bytes": null,
+      "packed_prefix_samples_s": [
+        0.1444904000381939,
+        0.10184519999893382,
+        0.11157629999797791
+      ],
+      "timing_samples_s": [
+        2.0282544999499805,
+        2.041579000011552,
+        2.1250405999599025
+      ]
+    },
+    {
+      "profile": "wide_v64",
+      "device": "cuda",
+      "batch": 8,
+      "timesteps": 8192,
+      "variables": 64,
+      "total_timesteps": 65536,
+      "scalar_values": 4194304,
+      "pattern": "smooth",
+      "packed_prefix_median_s": 0.028206399991177022,
+      "packed_prefix_min_s": 0.0281282999785617,
+      "latency_median_s": 2.175894599989988,
+      "latency_min_s": 1.925819500000216,
+      "samples_s": 30119.10595315672,
+      "scalar_values_s": 1927622.78100203,
+      "actual_runs": 6039,
+      "run_density": 0.0921478271484375,
+      "qualitative_states": 10455,
+      "packed_payload_bytes": 6425496,
+      "input_bytes": 33554432,
+      "host_working_set_peak_bytes": 832266240,
+      "host_peak_delta_bytes": 86003712,
+      "cuda_peak_allocated_bytes": 201931264,
+      "packed_prefix_samples_s": [
+        0.0880955999600701,
+        0.028206399991177022,
+        0.0281282999785617
+      ],
+      "timing_samples_s": [
+        1.925819500000216,
+        2.2475911999936216,
+        2.175894599989988
+      ]
+    },
+    {
+      "profile": "high_run_density",
+      "device": "cpu",
+      "batch": 4,
+      "timesteps": 4096,
+      "variables": 8,
+      "total_timesteps": 16384,
+      "scalar_values": 131072,
+      "pattern": "alternating",
+      "packed_prefix_median_s": 0.00811759999487549,
+      "packed_prefix_min_s": 0.007790599949657917,
+      "latency_median_s": 0.24599429999943823,
+      "latency_min_s": 0.22664439998334274,
+      "samples_s": 66603.16926057806,
+      "scalar_values_s": 532825.3540846244,
+      "actual_runs": 16384,
+      "run_density": 1.0,
+      "qualitative_states": 12,
+      "packed_payload_bytes": 2752512,
+      "input_bytes": 1048576,
+      "host_working_set_peak_bytes": 764502016,
+      "host_peak_delta_bytes": 3969024,
+      "cuda_peak_allocated_bytes": null,
+      "packed_prefix_samples_s": [
+        0.00811759999487549,
+        0.007790599949657917,
+        0.009018300042953342
+      ],
+      "timing_samples_s": [
+        0.22664439998334274,
+        0.2506452000234276,
+        0.24599429999943823
+      ]
+    },
+    {
+      "profile": "high_run_density",
+      "device": "cuda",
+      "batch": 4,
+      "timesteps": 4096,
+      "variables": 8,
+      "total_timesteps": 16384,
+      "scalar_values": 131072,
+      "pattern": "alternating",
+      "packed_prefix_median_s": 0.010601399990264326,
+      "packed_prefix_min_s": 0.007823200023267418,
+      "latency_median_s": 0.22933060000650585,
+      "latency_min_s": 0.22468169999774545,
+      "samples_s": 71442.71196052861,
+      "scalar_values_s": 571541.6956842289,
+      "actual_runs": 16384,
+      "run_density": 1.0,
+      "qualitative_states": 12,
+      "packed_payload_bytes": 2752512,
+      "input_bytes": 1048576,
+      "host_working_set_peak_bytes": 760676352,
+      "host_peak_delta_bytes": 57344,
+      "cuda_peak_allocated_bytes": 8208384,
+      "packed_prefix_samples_s": [
+        0.01143189996946603,
+        0.007823200023267418,
+        0.010601399990264326
+      ],
+      "timing_samples_s": [
+        0.22933060000650585,
+        0.22468169999774545,
+        0.27803609997499734
+      ]
+    }
+  ],
+  "ensembles": [
+    {
+      "models": 1,
+      "variables": 8,
+      "interpretations_per_model": 6561,
+      "homogeneous_sequential_median_s": 0.0028931000269949436,
+      "homogeneous_batched_median_s": 0.0017923000268638134,
+      "homogeneous_batch_speedup": 1.614182884356322,
+      "heterogeneous_table_build_s": 0.0037276000366546214,
+      "heterogeneous_warm_median_s": 0.0025038999738171697,
+      "heterogeneous_warm_per_model_s": 0.0025038999738171697
+    },
+    {
+      "models": 8,
+      "variables": 8,
+      "interpretations_per_model": 6561,
+      "homogeneous_sequential_median_s": 0.02108929998939857,
+      "homogeneous_batched_median_s": 0.0038270000368356705,
+      "homogeneous_batch_speedup": 5.510661036427926,
+      "heterogeneous_table_build_s": 0.028198999993037432,
+      "heterogeneous_warm_median_s": 0.020295499998610467,
+      "heterogeneous_warm_per_model_s": 0.0025369374998263083
+    },
+    {
+      "models": 32,
+      "variables": 8,
+      "interpretations_per_model": 6561,
+      "homogeneous_sequential_median_s": 0.08080500003416091,
+      "homogeneous_batched_median_s": 0.01245880004717037,
+      "homogeneous_batch_speedup": 6.485777099578161,
+      "heterogeneous_table_build_s": 0.10331420000875369,
+      "heterogeneous_warm_median_s": 0.09101700002793223,
+      "heterogeneous_warm_per_model_s": 0.002844281250872882
+    }
+  ]
+}

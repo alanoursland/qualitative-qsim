@@ -60,6 +60,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
   [QR landscape survey](docs/landscape.md),
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
   [tensorization & GPU strategy](docs/gpu-tensorization.md),
+  [production-shaped scale profiles](docs/scale-profiles.md),
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
   [embedding in a host toolkit](docs/host-integration.md),
   [piecewise-affine qualitative analysis](docs/piecewise-affine.md),

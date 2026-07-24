@@ -24,6 +24,15 @@ spirit) with their resolutions; new questions raised by that design follow.
 5. **Symbolic values on landmarks?** → No CAS dependency, ever, in core.
    Landmarks carry optional numeric `value`/bounds; symbolic identities stay
    host-side keyed by landmark name (Surface 1).
+6. **Scale profile and model ensembles.** → Resolved with explicit
+   production-shaped profiles (`docs/scale-profiles.md`). The qualified
+   target is V ≤ 64 and up to one million total timesteps, conditioned on
+   scalar volume and run density. CUDA is recommended for large,
+   low-run-density, device-resident inputs; small/output-bound work stays on
+   CPU. Existing shared-frame batching serves homogeneous ensembles.
+   Heterogeneous ensembles are currently 2–12 models in library workflows and
+   remain independently scheduled; no first-class padded model axis, int8
+   conversion, or `torch.compile` work is justified by the measurements.
 8. **Crossing refinement at the seam.** → Resolved. The sample-only path
    remains the default. Event-aware hosts can supply `CrossingEvent` records
    containing the exact time, declared landmark, and complete solver state.
@@ -42,11 +51,6 @@ spirit) with their resolutions; new questions raised by that design follow.
 
 ## Open
 
-6. **Scale profile.** Typical variable counts, trajectory batch sizes, and
-   whether model ensembles are a real workload — decides how hard to push
-   the tensor engine (`int8` encodings, `torch.compile`).
-   *Provisional:* design for `V ≤ ~64`, batches to ~10⁶ total timesteps,
-   ensembles as a first-class batch axis.
 7. **Analytic filter semantics.** ~~Should qrlib ship a first-class
    `EnergyFilter`?~~ **Resolved: shipped** (`qrlib.EnergyFilter`). A
    declarative `SuccessorFilter` (amplitude-contributing variables +

@@ -20,3 +20,5 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Reworked tensor trajectory abstraction to gather a compact ragged run stream
   on-device and transfer it to Python in bulk, eliminating per-trajectory and
   per-run CUDA synchronization.
+- Added production-shaped scale and model-ensemble qualification profiles,
+  machine-readable benchmark results, and measured CPU/CUDA device guidance.
