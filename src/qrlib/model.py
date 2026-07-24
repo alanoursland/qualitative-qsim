@@ -16,8 +16,8 @@ region — guard conditions are conjunctions of landmark predicates
 A model with no declared regions has one implicit region (``"default"``)
 containing every constraint. Region entry re-derives directions: the
 vector field may change discontinuously at the boundary, so magnitudes
-carry over and directions are re-enumerated under the new region's
-constraints.
+carry over except where a transition reset assigns a target landmark, and
+directions are re-enumerated under the new region's constraints.
 
 Models serialize to a versioned JSON-able schema (:meth:`Model.to_dict` /
 :meth:`Model.from_dict`) — the interchange format hosts author against.
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 
 from .constraints import (
@@ -100,11 +101,13 @@ class Guard:
 @dataclass(frozen=True)
 class RegionTransition:
     """When every guard holds at a point state in ``source``, the behavior
-    crosses into ``target`` (magnitudes carry over, directions re-derive)."""
+    crosses into ``target``. Magnitudes carry over unless named in
+    ``resets``; directions re-derive under the target constraints."""
 
     source: str
     target: str
     guards: tuple[Guard, ...]
+    resets: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -137,6 +140,7 @@ class CompiledTransition:
 
     target: str
     guards: tuple[tuple[int, str, str], ...]
+    resets: tuple[tuple[int, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,7 @@ class CompiledModel:
     model_hash: str
     regions: tuple[CompiledRegion, ...] = ()
     initial_region: str = DEFAULT_REGION
+    explicit_regions: bool = False
 
     def index(self, var: str) -> int:
         return self.var_order.index(var)
@@ -288,9 +293,15 @@ class Model:
         target: str,
         *,
         when: tuple[tuple[str, str, str], ...],
+        reset: Mapping[str, str] | None = None,
     ) -> RegionTransition:
         """Declare a region transition guarded by landmark predicates
-        (conjunction of ``(variable, op, landmark)`` atoms)."""
+        (conjunction of ``(variable, op, landmark)`` atoms).
+
+        ``reset`` optionally assigns named variables to target landmarks at
+        the instantaneous crossing. Variables not named in the reset keep
+        their magnitudes; every direction is re-derived in the target region.
+        """
         for region in (source, target):
             if region not in self.regions:
                 raise ValueError(f"undeclared region {region!r}")
@@ -303,7 +314,16 @@ class Model:
                     f"guard landmark {landmark!r} is not a landmark of {var!r}"
                 )
             guards.append(Guard(var, op, landmark))
-        tr = RegionTransition(source, target, tuple(guards))
+        resets = []
+        for var, landmark in (reset or {}).items():
+            if var not in self.variables:
+                raise ValueError(f"reset references undeclared variable {var!r}")
+            if landmark not in self.variables[var].space.effective_landmarks:
+                raise ValueError(
+                    f"reset landmark {landmark!r} is not a landmark of {var!r}"
+                )
+            resets.append((var, landmark))
+        tr = RegionTransition(source, target, tuple(guards), tuple(resets))
         self.region_transitions.append(tr)
         return tr
 
@@ -430,6 +450,7 @@ class Model:
                     "source": t.source,
                     "target": t.target,
                     "when": [[g.var, g.op, g.landmark] for g in t.guards],
+                    **({"reset": dict(t.resets)} if t.resets else {}),
                 }
                 for t in self.region_transitions
             ]
@@ -503,6 +524,7 @@ class Model:
                 t["source"],
                 t["target"],
                 when=tuple((g[0], g[1], g[2]) for g in t["when"]),
+                reset=t.get("reset"),
             )
         if "initial_region" in data:
             m.initial_region = data["initial_region"]
@@ -588,6 +610,10 @@ class Model:
                             (var_order.index(g.var), g.op, g.landmark)
                             for g in t.guards
                         ),
+                        tuple(
+                            (var_order.index(var), landmark)
+                            for var, landmark in t.resets
+                        ),
                     )
                     for t in self.region_transitions
                     if t.source == rname
@@ -651,6 +677,7 @@ class Model:
             model_hash=model_hash,
             regions=tuple(regions),
             initial_region=initial,
+            explicit_regions=bool(self.regions),
         )
 
 
@@ -719,6 +746,11 @@ def _canonical_model_payload(data: dict) -> dict:
                     "when": sorted(
                         (list(guard) for guard in t["when"]),
                         key=json_key,
+                    ),
+                    **(
+                        {"reset": dict(sorted(t["reset"].items()))}
+                        if t.get("reset")
+                        else {}
                     ),
                 }
                 for t in data.get("transitions", [])

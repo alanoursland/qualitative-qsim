@@ -112,6 +112,9 @@ to test qrlib itself.
     (with its time-index range in the source trajectory), and a diagnosis of
     *what* diverged (which variable's magnitude/direction, and which
     constraint or transition rule excludes it);
+  - structured `mismatches` and `candidate_node` fields accompany the prose;
+    `check(..., ascii=True)` and `BehaviorGraph.describe_state(..., ascii=True)`
+    produce diagnostics safe for legacy console encodings;
   - the abstraction parameters used (landmark tolerance, direction
     hysteresis, debounce) — coverage claims are meaningless without them, so
     they are embedded in the result, not left implicit.
@@ -137,7 +140,9 @@ common questions.
   candidates), and path-predicate filtering ("behaviors that never reach
   landmark FULL").
 - **Terminal classification enum** on every leaf/closure:
-  `QUIESCENT | CYCLE | DIVERGENT | REGION_EXIT | TRUNCATED`. The enum is
+  `QUIESCENT | CYCLE | DIVERGENT | DOMAIN_EXIT | REGION_EXIT | DEADEND |
+  SPEC_PRUNED | TRUNCATED`. `DOMAIN_EXIT` means a bounded quantity space was
+  left; `REGION_EXIT` is reserved for declared operating modes. The enum is
   stable and documented with its intended mapping onto the common
   trajectory-classification vocabulary (quiescent ≈ converging, cycle ≈
   limit cycle, divergent ≈ unbounded), so host classifiers and qrlib speak
@@ -160,7 +165,8 @@ this places on qrlib core (not an afterthought — promoted to an early phase):
   subset, boundary conditions expressed as landmark predicates
   (`level == FULL`, `netflow > 0`), and a region-transition map. The engine
   simulates across region changes and tags states with their region;
-  `REGION_EXIT` terminals appear where no transition is declared.
+  `REGION_EXIT` terminals appear where no transition is declared. Transition
+  reset maps can assign mode-controlled variables to target landmarks.
 - The region structure is exported as data (regions, boundary predicates
   over named landmarks, transition map) in a shape that maps one-to-one onto
   guarded-mode representations: region → mode, landmark predicate →

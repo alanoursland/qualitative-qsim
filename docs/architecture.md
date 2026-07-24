@@ -131,7 +131,8 @@ author against.
 
 Directed graph over `QState`s with distinguished initial states; a
 *behavior* is a root-to-terminal path. Every terminal carries a
-`TerminalClass ∈ {QUIESCENT, CYCLE, DIVERGENT, REGION_EXIT, TRUNCATED}`.
+`TerminalClass ∈ {QUIESCENT, CYCLE, DIVERGENT, DOMAIN_EXIT, REGION_EXIT,
+DEADEND, SPEC_PRUNED, TRUNCATED}`.
 Supports behavior iteration, state dedup (attainable envisionment),
 path-predicate filtering, and a **neutral export** (node table + edge list +
 labels as plain arrays; dot on top). Engines return a `SimResult`: the

@@ -17,10 +17,10 @@ Phase-4 machinery — operating regions: every node carries its region; the
 region's constraint subset governs filtering. At a point state, if a
 region transition's guards hold (landmark predicates on magnitudes), the
 behavior crosses instantaneously: **entry states** are created in the
-target region with the same magnitudes and re-derived directions (the
-vector field may change discontinuously at the boundary), producing a
-point -> point edge. A boundary with no declared transition still ends in
-``REGION_EXIT``.
+target region with carried magnitudes plus any declared transition resets,
+and re-derived directions (the vector field may change discontinuously at
+the boundary), producing a point -> point edge. A declared region boundary
+with no transition ends in ``REGION_EXIT``.
 
 Terminal classification at a point state, in order:
 
@@ -31,8 +31,9 @@ Terminal classification at a point state, in order:
                  are still explored and become children if consistent.
 4. CYCLE       — state equals an ancestor point state in an equal frame
                  and region (tree mode only; envisionment merges instead).
-5. REGION_EXIT — some variable must leave its bounded quantity space
-                 (empty P-successor set, no transition declared).
+5. DOMAIN_EXIT  — an implicit/default model must leave a bounded quantity
+                  space.
+   REGION_EXIT  — a declared operating region has no applicable transition.
 6. DEADEND     — candidates existed but none survived filtering (the state
                  was spurious; reported, never silently dropped).
 
@@ -128,6 +129,7 @@ def qsim(
         "merged": 0,
         "landmarks_minted": 0,
         "region_crossings": 0,
+        "region_resets": 0,
         "spec_filtered": 0,
         "phase_filtered": 0,
         "chatter_merged": 0,
@@ -145,6 +147,7 @@ def qsim(
         frontier.clear()
 
     def attach(parent: Node, state: QState, frame: CompiledModel, region: str) -> str:
+        nonlocal truncated
         child_guide = None
         if progress_fn is not None:
             child_guide = progress_fn(parent.guide, state, frame)
@@ -166,6 +169,11 @@ def qsim(
                     parent.children.append(hit)
                 stats["merged"] += 1
                 return "merged"
+        if len(nodes) >= cfg.max_states:
+            truncated = True
+            if parent.terminal is None:
+                parent.terminal = TerminalClass.TRUNCATED
+            return "limit"
         nid = len(nodes)
         nodes[nid] = Node(
             nid, state, parent.id, parent.depth + 1, frame, region,
@@ -186,7 +194,7 @@ def qsim(
         is_point = state.time is TimeTag.POINT
         active_idx = frame.region_named(node.region).constraint_idx
 
-        if len(nodes) > cfg.max_states or node.depth >= cfg.max_depth:
+        if len(nodes) >= cfg.max_states or node.depth >= cfg.max_depth:
             node.terminal = TerminalClass.TRUNCATED
             truncated = True
             continue
@@ -209,12 +217,13 @@ def qsim(
                 stats["region_crossings"] += len(firing)
                 spec_killed = False
                 for tr in firing:
+                    stats["region_resets"] += len(tr.resets)
                     for entry in _entry_states(
-                        frame, vals, tr.target, cfg, stats, ignored,
+                        frame, vals, tr, cfg, stats, ignored,
                         chatter_by_region.get(tr.target, frozenset()),
                     ):
                         spec_killed |= attach(node, entry, frame, tr.target) == "spec"
-                if not node.children:
+                if not node.children and node.terminal is not TerminalClass.TRUNCATED:
                     if spec_killed:  # the spec excluded every entry
                         node.terminal = TerminalClass.SPEC_PRUNED
                     else:  # none existed, or the phase filter refuted them
@@ -252,7 +261,13 @@ def qsim(
         )
         if children is None:  # some variable has no legal transition
             node.terminal = (
-                TerminalClass.REGION_EXIT if is_point else TerminalClass.DEADEND
+                (
+                    TerminalClass.REGION_EXIT
+                    if frame.explicit_regions
+                    else TerminalClass.DOMAIN_EXIT
+                )
+                if is_point
+                else TerminalClass.DEADEND
             )
             continue
         stats["expanded"] += 1
@@ -263,7 +278,7 @@ def qsim(
         spec_killed = False
         for child_state, child_frame in children:
             spec_killed |= attach(node, child_state, child_frame, node.region) == "spec"
-        if not node.children:
+        if not node.children and node.terminal is not TerminalClass.TRUNCATED:
             if spec_killed:  # the spec excluded every consistent successor
                 node.terminal = TerminalClass.SPEC_PRUNED
             else:  # the phase filter refuted every one: the state is spurious
@@ -384,18 +399,21 @@ def _new_backend_stats(cfg: SimConfig) -> dict:
 def _entry_states(
     frame: CompiledModel,
     vals: tuple[QVal, ...],
-    target: str,
+    transition: CompiledTransition,
     cfg: SimConfig,
     stats: dict,
     ignored: frozenset[int],
     chatter: frozenset[int] = frozenset(),
 ) -> list[QState]:
-    """Region-entry states: magnitudes carry over, directions re-derive
-    under the target region's constraints (the vector field may change
-    discontinuously at the boundary)."""
+    """Region-entry states after resets, with target directions re-derived."""
+    target = transition.target
+    entry_vals = list(vals)
+    for vi, landmark in transition.resets:
+        entry_vals[vi] = QVal(frame.spaces[vi].rank_of(landmark), Qdir.STD)
     active_idx = frame.region_named(target).constraint_idx
     domains = [
-        [QVal(qv.mag, d) for d in (Qdir.DEC, Qdir.STD, Qdir.INC)] for qv in vals
+        [QVal(qv.mag, d) for d in (Qdir.DEC, Qdir.STD, Qdir.INC)]
+        for qv in entry_vals
     ]
     out: list[QState] = []
     emitted: set[QState] = set()

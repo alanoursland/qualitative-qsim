@@ -47,9 +47,10 @@ class TerminalClass(Enum):
       frame; the behavior closes into that ancestor (``Node.cycle_target``).
     - ``DIVERGENT``: some variable is at an infinite landmark (the state
       represents the limit t -> infinity).
-    - ``REGION_EXIT``: a variable sits at a boundary landmark of its bounded
-      quantity space with an outward direction — the system leaves the
-      model's domain of validity (e.g. a tank overflowing its space).
+    - ``DOMAIN_EXIT``: a variable must leave its bounded quantity space — the
+      system leaves the model's domain of validity.
+    - ``REGION_EXIT``: a declared operating region is left at a guarded or
+      outward boundary for which no target transition applies.
     - ``DEADEND``: no consistent successor survived filtering. A dead end
       indicates the state itself is spurious (real behaviors continue), but
       it is reported rather than silently pruned.
@@ -62,6 +63,7 @@ class TerminalClass(Enum):
     QUIESCENT = "quiescent"
     CYCLE = "cycle"
     DIVERGENT = "divergent"
+    DOMAIN_EXIT = "domain_exit"
     REGION_EXIT = "region_exit"
     DEADEND = "deadend"
     SPEC_PRUNED = "spec_pruned"
@@ -129,6 +131,9 @@ class SimConfig:
       pair's equilibria lie at declared landmarks; a pair violating this
       can prune real behaviors. Path-dependent: incompatible with
       ``envisionment``.
+    - ``max_states``: strict upper bound on graph nodes, including the root.
+      When admitting another successor would exceed it, the current frontier
+      is marked truncated and the result status is ``TRUNCATED``.
     """
 
     max_states: int = 500
@@ -149,6 +154,10 @@ class SimConfig:
     phase_pairs: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        if self.max_states < 1:
+            raise ValueError("max_states must be at least 1")
+        if self.max_depth < 1:
+            raise ValueError("max_depth must be at least 1")
         valid = ("auto", "reference", "tensor")
         if self.backend not in valid:
             raise ValueError(f"backend must be one of {valid}, got {self.backend!r}")
@@ -259,22 +268,33 @@ class BehaviorGraph:
         walk(self.root, (), frozenset())
         return tuple(out)
 
-    def describe_node(self, node: Node) -> str:
-        text = self._describe(node.state, node.model.spaces)
+    def describe_node(self, node: Node, *, ascii: bool = False) -> str:
+        text = self._describe(node.state, node.model.spaces, ascii=ascii)
         if node.region != "default":
             text += f" @{node.region}"
         return text
 
-    def describe_state(self, state: QState) -> str:
-        """Describe a state in the *root* frame (pre-discovery spaces)."""
-        return self._describe(state, self.spaces)
+    def describe_state(self, state: QState, *, ascii: bool = False) -> str:
+        """Describe a state in the root frame.
 
-    def _describe(self, state: QState, spaces: tuple[QuantitySpace, ...]) -> str:
+        ``ascii=True`` uses console-safe direction and time glyphs.
+        """
+        return self._describe(state, self.spaces, ascii=ascii)
+
+    def _describe(
+        self,
+        state: QState,
+        spaces: tuple[QuantitySpace, ...],
+        *,
+        ascii: bool = False,
+    ) -> str:
         parts = [
-            f"{name}={state[name].describe(space)}"
+            f"{name}={state[name].describe(space, ascii=ascii)}"
             for name, space in zip(self.var_order, spaces)
         ]
-        tag = "•" if state.time is TimeTag.POINT else "~"
+        tag = "*" if ascii and state.time is TimeTag.POINT else (
+            "•" if state.time is TimeTag.POINT else "~"
+        )
         return f"[{tag}] " + " ".join(parts)
 
     def export(self) -> dict:

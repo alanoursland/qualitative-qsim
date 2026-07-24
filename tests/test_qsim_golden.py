@@ -51,7 +51,7 @@ def test_bathtub_three_outcomes():
     behaviors = result.behaviors()
     assert len(behaviors) == 3
     census = queries.terminal_census(result.graph)
-    assert census == {TerminalClass.QUIESCENT: 2, TerminalClass.REGION_EXIT: 1}
+    assert census == {TerminalClass.QUIESCENT: 2, TerminalClass.DOMAIN_EXIT: 1}
 
     # equilibrium below FULL gets a *discovered* landmark; the other sits at FULL
     quiescent_amounts = set()
@@ -62,7 +62,7 @@ def test_bathtub_three_outcomes():
     assert quiescent_amounts == {"amount*0", "FULL"}
 
     (overflow,) = [
-        b for b in behaviors if b.terminal is TerminalClass.REGION_EXIT
+        b for b in behaviors if b.terminal is TerminalClass.DOMAIN_EXIT
     ]
     final = overflow.states[-1]
     space = m.variables["amount"].space
@@ -216,3 +216,14 @@ def test_truncation_is_reported():
     assert result.status is SimStatus.TRUNCATED
     census = queries.terminal_census(result.graph)
     assert TerminalClass.TRUNCATED in census
+
+
+def test_max_states_is_a_strict_node_limit():
+    m, initial = spring()
+    result = qr.qsim(m, initial, max_states=7)
+    assert result.status is SimStatus.TRUNCATED
+    assert len(result.graph.nodes) <= 7
+    assert result.stats["nodes"] == len(result.graph.nodes)
+
+    with pytest.raises(ValueError, match="max_states"):
+        qr.SimConfig(max_states=0)

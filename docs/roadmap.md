@@ -18,7 +18,7 @@ moved up; analysis/queries attach to the phases that make them possible.
   (including the algebra of infinite landmarks in `ADD`), tuple/Waltz
   filtering, global interpretation assembly, behavior graph construction.
 - Built-in global filters: no-change, cycle match, quiescence handling
-  (with departure exploration for unstable equilibria), region-exit
+  (with departure exploration for unstable equilibria), domain-exit
   detection, and the infinity-admissibility rule (a point state at an
   infinite landmark is the t→∞ limit; every variable must be steady or at
   infinity there). Toggling the infinity filter off restores the classic
@@ -29,7 +29,7 @@ moved up; analysis/queries attach to the phases that make them possible.
   `graph.py` (reachability, Tarjan SCC) and `analysis.queries`
   (terminal census, quiescent states, cycles, state search).
 - **Exit criteria met:** bathtub (3 behaviors: equilibrium below FULL, at
-  FULL, overflow region-exit), U-tube (single equilibrium behavior), and
+  FULL, overflow domain-exit), U-tube (single equilibrium behavior), and
   frictionless spring (single sustained oscillation, 8-transition cycle)
   match the literature.
 - Model hashing and result provenance landed with the result-v2 schema:
@@ -84,7 +84,7 @@ moved up; analysis/queries attach to the phases that make them possible.
   batched consistency fraction.
 - **Soundness harness** (tests/test_soundness.py, the exit criterion):
   randomized monotone power-law bathtubs (equilibrium prefixes + overflow
-  paths matched through to REGION_EXIT), springs over 2.2 periods
+  paths matched through to DOMAIN_EXIT), springs over 2.2 periods
   (matched through cycle closure, against both the discovery-off graph
   and the energy-filtered discovery graph via frame translation), U-tube,
   and a fabricated violating trajectory refuted with diagnosis.
@@ -98,7 +98,8 @@ moved up; analysis/queries attach to the phases that make them possible.
   constraint subsets; `Model.transition()` declares guarded crossings
   (conjunctions of landmark predicates on magnitudes, e.g.
   `amount == FULL and netflow > 0`). Region entry is instantaneous
-  (point→point edge): magnitudes carry over, **directions re-derive**
+  (point→point edge): magnitudes carry over unless a transition reset map
+  assigns a target landmark, and **directions re-derive**
   under the target region's constraints (the vector field may change
   discontinuously at the boundary). Nodes/behaviors/exports are
   region-tagged; cycle matching and envisionment merging are

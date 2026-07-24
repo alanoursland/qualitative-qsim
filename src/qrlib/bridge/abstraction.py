@@ -59,12 +59,26 @@ class AbstractionConfig:
       trajectory, making it scale-free.
     - ``debounce``: interior runs shorter than this many samples are
       dropped (numeric chatter around crossings and extrema).
+    - ``endpoint_extremum_ratio``: at a landmark endpoint, classify the
+      instantaneous direction as steady when the second-order endpoint
+      derivative is this fraction or less of the outgoing/incoming secant.
+      This corrects finite-difference truncation at smooth extrema; set to
+      zero to retain unmodified one-sided estimates.
     """
 
     landmark_atol: float = 1e-9
     direction_eps: float = 1e-4
     eps_relative: bool = True
     debounce: int = 3
+    endpoint_extremum_ratio: float = 0.25
+
+    def __post_init__(self) -> None:
+        if self.landmark_atol < 0 or self.direction_eps < 0:
+            raise ValueError("abstraction tolerances must be nonnegative")
+        if self.debounce < 1:
+            raise ValueError("debounce must be at least 1")
+        if not 0 <= self.endpoint_extremum_ratio <= 1:
+            raise ValueError("endpoint_extremum_ratio must be between 0 and 1")
 
 
 @dataclass(frozen=True)
@@ -153,7 +167,7 @@ def abstract_trajectory(
         )
 
     ranks = _quantize(rows, compiled, cfg)
-    dirs = _directions(rows, ts, cfg)
+    dirs = _directions(rows, ts, cfg, ranks=ranks)
     codes = [
         tuple((ranks[t][v], dirs[t][v]) for v in range(len(compiled.var_order)))
         for t in range(len(rows))
@@ -387,7 +401,7 @@ def _quantize(rows, compiled: CompiledModel, cfg: AbstractionConfig):
     return out
 
 
-def _directions(rows, ts, cfg: AbstractionConfig):
+def _directions(rows, ts, cfg: AbstractionConfig, *, ranks=None):
     T, V = len(rows), len(rows[0])
     derivs = [[0.0] * V for _ in range(T)]
     def forward3(x0, x1, x2, h1, h2):
@@ -423,6 +437,22 @@ def _directions(rows, ts, cfg: AbstractionConfig):
             else:
                 d = (rows[t + 1][v] - rows[t - 1][v]) / (ts[t + 1] - ts[t - 1])
             derivs[t][v] = d
+
+    if ranks is not None and T >= 3 and cfg.endpoint_extremum_ratio:
+        ratio = cfg.endpoint_extremum_ratio
+        for v in range(V):
+            first_secant = (rows[1][v] - rows[0][v]) / (ts[1] - ts[0])
+            if (
+                ranks[0][v] % 2 == 0
+                and abs(derivs[0][v]) <= ratio * abs(first_secant)
+            ):
+                derivs[0][v] = 0.0
+            last_secant = (rows[-1][v] - rows[-2][v]) / (ts[-1] - ts[-2])
+            if (
+                ranks[-1][v] % 2 == 0
+                and abs(derivs[-1][v]) <= ratio * abs(last_secant)
+            ):
+                derivs[-1][v] = 0.0
     dirs = [[Qdir.STD] * V for _ in range(T)]
     duration = (ts[-1] - ts[0]) or 1.0
     for v in range(V):

@@ -87,7 +87,7 @@ sign checks, is refuted the moment you add the numbers:
 
 ```python
 overflow = next(b for b in result.behaviors()
-                if b.terminal is qr.TerminalClass.REGION_EXIT)
+                if b.terminal is qr.TerminalClass.DOMAIN_EXIT)
 print(qr.semiquant.refine(result.graph, overflow).feasible)   # False
 ```
 

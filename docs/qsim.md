@@ -107,8 +107,9 @@ off means textbook behavior.
 ## 6. Limits and termination
 
 QSIM need not terminate (new landmarks can be introduced forever). The engine
-takes explicit resource limits: max states, max depth, max landmarks per
-variable, wall-clock budget. Hitting a limit marks affected leaves as
+takes explicit resource limits: max states, max depth, and max landmarks per
+variable. `max_states` is a strict graph-node bound including the root.
+Hitting a limit marks affected leaves as
 `TRUNCATED` in the behavior graph — never silently dropped, per the soundness
 commitment.
 
@@ -146,10 +147,10 @@ Semantic decisions made in the reference engine, recorded for review:
 - **Quiescent states are terminal and explorable.** The constant
   continuation is one complete behavior; departure candidates (unstable
   equilibria) are still generated and survive only if constraint-consistent.
-- **Region exit.** A point state where a variable sits at a boundary
+- **Domain exit.** A point state where a variable sits at a boundary
   landmark of its *bounded* space with an outward direction has no legal
-  P-transition; it is classified `REGION_EXIT` (leaving the model's domain
-  of validity — the hook operating regions will attach to in phase 4).
+  P-transition; it is classified `DOMAIN_EXIT` (leaving the model's domain
+  of validity).
 - **Dead ends are reported, not pruned.** A state with candidates but no
   consistent successor is classified `DEADEND`; deleting it (or its
   ancestors) retroactively is a later refinement that must preserve
@@ -193,8 +194,9 @@ Phase-4 additions — operating regions:
   landmark).
 - **Region entry is instantaneous and re-derives directions.** The
   transition state (source region) gets entry children (target region)
-  with identical magnitudes and directions enumerated afresh under the
-  target's constraint subset — the vector field may change
+  with carried magnitudes, any explicitly reset variables assigned to target
+  landmarks, and directions enumerated afresh under the target's constraint
+  subset — the vector field may change
   discontinuously at the boundary, so carrying directions over would be
   unsound. This produces a point→point edge; alternation resumes
   immediately after. When a transition fires, normal in-region expansion

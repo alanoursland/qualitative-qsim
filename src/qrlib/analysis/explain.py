@@ -33,7 +33,8 @@ _TERMINAL_PHRASE = {
     TerminalClass.QUIESCENT: "the system is in equilibrium and can remain there indefinitely",
     TerminalClass.CYCLE: "the behavior cycles",
     TerminalClass.DIVERGENT: "a variable grows without bound (the t→∞ limit)",
-    TerminalClass.REGION_EXIT: "the system leaves the model's domain of validity",
+    TerminalClass.DOMAIN_EXIT: "the system leaves the model's domain of validity",
+    TerminalClass.REGION_EXIT: "the system leaves its operating region without a transition",
     TerminalClass.DEADEND: "no consistent continuation exists (this branch is spurious)",
     TerminalClass.TRUNCATED: "exploration stopped at a resource limit",
 }

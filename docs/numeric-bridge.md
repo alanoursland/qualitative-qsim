@@ -155,7 +155,10 @@ Contract details fixed during implementation:
   solver-refined event has an exact `(time, time)` bound.
 - **Endpoint derivatives are second-order.** First-order one-sided
   differences are O(h)-biased exactly at critical points — precisely where
-  initial conditions like "released at peak speed" sit.
+  initial conditions like "released at peak speed" sit. At landmark
+  endpoints, `endpoint_extremum_ratio` also suppresses residual truncation
+  error when the endpoint derivative is small relative to the adjacent
+  secant; setting it to zero restores raw one-sided classification.
 - **Direction thresholds have a value-scale floor.** A relative-only
   threshold on an (essentially) constant variable is relative to rounding
   noise and hallucinates directions.

@@ -160,7 +160,7 @@ def test_weak_drain_prunes_equilibria():
     result = qr.qsim(m, initial)
     feasible = semiquant.feasible_behaviors(result)
     assert len(feasible) == 1
-    assert feasible[0].terminal is qr.TerminalClass.REGION_EXIT
+    assert feasible[0].terminal is qr.TerminalClass.DOMAIN_EXIT
 
 
 # --- soundness of the no-annotation case -----------------------------------

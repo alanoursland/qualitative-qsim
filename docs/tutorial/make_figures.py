@@ -221,7 +221,7 @@ def main() -> None:
     write("bathtub-tree.svg", tree_svg(result.graph))
     write("bathtub-causal.svg", causal_svg(m))
     overflow = next(b for b in result.behaviors()
-                    if b.terminal is qr.TerminalClass.REGION_EXIT)
+                    if b.terminal is qr.TerminalClass.DOMAIN_EXIT)
     write("bathtub-timeline.svg", timeline_svg(result.graph, overflow))
 
     # semi-quantitative refinement of the below-FULL equilibrium (feasible:

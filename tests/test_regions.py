@@ -161,6 +161,13 @@ def test_region_validation():
         m.transition("filling", "overflowing", when=(("amount", "==", "NOPE"),))
     with pytest.raises(ValueError, match="guard op"):
         qr.Guard("amount", "!=", "FULL")
+    with pytest.raises(ValueError, match="reset references"):
+        m.transition(
+            "filling",
+            "overflowing",
+            when=(),
+            reset={"missing": "FULL"},
+        )
 
 
 def test_model_schema_round_trip():
@@ -179,6 +186,77 @@ def test_model_schema_round_trip():
     replayed = qr.qsim(rebuilt, rebuilt.state(time=TimeTag.POINT, **initial.as_dict()))
     assert len(replayed.behaviors()) == len(original.behaviors())
     assert replayed.graph.export()["nodes"] == original.graph.export()["nodes"]
+
+
+def test_transition_reset_supports_instantaneous_mode_outputs():
+    m = qr.Model("thermostat")
+    m.variable("temp", landmarks=("LOW", "HIGH"))
+    m.variable("rate", landmarks=("COOL", "0", "HEAT"))
+    deriv = m.constrain(qr.Deriv("temp", "rate"))
+    constant = m.constrain(qr.Constant("rate"))
+    at_heat = m.constrain(qr.At("rate", "HEAT"))
+    at_cool = m.constrain(qr.At("rate", "COOL"))
+    m.region("heating", constraints=(deriv, constant, at_heat))
+    m.region("cooling", constraints=(deriv, constant, at_cool))
+    m.transition(
+        "heating",
+        "cooling",
+        when=(("temp", ">=", "HIGH"),),
+        reset={"rate": "COOL"},
+    )
+    m.transition(
+        "cooling",
+        "heating",
+        when=(("temp", "<=", "LOW"),),
+        reset={"rate": "HEAT"},
+    )
+    initial = m.state(
+        temp=("LOW", Qdir.INC),
+        rate=("HEAT", Qdir.STD),
+    )
+
+    result = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig(
+            backend="reference",
+            discover_landmarks=False,
+            max_states=100,
+            max_depth=30,
+        ),
+    )
+    tensor_result = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig(
+            backend="tensor",
+            discover_landmarks=False,
+            max_states=100,
+            max_depth=30,
+        ),
+    )
+    assert tensor_result.graph.export() == result.graph.export()
+    assert result.stats["region_resets"] >= 1
+    assert all(
+        node.terminal is not TerminalClass.DEADEND
+        for node in result.graph.nodes.values()
+    )
+    cooling_entries = [
+        node
+        for node in result.graph.nodes.values()
+        if node.region == "cooling"
+        and node.parent is not None
+        and result.graph.nodes[node.parent].region == "heating"
+    ]
+    assert cooling_entries
+    rate_space = m.variables["rate"].space
+    assert cooling_entries[0].state["rate"].mag == rate_space.rank_of("COOL")
+    assert cooling_entries[0].state["rate"].dir is Qdir.STD
+
+    payload = m.to_dict()
+    assert payload["transitions"][0]["reset"] == {"rate": "COOL"}
+    rebuilt = qr.Model.from_dict(json.loads(json.dumps(payload)))
+    assert rebuilt.region_transitions[0].resets == (("rate", "COOL"),)
 
 
 def test_result_export_carries_schema_and_regions():

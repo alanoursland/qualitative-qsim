@@ -59,13 +59,24 @@ class CoverageResult:
     total: int
     divergence_index: int | None = None
     diagnosis: str | None = None
+    mismatches: tuple[str, ...] = ()
+    candidate_node: int | None = None
     note: str | None = None
     config: AbstractionConfig | None = None
 
 
 def check(
-    observed: AbstractedBehavior | Sequence[QState], graph: BehaviorGraph
+    observed: AbstractedBehavior | Sequence[QState],
+    graph: BehaviorGraph,
+    *,
+    ascii: bool = False,
 ) -> CoverageResult:
+    """Check graph coverage.
+
+    ``ascii=True`` restricts the formatted diagnosis to console-safe ASCII.
+    Machine-readable mismatch names and the closest candidate node are always
+    returned separately.
+    """
     if isinstance(observed, AbstractedBehavior):
         states = observed.states
         cfg = observed.config
@@ -186,7 +197,8 @@ def check(
         oi, nid, mism = best_miss
         diagnosis = (
             f"first divergence at observed state {oi} "
-            f"({graph.describe_state(states[oi])}): closest graph candidate "
+            f"({graph.describe_state(states[oi], ascii=ascii)}): "
+            f"closest graph candidate "
             f"n{nid} differs in {', '.join(mism) if mism else 'time tag'}"
         )
     return CoverageResult(
@@ -196,6 +208,8 @@ def check(
         total,
         divergence_index=best_matched,
         diagnosis=diagnosis,
+        mismatches=best_miss[2] if best_miss is not None else (),
+        candidate_node=best_miss[1] if best_miss is not None else None,
         config=cfg,
     )
 
@@ -280,7 +294,11 @@ def _mismatches(
         lo, hi = _frame_range(oq, graph.spaces[vi], node.model.spaces[vi])
         if not (lo <= nq.mag <= hi):
             out.append(name)
-        elif nq.dir is not Qdir.IGN and nq.dir != oq.dir:
+        elif (
+            nq.dir is not Qdir.IGN
+            and oq.dir is not Qdir.IGN
+            and nq.dir != oq.dir
+        ):
             out.append(name)
     return tuple(out)
 

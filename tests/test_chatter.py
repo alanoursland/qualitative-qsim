@@ -92,8 +92,8 @@ def test_damped_spring_tamed_automatically():
     auto = qr.qsim(m, init, config=AUTO_CFG)
     assert auto.stats["chatter_candidates"] == {"default": ["a", "load"]}
     assert auto.stats["chatter_merged"] == 1481
-    assert len(auto.behaviors()) == 603
-    # comparable to the hand-tuned ignore_qdir run (559 behaviors at the
+    assert len(auto.behaviors()) == 602
+    # comparable to the hand-tuned ignore_qdir run (558 behaviors at the
     # same budget) — and no variable list had to be authored
 
 
@@ -107,7 +107,7 @@ def test_cascade_completes_automatically():
     assert auto.status is qr.SimStatus.COMPLETE
     assert auto.stats["nodes"] == 19
     census = Counter(b.terminal for b in auto.behaviors())
-    assert census == {TerminalClass.QUIESCENT: 4, TerminalClass.REGION_EXIT: 1}
+    assert census == {TerminalClass.QUIESCENT: 4, TerminalClass.DOMAIN_EXIT: 1}
 
 
 def test_composes_with_phase_filter():

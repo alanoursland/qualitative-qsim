@@ -34,7 +34,7 @@ the blowup at its source:
    discovered landmarks don't obstruct comparison. Terminal classes give
    the sequences their suffix semantics: a quiescent behavior ends in an
    episode that lasts forever, a cycle repeats its episodes, and a
-   truncated / dead-ended / region-exit behavior simply ends — agreement
+   truncated / dead-ended / domain-or-region-exit behavior simply ends — agreement
    on the common prefix suffices, because the shorter behavior's time
    stops where the longer one continues. Behaviors ended by the guide
    (``SPEC_PRUNED``) are pruning records, not behaviors, and never join.

@@ -33,7 +33,7 @@ for b in result.behaviors():
 ```
 TerminalClass.QUIESCENT     in 3 states
 TerminalClass.QUIESCENT     in 3 states
-TerminalClass.REGION_EXIT   in 3 states
+TerminalClass.DOMAIN_EXIT   in 3 states
 ```
 
 Three outcomes — exactly the ones you reasoned out by hand in Lesson 1:
@@ -41,7 +41,7 @@ Three outcomes — exactly the ones you reasoned out by hand in Lesson 1:
 1. the level settles **below** the brim (a quiescent equilibrium),
 2. it settles **exactly at** the brim (another equilibrium),
 3. it **overflows** — the water amount must leave the top of its quantity
-   space, which the library reports as a `region_exit` (the system has left
+   space, which the library reports as a `domain_exit` (the system has left
    the range the model describes).
 
 Here is the whole behavior graph again, now that you know how to read it:
@@ -60,7 +60,8 @@ Every behavior ends in a **terminal class** that tells you *why* it stopped:
 |---|---|
 | `QUIESCENT` | Everything went steady — an equilibrium. The system stays here forever. |
 | `CYCLE` | The state repeats an earlier one — a loop (you'll see this with the spring in Lesson 5). |
-| `REGION_EXIT` | A variable must leave its quantity space (e.g. the tub overflows past `FULL`). |
+| `DOMAIN_EXIT` | A variable must leave its quantity space (e.g. the tub overflows past `FULL`). |
+| `REGION_EXIT` | A declared operating region is left without an applicable transition. |
 | `DIVERGENT` | A variable runs off to infinity (the `t → ∞` limit). |
 | `DEADEND` | No consistent successor survived — the state was *spurious*. Reported, never hidden. |
 | `TRUNCATED` | A resource limit stopped exploration here (not a real ending — see Lesson 6). |
@@ -72,7 +73,7 @@ from qrlib.analysis import queries
 
 census = queries.terminal_census(result.graph)
 print(census)
-# {TerminalClass.QUIESCENT: 2, TerminalClass.REGION_EXIT: 1}
+# {TerminalClass.QUIESCENT: 2, TerminalClass.DOMAIN_EXIT: 1}
 ```
 
 ## Looking inside a behavior
@@ -82,7 +83,7 @@ doing at each step:
 
 ```python
 overflow = next(b for b in result.behaviors()
-                if b.terminal is qr.TerminalClass.REGION_EXIT)
+                if b.terminal is qr.TerminalClass.DOMAIN_EXIT)
 
 for state in overflow.states:
     amount = state["amount"]

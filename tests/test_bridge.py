@@ -1,6 +1,8 @@
 """Unit tests for the numeric bridge: abstraction mechanics, coverage
 matching, landmark harvest/proposal."""
 
+import math
+
 import pytest
 
 import qrlib as qr
@@ -123,6 +125,62 @@ def test_extremum_synthesizes_steady_point():
     assert b.states[1]["x"].mag % 2 == 1  # steady at an unnamed value
 
 
+def test_landmark_endpoint_extremum_uses_instantaneous_direction():
+    landmarks = (
+        Landmark("NEG", value=-1.0),
+        Landmark("0", value=0.0),
+        Landmark("POS", value=1.0),
+    )
+    m = qr.Model("oscillator")
+    for name in ("x", "v", "a"):
+        m.variable(name, landmarks=landmarks)
+    m.constrain(qr.Deriv("x", "v"))
+    m.constrain(qr.Deriv("v", "a"))
+    m.constrain(
+        qr.Minus(
+            "x",
+            "a",
+            cvals=(("NEG", "POS"), ("0", "0"), ("POS", "NEG")),
+        )
+    )
+    initial = m.state(
+        x=("POS", Qdir.STD),
+        v=("0", Qdir.DEC),
+        a=("NEG", Qdir.STD),
+    )
+    predicted = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig(
+            backend="reference",
+            max_states=100,
+            max_depth=30,
+            successor_filters=(qr.EnergyFilter(("x", "v")),),
+        ),
+    )
+    times = [i * 2.0 * math.pi / 16 for i in range(17)]
+    samples = [
+        [math.cos(t), -math.sin(t), -math.cos(t)]
+        for t in times
+    ]
+    observed = abstraction.abstract_trajectory(
+        samples,
+        m,
+        times=times,
+        config=AbstractionConfig(
+            debounce=1,
+            direction_eps=1e-6,
+            eps_relative=False,
+        ),
+    )
+    first = observed.states[0]
+    assert first["x"].dir is Qdir.STD
+    assert first["v"].dir is Qdir.DEC
+    assert first["a"].dir is Qdir.STD
+    result = coverage.check(observed, predicted.graph)
+    assert result.covered, result.diagnosis
+
+
 def test_undersampled_jump_raises():
     m = qr.Model("m")
     m.variable(
@@ -221,6 +279,13 @@ def test_coverage_failure_carries_diagnosis():
     assert not res.covered
     assert res.divergence_index == 0
     assert "x" in res.diagnosis
+    assert res.mismatches == ("x",)
+    assert res.candidate_node is not None
+
+    portable = coverage.check([bad], result.graph, ascii=True)
+    assert portable.diagnosis is not None
+    portable.diagnosis.encode("cp1252")
+    result.graph.describe_state(bad, ascii=True).encode("cp1252")
 
 
 # --- harvest / proposal ----------------------------------------------------

@@ -121,7 +121,7 @@ def test_bathtub_overflow_trajectories_reach_region_exit(seed):
     assert res.covered, res.diagnosis
     assert res.matched == res.total == 3  # point, interval, boundary point
     final_node = result.graph.nodes[res.witness[-1]]
-    assert final_node.terminal is qr.TerminalClass.REGION_EXIT
+    assert final_node.terminal is qr.TerminalClass.DOMAIN_EXIT
 
 
 def test_bathtub_score_is_one_across_instances():

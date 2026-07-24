@@ -106,7 +106,7 @@ def test_add_sign_fork_is_resolved():
     ne = qr.qsim(ne_m, ne_init)
     assert len(ne.behaviors()) == 1
     (b,) = ne.behaviors()
-    assert b.terminal is TerminalClass.REGION_EXIT  # x runs into XMIN
+    assert b.terminal is TerminalClass.DOMAIN_EXIT  # x runs into XMIN
     zero = ne_m.variables["z"].space.rank_of("0")
     assert all(st["z"].mag > zero for st in b.states)  # z never reaches 0
 

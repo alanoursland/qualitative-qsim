@@ -50,10 +50,10 @@ def test_narrate_reads_as_prose():
     m, initial = bathtub()
     result = qr.qsim(m, initial)
     overflow = next(
-        b for b in result.behaviors() if b.terminal is TerminalClass.REGION_EXIT
+        b for b in result.behaviors() if b.terminal is TerminalClass.DOMAIN_EXIT
     )
     text = explain.narrate(result.graph, overflow)
-    assert text.startswith("Behavior of 'bathtub': 3 states, ending in region exit.")
+    assert text.startswith("Behavior of 'bathtub': 3 states, ending in domain exit.")
     assert "amount reaches FULL, still rising" in text
     assert "leaves the model's domain" in text
 

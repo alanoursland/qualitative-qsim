@@ -210,7 +210,7 @@ def test_composed_device_simulates():
     r = qr.qsim(dm, init, config=qr.SimConfig(dynamic_chatter=True))
     assert r.status is SimStatus.COMPLETE
     census = Counter(b.terminal for b in r.behaviors())
-    assert census == {TerminalClass.QUIESCENT: 4, TerminalClass.REGION_EXIT: 1}
+    assert census == {TerminalClass.QUIESCENT: 4, TerminalClass.DOMAIN_EXIT: 1}
 
 
 def test_device_validation():

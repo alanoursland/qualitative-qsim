@@ -193,7 +193,7 @@ def test_cascade_guided_by_upstream_word():
     assert tank_b.result.config.guide is not None
     assert Counter(tank_b.behaviors[k].terminal for k in tank_b.live) == {
         TerminalClass.QUIESCENT: 4,
-        TerminalClass.REGION_EXIT: 1,
+        TerminalClass.DOMAIN_EXIT: 1,
     }
 
     mono = qr.qsim(m, init, config=CASCADE_CFG)

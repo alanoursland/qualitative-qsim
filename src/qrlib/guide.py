@@ -14,7 +14,7 @@ an exact **verdict** with the appropriate suffix semantics:
 - ``CYCLE`` terminals: lasso (loop) evaluation;
 - ``QUIESCENT`` / ``DIVERGENT``: the final state repeats forever
   (a self-loop lasso);
-- ``REGION_EXIT`` / ``DEADEND``: finite-trace semantics;
+- ``DOMAIN_EXIT`` / ``REGION_EXIT`` / ``DEADEND``: finite-trace semantics;
 - ``SPEC_PRUNED``: violated by construction (every physically consistent
   continuation was excluded by the spec);
 - ``TRUNCATED``: three-valued — ``UNDETERMINED`` unless the prefix already
@@ -332,7 +332,7 @@ def verdict(f: Formula, graph: BehaviorGraph, behavior: Behavior) -> Verdict:
         ok = _eval_word(f, word, loop)
     elif term in (TerminalClass.QUIESCENT, TerminalClass.DIVERGENT):
         ok = _eval_word(f, word, len(word) - 1)  # final state repeats forever
-    else:  # REGION_EXIT, DEADEND: finite trace
+    else:  # DOMAIN_EXIT, REGION_EXIT, DEADEND: finite trace
         ok = _eval_word(f, word, None)
     return Verdict.SATISFIED if ok else Verdict.VIOLATED
 

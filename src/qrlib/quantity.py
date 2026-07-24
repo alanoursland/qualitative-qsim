@@ -239,6 +239,12 @@ class QVal:
     mag: int
     dir: Qdir
 
-    def describe(self, space: QuantitySpace) -> str:
-        arrow = {Qdir.DEC: "↓", Qdir.STD: "·", Qdir.INC: "↑", Qdir.IGN: "?"}[self.dir]
+    def describe(self, space: QuantitySpace, *, ascii: bool = False) -> str:
+        """Human-readable value, optionally restricted to ASCII glyphs."""
+        arrows = (
+            {Qdir.DEC: "v", Qdir.STD: "-", Qdir.INC: "^", Qdir.IGN: "?"}
+            if ascii
+            else {Qdir.DEC: "↓", Qdir.STD: "·", Qdir.INC: "↑", Qdir.IGN: "?"}
+        )
+        arrow = arrows[self.dir]
         return f"{space.describe(self.mag)}{arrow}"

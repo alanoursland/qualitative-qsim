@@ -155,7 +155,11 @@ def quantize_batch(
 
 
 def directions_batch(
-    x: torch.Tensor, ts: torch.Tensor, cfg: AbstractionConfig
+    x: torch.Tensor,
+    ts: torch.Tensor,
+    cfg: AbstractionConfig,
+    *,
+    ranks: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Direction codes (0=DEC, 1=STD, 2=INC) for ``(B, T, V)`` samples.
 
@@ -186,6 +190,31 @@ def directions_batch(
             step = ((x[:, 1] - x[:, 0]) / (ts[:, 1] - ts[:, 0]).unsqueeze(-1))
             d[:, 0] = step
             d[:, 1] = step
+
+    if ranks is not None and T >= 3 and cfg.endpoint_extremum_ratio:
+        ratio = cfg.endpoint_extremum_ratio
+        first_step = (
+            (x[:, 1] - x[:, 0])
+            / (ts[:, 1] - ts[:, 0]).unsqueeze(-1)
+        )
+        first_extremum = (
+            (ranks[:, 0] % 2 == 0)
+            & (d[:, 0].abs() <= ratio * first_step.abs())
+        )
+        d[:, 0] = torch.where(
+            first_extremum, torch.zeros_like(d[:, 0]), d[:, 0]
+        )
+        last_step = (
+            (x[:, -1] - x[:, -2])
+            / (ts[:, -1] - ts[:, -2]).unsqueeze(-1)
+        )
+        last_extremum = (
+            (ranks[:, -1] % 2 == 0)
+            & (d[:, -1].abs() <= ratio * last_step.abs())
+        )
+        d[:, -1] = torch.where(
+            last_extremum, torch.zeros_like(d[:, -1]), d[:, -1]
+        )
 
     eps = torch.full(
         (B, 1, V), cfg.direction_eps, dtype=x.dtype, device=x.device
@@ -241,7 +270,7 @@ def abstract_batch_tensor(
         raise ValueError(f"times must have shape ({T},) or ({B}, {T})")
 
     ranks = quantize_batch(x, compiled, cfg.landmark_atol)
-    dirs = directions_batch(x, ts, cfg)
+    dirs = directions_batch(x, ts, cfg, ranks=ranks)
     mode_rows, mode_change = _normalize_modes(modes, B, T)
     # Run boundaries and row gathering stay in tensor land. Python receives
     # one compact O(runs) stream, not B*T samples or per-run device views.

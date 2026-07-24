@@ -293,3 +293,30 @@ def test_cuda_full_abstraction_matches_reference():
     x = torch.tensor(rows, dtype=torch.float64, device="cuda")
     (actual,) = tabs.abstract_batch_tensor(x, m, times=times, config=CFG)
     assert actual == reference
+
+
+def test_endpoint_extremum_policy_matches_reference():
+    import math
+
+    from qrlib.bridge import abstraction as rabs
+
+    landmarks = (
+        qr.Landmark("NEG", value=-1.0),
+        qr.Landmark("0", value=0.0),
+        qr.Landmark("POS", value=1.0),
+    )
+    m = qr.Model("oscillator-endpoint")
+    for name in ("x", "v", "a"):
+        m.variable(name, landmarks=landmarks)
+    times = torch.linspace(0.0, 2.0 * math.pi, 17, dtype=torch.float64)
+    x = torch.stack(
+        (torch.cos(times), -torch.sin(times), -torch.cos(times)), dim=1
+    )
+    cfg = rabs.AbstractionConfig(
+        debounce=1,
+        direction_eps=1e-6,
+        eps_relative=False,
+    )
+    reference = rabs.abstract_trajectory(x, m, times=times, config=cfg)
+    (actual,) = tabs.abstract_batch_tensor(x, m, times=times, config=cfg)
+    assert actual == reference

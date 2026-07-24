@@ -144,7 +144,7 @@ def test_undamped_spring_discovery_wobbles_pruned():
 def test_damped_spring_prunes_intersecting_behaviors(plain_result, nic_result):
     plain, nic = plain_result, nic_result
 
-    assert len(plain.behaviors()) == 559
+    assert len(plain.behaviors()) == 558
     assert len(nic.behaviors()) == 482
     assert nic.stats["phase_filtered"] == 106
 
