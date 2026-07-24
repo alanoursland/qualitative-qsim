@@ -84,6 +84,66 @@ def test_estimate_signs_average_monotonicity_for_nonlinear():
     assert S[1][1] is signs.UNKNOWN
 
 
+def test_calibrated_signs_recover_stable_noisy_nonlinear_effects():
+    rng = random.Random(11)
+    xs, dxs = [], []
+    for _ in range(240):
+        a, b = rng.uniform(0.1, 2.0), rng.uniform(-1.5, 1.5)
+        xs.append([a, b])
+        dxs.append(
+            [
+                -(a**1.3) + 0.03 * rng.gauss(0.0, 1.0),
+                a**0.5 + 0.03 * rng.gauss(0.0, 1.0),
+            ]
+        )
+    estimate = signs.estimate_signs_calibrated(
+        xs, dxs, resamples=120, seed=7
+    )
+    matrix = estimate.threshold(0.95)
+    assert matrix[0][0] == -1
+    assert matrix[1][0] == 1
+    assert matrix[0][1] is signs.UNKNOWN
+    assert matrix[1][1] is signs.UNKNOWN
+    assert 0.0 <= estimate.confidence[0][0] <= 1.0
+    assert estimate.to_dict()["method"] == "bootstrap-sign-agreement"
+
+
+def test_calibrated_signs_leave_weak_noisy_effect_unknown():
+    rng = random.Random(19)
+    xs, dxs = [], []
+    for _ in range(180):
+        a, b = rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0)
+        xs.append([a, b])
+        dxs.append([2.0 * a + rng.gauss(0.0, 0.1), rng.gauss(0.0, 1.0)])
+    estimate = signs.estimate_signs_calibrated(
+        xs, dxs, resamples=160, seed=3
+    )
+    matrix = estimate.threshold(0.99)
+    assert matrix[0][0] == 1
+    assert matrix[1][0] is signs.UNKNOWN
+    assert matrix[1][1] is signs.UNKNOWN
+
+
+def test_calibrated_signs_are_reproducible_and_legacy_api_is_unchanged():
+    xs = [[float(i), float((i * 7) % 11)] for i in range(20)]
+    dxs = [[2.0 * row[0], -3.0 * row[1]] for row in xs]
+    first = signs.estimate_signs_calibrated(xs, dxs, resamples=20, seed=42)
+    second = signs.estimate_signs_calibrated(xs, dxs, resamples=20, seed=42)
+    assert first == second
+    legacy_signs, legacy_confidence = signs.estimate_signs(xs, dxs)
+    assert isinstance(legacy_signs, list)
+    assert isinstance(legacy_confidence, list)
+
+
+def test_calibrated_sign_parameter_validation():
+    xs = [[float(i)] for i in range(4)]
+    dxs = [[-row[0]] for row in xs]
+    with pytest.raises(ValueError, match="positive integer"):
+        signs.estimate_signs_calibrated(xs, dxs, resamples=0)
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        signs.estimate_signs_calibrated(xs, dxs, resamples=2).threshold(1.1)
+
+
 def test_sign_structure_export():
     m = qr.Model("bathtub")
     m.variable("amount", landmarks=("0", "FULL"))

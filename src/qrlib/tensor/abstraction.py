@@ -24,6 +24,7 @@ from ..bridge.abstraction import (
     AbstractionConfig,
     _debounce,
     _emit,
+    _time_bounds,
 )
 from ..model import CompiledModel, Model
 from ..quantity import Qdir
@@ -191,7 +192,10 @@ def abstract_batch_tensor(
             runs.append([(code, mo[s0] if mo is not None else None), s0, end])
         runs = _debounce(runs, cfg.debounce)
         states, spans, regions = _emit(runs, compiled.var_order)
+        time_bounds = _time_bounds(spans, ts[b].tolist())
         out.append(
-            AbstractedBehavior(states, spans, compiled.var_order, cfg, regions)
+            AbstractedBehavior(
+                states, spans, compiled.var_order, cfg, regions, time_bounds
+            )
         )
     return tuple(out)

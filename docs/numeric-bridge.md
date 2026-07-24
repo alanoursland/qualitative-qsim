@@ -20,10 +20,14 @@ dependency on any particular simulation stack.
 
 Input: numeric trajectories `x ∈ R^(B,T,V)` (+ optional times `(B,T)`,
 + optional integer mode channel `(B,T)` for hybrid executions), plus
-quantity spaces whose landmarks carry numeric values. Output: per
+quantity spaces whose landmarks carry numeric values. The reference seam
+also accepts optional `CrossingEvent` records from an event-aware solver.
+Each carries the refined time, crossed variable and landmark, and the
+solver's complete state vector at that instant; requiring the complete state
+avoids fabricating nonlinear values for the other variables. Output: per
 trajectory, its qualitative behavior — the alternating point/interval
 `QState` sequence (region-tagged when a mode channel is given) — plus the
-mapping back to time indices.
+mapping back to original sample indices and physical-time bounds.
 
 Pipeline (each stage batched, GPU-friendly):
 
@@ -37,6 +41,12 @@ Pipeline (each stage batched, GPU-friendly):
    + a small Python view layer).
 4. **Canonicalize:** merge segments shorter than a debounce threshold
    (numeric chatter), producing clean QSIM-style behaviors.
+
+Refined event states are inserted before these stages and protected from
+debounce. Multiple landmark records may share one time and state for a
+simultaneous crossing. This can recover ordered crossings inside one coarse
+sampling interval; without those event states, a jump over multiple landmarks
+still raises as undersampling.
 
 The abstraction parameters (landmark tolerance, hysteresis, debounce) form
 an explicit config value that travels with every downstream result — they
@@ -72,8 +82,14 @@ Uses this unlocks:
   structure — a list of (region condition, matrix) — yields an
   operating-region model.
 - **Sign estimation from data:** given `(x, dx/dt)` samples or trajectories,
-  estimate `S` with per-entry confidence; batched. Serves hosts without
-  symbolic access and cross-checks those with it.
+  `estimate_signs_calibrated` fits the affine approximation and bootstraps
+  complete sample rows with an explicit resample count and seed. Per-entry
+  confidence is the fraction of bootstrap coefficient signs that agree with
+  the full fit, bounded in `[0, 1]`. It measures stability under the observed
+  sample distribution, not the probability that a physical dependency is
+  true. Thresholding maps unstable effects and fitted zeros to `UNKNOWN`.
+  The earlier unbounded t-like `estimate_signs` result remains for API
+  compatibility.
 - **Landmark intake:** `(variable, name, value?, bounds?)` records from any
   source (equilibrium finders, guard thresholds, domain knowledge) are
   deduplicated, ordered, and inserted; conflicts are reported, not guessed
@@ -131,7 +147,12 @@ Contract details fixed during implementation:
   an observed value when its finer magnitude lies inside the observed
   coarser one (names map root→frame; frames only add landmarks).
 - **Undersampling raises.** A magnitude jump across more than one landmark
-  between samples is an error, not a silently-invented history.
+  between samples is an error, not a silently-invented history. A host can
+  resolve it by supplying the solver-observed `CrossingEvent` states.
+- **Time provenance is explicit.** `AbstractedBehavior.spans` remains in
+  original sample coordinates. `time_bounds` contains observed physical-time
+  support; an inferred crossing is bracketed by unequal bounds, while a
+  solver-refined event has an exact `(time, time)` bound.
 - **Endpoint derivatives are second-order.** First-order one-sided
   differences are O(h)-biased exactly at critical points — precisely where
   initial conditions like "released at peak speed" sit.
@@ -141,11 +162,11 @@ Contract details fixed during implementation:
 
 ## Semantics gotchas to respect
 
-- **QSIM time is event-based, numeric time is sampled.** Abstraction must
-  tolerate landmark crossings between samples (detect sign changes of
-  `x − landmark`, don't require exact hits) — hence point-state *insertion*
-  in stage 3. Hosts with event-accurate solvers can pre-refine crossing
-  times; the seam does not require it.
+- **QSIM time is event-based, numeric time is sampled.** Abstraction tolerates
+  landmark crossings between samples (detect sign changes of `x − landmark`,
+  don't require exact hits) — hence point-state *insertion* in stage 3.
+  Hosts with event-accurate solvers can additionally pass complete refined
+  crossing states; the seam does not require them.
 - **Continuity assumptions:** QSIM's guarantees assume C¹ "reasonable"
   functions; discontinuous inputs or hybrid jumps need the operating-region
   machinery — which is why the mode channel exists from day one.

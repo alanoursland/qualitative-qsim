@@ -13,3 +13,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Advanced the result export schema to `qrlib.result/v2`.
 - Added workload-aware QSIM backend selection with explicit reference/tensor
   overrides and per-result dispatch telemetry.
+- Added solver-refined crossing events and physical-time bounds to trajectory
+  abstraction while preserving original sample-index provenance.
+- Added deterministic bootstrap sign estimation with bounded sign-agreement
+  confidence and explicit `UNKNOWN` thresholding.

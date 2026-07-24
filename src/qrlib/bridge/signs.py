@@ -23,6 +23,8 @@ does not pin where the influences vanish.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
+import random
 from typing import Sequence
 
 from ..constraints import Add, Constant, Deriv, MMinus, MPlus
@@ -33,12 +35,63 @@ __all__ = [
     "UNKNOWN",
     "model_from_signs",
     "estimate_signs",
+    "CalibratedSignEstimate",
+    "estimate_signs_calibrated",
     "signs_with_threshold",
     "ConsistencyRecord",
     "check_consistency",
 ]
 
 UNKNOWN = None  # sign-matrix entry: dependence direction not known
+
+
+@dataclass(frozen=True)
+class CalibratedSignEstimate:
+    """Reproducible bootstrap stability for an estimated sign matrix.
+
+    ``confidence[i][j]`` is the fraction of bootstrap fits whose coefficient
+    sign agrees with ``signs[i][j]``. It is therefore bounded in ``[0, 1]``
+    and has an explicit resampling interpretation; it is not a posterior
+    probability that the dependency is physically true.
+    """
+
+    signs: tuple[tuple[int, ...], ...]
+    confidence: tuple[tuple[float, ...], ...]
+    coefficients: tuple[tuple[float, ...], ...]
+    samples: int
+    resamples: int
+    seed: int
+    ridge: float
+    coefficient_atol: float
+    method: str = "bootstrap-sign-agreement"
+
+    def threshold(self, min_confidence: float = 0.95):
+        """Return a model-ready matrix, mapping unstable/zero effects to UNKNOWN."""
+        if not 0.0 <= min_confidence <= 1.0:
+            raise ValueError("min_confidence must be between 0 and 1")
+        return [
+            [
+                sign
+                if sign != 0 and self.confidence[i][j] >= min_confidence
+                else UNKNOWN
+                for j, sign in enumerate(row)
+            ]
+            for i, row in enumerate(self.signs)
+        ]
+
+    def to_dict(self) -> dict:
+        """Plain-data representation suitable for JSON serialization."""
+        return {
+            "method": self.method,
+            "signs": [list(row) for row in self.signs],
+            "confidence": [list(row) for row in self.confidence],
+            "coefficients": [list(row) for row in self.coefficients],
+            "samples": self.samples,
+            "resamples": self.resamples,
+            "seed": self.seed,
+            "ridge": self.ridge,
+            "coefficient_atol": self.coefficient_atol,
+        }
 
 
 def model_from_signs(
@@ -116,24 +169,9 @@ def estimate_signs(
     sqrt(N) / residual scale). Threshold with :func:`signs_with_threshold`.
     Exact for linear systems; average monotonicity for nonlinear ones.
     """
-    xs = _to_matrix(x)
-    ds = _to_matrix(dx)
-    if len(xs) != len(ds):
-        raise ValueError(f"{len(xs)} state samples but {len(ds)} derivative samples")
-    N, V = len(xs), len(xs[0])
-    if N < V + 2:
-        raise ValueError(f"need at least {V + 2} samples for {V} variables, got {N}")
-
-    # design matrix with bias column; normal equations with a tiny ridge
+    xs, ds, N, V = _validated_samples(x, dx)
+    coefficients = _fit_coefficients(xs, ds, ridge)
     cols = V + 1
-    A = [[0.0] * cols for _ in range(cols)]
-    for row in xs:
-        ext = list(row) + [1.0]
-        for a in range(cols):
-            for b in range(cols):
-                A[a][b] += ext[a] * ext[b]
-    for a in range(cols):
-        A[a][a] += ridge
 
     def std(col: list[float]) -> float:
         mean = sum(col) / len(col)
@@ -142,12 +180,7 @@ def estimate_signs(
     signs = [[0] * V for _ in range(V)]
     confidence = [[0.0] * V for _ in range(V)]
     for i in range(V):
-        b = [0.0] * cols
-        for row, drow in zip(xs, ds):
-            ext = list(row) + [1.0]
-            for a in range(cols):
-                b[a] += ext[a] * drow[i]
-        w = _solve([r[:] for r in A], b[:])
+        w = coefficients[i]
         residuals = [
             ds[n][i] - sum(w[j] * xs[n][j] for j in range(V)) - w[V]
             for n in range(N)
@@ -160,6 +193,72 @@ def estimate_signs(
                 abs(w[j]) * spread * (N**0.5) / (res_scale + 1e-30)
             )
     return signs, confidence
+
+
+def estimate_signs_calibrated(
+    x,
+    dx,
+    *,
+    resamples: int = 200,
+    seed: int = 0,
+    ridge: float = 1e-9,
+    coefficient_atol: float = 1e-12,
+) -> CalibratedSignEstimate:
+    """Estimate signs with deterministic bootstrap sign agreement.
+
+    The fitted model is the same affine approximation used by
+    :func:`estimate_signs`. Each bootstrap replicate resamples complete
+    ``(x, dx)`` rows with replacement and refits all derivative equations.
+    Confidence is the fraction of replicate coefficient signs agreeing with
+    the full-sample sign. A coefficient within ``coefficient_atol`` is treated
+    as zero; zero is never promoted to a known no-dependence assertion.
+    """
+    if not isinstance(resamples, int) or isinstance(resamples, bool) or resamples < 1:
+        raise ValueError("resamples must be a positive integer")
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        raise ValueError("seed must be an integer")
+    if ridge <= 0:
+        raise ValueError("ridge must be positive")
+    if coefficient_atol < 0:
+        raise ValueError("coefficient_atol must be non-negative")
+
+    xs, ds, N, V = _validated_samples(x, dx)
+    coefficients = _fit_coefficients(xs, ds, ridge)
+
+    def coefficient_sign(value: float) -> int:
+        return 1 if value > coefficient_atol else -1 if value < -coefficient_atol else 0
+
+    fitted_signs = [
+        [coefficient_sign(coefficients[i][j]) for j in range(V)]
+        for i in range(V)
+    ]
+    agreements = [[0] * V for _ in range(V)]
+    rng = random.Random(seed)
+    for _ in range(resamples):
+        indices = [rng.randrange(N) for _ in range(N)]
+        bx = [xs[index] for index in indices]
+        bd = [ds[index] for index in indices]
+        replicate = _fit_coefficients(bx, bd, ridge)
+        for i in range(V):
+            for j in range(V):
+                target = fitted_signs[i][j]
+                if target != 0 and coefficient_sign(replicate[i][j]) == target:
+                    agreements[i][j] += 1
+
+    confidence = [
+        [agreements[i][j] / resamples for j in range(V)]
+        for i in range(V)
+    ]
+    return CalibratedSignEstimate(
+        signs=tuple(tuple(row) for row in fitted_signs),
+        confidence=tuple(tuple(row) for row in confidence),
+        coefficients=tuple(tuple(row[:V]) for row in coefficients),
+        samples=N,
+        resamples=resamples,
+        seed=seed,
+        ridge=ridge,
+        coefficient_atol=coefficient_atol,
+    )
 
 
 def signs_with_threshold(
@@ -287,6 +386,53 @@ def check_consistency(
 
 
 # --- small numerics --------------------------------------------------------
+
+
+def _validated_samples(x, dx):
+    xs = _to_matrix(x)
+    ds = _to_matrix(dx)
+    if len(xs) != len(ds):
+        raise ValueError(f"{len(xs)} state samples but {len(ds)} derivative samples")
+    V = len(xs[0])
+    if V == 0:
+        raise ValueError("sample matrices must have at least one column")
+    if any(len(row) != V for row in xs):
+        raise ValueError("state sample matrix must be rectangular")
+    if any(len(row) != V for row in ds):
+        raise ValueError(
+            f"derivative sample matrix must be rectangular with {V} columns"
+        )
+    if any(not isfinite(value) for row in xs + ds for value in row):
+        raise ValueError("sample matrices must contain only finite values")
+    N = len(xs)
+    if N < V + 2:
+        raise ValueError(f"need at least {V + 2} samples for {V} variables, got {N}")
+    return xs, ds, N, V
+
+
+def _fit_coefficients(xs, ds, ridge: float) -> list[list[float]]:
+    if ridge < 0:
+        raise ValueError("ridge must be non-negative")
+    V = len(xs[0])
+    cols = V + 1
+    normal = [[0.0] * cols for _ in range(cols)]
+    for row in xs:
+        ext = list(row) + [1.0]
+        for a in range(cols):
+            for b in range(cols):
+                normal[a][b] += ext[a] * ext[b]
+    for a in range(cols):
+        normal[a][a] += ridge
+
+    coefficients = []
+    for i in range(V):
+        rhs = [0.0] * cols
+        for row, drow in zip(xs, ds):
+            ext = list(row) + [1.0]
+            for a in range(cols):
+                rhs[a] += ext[a] * drow[i]
+        coefficients.append(_solve([row[:] for row in normal], rhs))
+    return coefficients
 
 
 def _to_matrix(x) -> list[list[float]]:

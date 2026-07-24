@@ -23,7 +23,7 @@ and must *not* duplicate — to slot in beside them.
 |---|---|
 | System representations (ODEs, symbolic expressions, learned models) | QR semantics: quantity spaces, constraints, QDE models, operating regions |
 | Symbolic analysis: differentiation, Jacobians, equilibrium solving, sign derivation via its CAS | Behavior enumeration engines (QSIM reference + tensorized), filters, soundness guarantees |
-| Numeric solvers, trajectory/event machinery, precise crossing refinement | Trajectory abstraction from *sampled tensors*; coverage checking; sign estimation from data |
+| Numeric solvers, trajectory/event machinery, precise crossing refinement | Trajectory abstraction from sampled tensors and host-supplied refined event states; coverage checking; sign estimation from data |
 | Hybrid-automaton runtime (modes, guards, execution) | Region/mode-structure as data + the mapping contract to guarded-mode form |
 | Identification/regression machinery | Exported sign/monotonicity structure and qualitative-consistency scores as plain data |
 | Provenance/evidence record formats, reporting | Stable, serializable result objects with witnesses, statuses, and config capture |
@@ -80,10 +80,12 @@ level of *structure summaries*:
   (region-condition, matrix) pairs and produces an operating-region model
   (Surface 5).
 - **Sign estimation from data** (fallback the host may not have): given
-  trajectory or `(x, dx/dt)` sample tensors, qrlib estimates the sign matrix
-  with confidence masks — batched, so large sample sets are cheap. Hosts
-  with a CAS will prefer their exact route; the estimator also serves as a
-  cross-check on it.
+  trajectory or `(x, dx/dt)` sample tensors, qrlib estimates the sign matrix.
+  The calibrated path reports deterministic bootstrap sign agreement in
+  `[0, 1]` with explicit seed/resample metadata and maps unstable or fitted
+  zero effects to `UNKNOWN`. This is a sample-stability measure, not a
+  posterior truth probability. Hosts with a CAS will prefer their exact
+  route; the estimator also serves as a cross-check on it.
 - **Landmark intake** (`qrlib.bridge.harvest`): hosts contribute candidate
   landmark values from wherever they get them — equilibrium finders, guard
   thresholds, nullcline intersections, domain knowledge — as
@@ -171,6 +173,11 @@ this places on qrlib core (not an afterthought — promoted to an early phase):
   integer region tags alongside the trajectory tensor, so behaviors of
   hybrid executions abstract into region-tagged qualitative behaviors and
   coverage checking respects mode sequences.
+- Event-aware hosts may pass `CrossingEvent` records containing the precise
+  crossing time and complete solver state. qrlib validates the declared
+  landmark, preserves original sample-index spans, and exposes exact
+  physical-time bounds for those point states. Inferred crossings retain an
+  enclosing time bracket instead.
 
 ## Surface 6 — Priors for system identification
 

@@ -6,7 +6,7 @@ import pytest
 import qrlib as qr
 from qrlib import Landmark, Qdir, TimeTag
 from qrlib.bridge import abstraction, coverage, harvest
-from qrlib.bridge.abstraction import AbstractionConfig
+from qrlib.bridge.abstraction import AbstractionConfig, CrossingEvent
 
 
 def one_var_model():
@@ -25,6 +25,92 @@ def test_transversal_crossing_synthesizes_point():
     assert mid.mag == cm.spaces[0].rank_of("0")
     assert mid.dir is Qdir.DEC
     assert b.spans[1][0] == b.spans[1][1]  # zero-width synthesized point
+    assert b.time_bounds[1][0] < b.time_bounds[1][1]  # crossing is bracketed
+
+
+def test_refined_crossing_preserves_exact_event_time_and_sample_spans():
+    cm = one_var_model()
+    b = abstraction.abstract_trajectory(
+        [[-1.0], [1.0]],
+        cm,
+        times=[0.0, 1.0],
+        crossings=[CrossingEvent(0.25, "x", "0", (0.0,))],
+    )
+    assert [state.time for state in b.states] == [
+        TimeTag.INTERVAL,
+        TimeTag.POINT,
+        TimeTag.INTERVAL,
+    ]
+    assert b.states[1]["x"] == qr.QVal(cm.spaces[0].rank_of("0"), Qdir.INC)
+    assert b.spans[1] == (1, 1)
+    assert b.time_bounds[1] == (0.25, 0.25)
+
+
+def test_ordered_refined_crossings_resolve_coarse_undersampling():
+    m = qr.Model("two-crossings")
+    m.variable(
+        "x",
+        landmarks=(Landmark("0", value=0.0), Landmark("1", value=1.0)),
+        unbounded=True,
+    )
+    b = abstraction.abstract_trajectory(
+        [[-1.0], [2.0]],
+        m,
+        times=[0.0, 1.0],
+        crossings=[
+            CrossingEvent(0.25, "x", "0", {"x": 0.0}),
+            CrossingEvent(0.75, "x", "1", {"x": 1.0}),
+        ],
+    )
+    assert [state["x"].mag for state in b.states] == [1, 2, 3, 4, 5]
+    assert b.time_bounds[1] == (0.25, 0.25)
+    assert b.time_bounds[3] == (0.75, 0.75)
+
+
+def test_simultaneous_refined_crossings_share_full_solver_state():
+    m = qr.Model("simultaneous")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    m.variable("y", landmarks=(Landmark("0", value=0.0),), unbounded=True)
+    events = [
+        CrossingEvent(0.5, "x", "0", {"x": 0.0, "y": 0.0}),
+        CrossingEvent(0.5, "y", "0", {"x": 0.0, "y": 0.0}),
+    ]
+    b = abstraction.abstract_trajectory(
+        [[-1.0, -2.0], [1.0, 2.0]],
+        m,
+        times=[0.0, 1.0],
+        crossings=events,
+    )
+    assert b.time_bounds[1] == (0.5, 0.5)
+    assert all(b.states[1][name].mag == 2 for name in ("x", "y"))
+
+
+@pytest.mark.parametrize(
+    "event, match",
+    [
+        (CrossingEvent(0.0, "x", "0", (0.0,)), "strictly inside"),
+        (CrossingEvent(0.5, "missing", "0", (0.0,)), "unknown variable"),
+        (CrossingEvent(0.5, "x", "missing", (0.0,)), "unknown landmark"),
+        (CrossingEvent(0.5, "x", "0", (0.1,)), "does not match"),
+    ],
+)
+def test_refined_crossing_validation(event, match):
+    with pytest.raises(ValueError, match=match):
+        abstraction.abstract_trajectory(
+            [[-1.0], [1.0]],
+            one_var_model(),
+            times=[0.0, 1.0],
+            crossings=[event],
+        )
+
+
+def test_abstraction_requires_strictly_increasing_times():
+    with pytest.raises(ValueError, match="strictly increasing"):
+        abstraction.abstract_trajectory(
+            [[-1.0], [0.0], [1.0]],
+            one_var_model(),
+            times=[0.0, 0.0, 1.0],
+        )
 
 
 def test_extremum_synthesizes_steady_point():
