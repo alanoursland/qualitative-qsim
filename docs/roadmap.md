@@ -410,9 +410,12 @@ in recommended order:
   negligible), canonical formatting with round-trip tests, and direct
   `Model.constrain(str)` integration. It is sugar over ordinary constraint
   objects and does not alter the versioned model schema.
-- Not yet assessed (worth a follow-up survey): monotone dynamical-systems
-  theory as a rigor foundation for M+/M- reasoning; symbolic-abstraction /
-  reachability tooling; hybrid-system falsification / conformance testing.
+- Basic monotonicity structure checking is implemented by
+  `qrlib.analysis.monotonicity`: deterministic orthant-polarity certificates
+  for M+/M-/Minus signed graphs, region-aware analysis, and concrete negative
+  cycle witnesses for contradictions. It deliberately makes no vector-field
+  monotonicity claim. Deeper monotone-system analysis, numeric reachability,
+  and full hybrid conformance remain outside this open qualitative core.
 
 ## Deliberately not scheduled
 

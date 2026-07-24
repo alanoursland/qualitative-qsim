@@ -48,7 +48,8 @@ src/qrlib/
 │   ├── queries.py       # terminal census, quiescence, cycles, state search
 │   ├── explain.py       # structured step records + prose narration
 │   ├── causal.py        # causal ordering (which variable determines which)
-│   └── compare.py       # comparative statics (parameter -> equilibrium shift)
+│   ├── compare.py       # comparative statics (parameter -> equilibrium shift)
+│   └── monotonicity.py  # signed-graph orthant consistency + conflict witness
 └── viz/                 # timeline/tree data exports + dependency-free SVG
 ```
 

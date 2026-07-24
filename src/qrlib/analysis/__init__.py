@@ -7,10 +7,13 @@
   which) from its constraints alone;
 - ``compare`` derives comparative statics (how an equilibrium shifts when a
   parameter is perturbed) by sign propagation over the constraints.
+- ``monotonicity`` checks whether M+/M-/Minus relationships admit one
+  consistent orthant ordering and returns a contradictory signed cycle when
+  they do not.
 
 (docs/host-integration.md, Surface 4 and cross-cutting conventions.)
 """
 
-from . import causal, compare, explain, queries
+from . import causal, compare, explain, monotonicity, queries
 
-__all__ = ["causal", "compare", "explain", "queries"]
+__all__ = ["causal", "compare", "explain", "monotonicity", "queries"]

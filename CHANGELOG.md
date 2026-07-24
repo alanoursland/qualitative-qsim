@@ -24,3 +24,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
   machine-readable benchmark results, and measured CPU/CUDA device guidance.
 - Added safe compact constraint parsing/formatting and support for passing
   expressions such as `"M+(level, outflow)"` to `Model.constrain`.
+- Added region-aware signed-graph consistency certificates for
+  `M+`/`M-`/`Minus` relationships, including deterministic orthant
+  polarities and contradictory-cycle witnesses.

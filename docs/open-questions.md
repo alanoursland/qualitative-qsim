@@ -69,5 +69,6 @@ spirit) with their resolutions; new questions raised by that design follow.
 11. **License and distribution.** Deliberately deferred by the owner —
     do not add a license file until they choose one. Until then the
     default applies (all rights reserved; not publishable/distributable).
-    PyPI name (`qualitative-reasoning-lib`? `qrlib` availability) to
-    check alongside that decision.
+    The distribution name is **`qualitative-qsim`**; the Python import
+    namespace remains **`qrlib`**. PyPI ownership and Trusted Publisher
+    configuration remain release-time decisions.

@@ -1,4 +1,4 @@
-# qualitative_reasoning_lib
+# qualitative-qsim
 
 A Python/PyTorch library for **qualitative reasoning (QR)** about dynamical
 systems: simulating and analyzing the behavior of continuous systems when the
@@ -60,6 +60,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
   [QR landscape survey](docs/landscape.md),
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
   [compact constraint syntax](docs/constraint-syntax.md),
+  [signed-graph consistency](docs/monotonicity.md),
   [tensorization & GPU strategy](docs/gpu-tensorization.md),
   [production-shaped scale profiles](docs/scale-profiles.md),
   [bridge to numeric dynamical systems](docs/numeric-bridge.md),
@@ -80,7 +81,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
 The supported install includes PyTorch:
 
 ```console
-pip install qualitative-reasoning-lib
+pip install qualitative-qsim
 ```
 
 PyTorch is imported lazily: ordinary model construction, reference
@@ -142,6 +143,9 @@ transition-time bounds (and prunes numerically impossible behaviors), and
 Additional modules provide total envisionment, temporal-logic guidance,
 model induction and diagnosis, comparative/causal analysis, decomposition,
 differentiable constraint losses, and process/device modeling front ends.
+`qrlib.analysis.monotonicity.check_signed_graph` additionally certifies
+whether all declared `M+`/`M-`/`Minus` relationships admit one consistent
+orthant ordering, returning a contradictory signed cycle when they do not.
 
 ## Design commitments (early)
 

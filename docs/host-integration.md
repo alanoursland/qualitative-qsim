@@ -194,6 +194,12 @@ The downward direction: hand-authored or abstracted qualitative models as
   running Surface 3 coverage (and Surface 2 sign estimation) on a fitted
   model's rollouts and reporting violations; constrained regression is a
   host concern that consumes the same exported structure.
+- `qrlib.analysis.monotonicity.check_signed_graph(model, region=...)`
+  determines whether the exported M+/M-/Minus pairs admit one orthant
+  polarity assignment. The result includes deterministic polarities and a
+  negative signed-cycle witness on conflict. This is structural consistency,
+  not a proof that a host's unseen numeric vector field is monotone; the host
+  may use the polarities as the candidate order for that separate check.
 - **Deferred by design**: differentiable relaxations of qualitative
   constraints (soft losses for training) remain out of the near-term scope;
   the exact, discrete semantics stay the product. The export format is

@@ -1,12 +1,18 @@
 # Release checklist
 
 The project is pre-release and must not be published until the owner resolves
-the licensing and distribution decisions in `docs/open-questions.md`.
+the remaining licensing and publication decisions in `docs/open-questions.md`.
 
 ## One-time publication decisions
 
 - [ ] Select a license, add `LICENSE`, and add matching package metadata.
-- [ ] Confirm the distribution name and ownership on PyPI.
+- [x] Set the distribution name to `qualitative-qsim`.
+- [ ] Claim or create `qualitative-qsim` on PyPI.
+- [ ] Configure PyPI Trusted Publishing for repository
+      `alanoursland/qualitative_reasoning_lib`, workflow
+      `publish-pypi.yml`, and GitHub environment `pypi`.
+- [ ] Create the `pypi` GitHub environment and add an environment protection
+      rule requiring approval before publication.
 - [ ] Add author/maintainer metadata approved by the owner.
 - [ ] Confirm the repository, issue tracker, and publication URLs.
 
@@ -35,9 +41,11 @@ the licensing and distribution decisions in `docs/open-questions.md`.
 - [ ] Create an annotated `v<version>` tag from the qualified commit.
 - [ ] Build artifacts from that tag and inspect wheel/sdist contents and
       metadata.
-- [ ] Publish to TestPyPI and smoke-test installation before publishing to
-      PyPI.
-- [ ] Publish the GitHub release with the changelog and qualification record.
+- [ ] Optionally publish the candidate to TestPyPI and smoke-test it.
+- [ ] Publish the GitHub release with the changelog and qualification record;
+      `.github/workflows/publish-pypi.yml` will rebuild and check the
+      distributions, then request approval from the `pypi` environment before
+      publishing them through Trusted Publishing.
 
 ## After publication
 
