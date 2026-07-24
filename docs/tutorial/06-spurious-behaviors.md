@@ -74,10 +74,12 @@ it. Growing and shrinking swings are pruned as inconsistent with conservation.
 - `EnergyFilter(trend="nonincreasing")` — **dissipative**: amplitude may
   *shrink* but never grow, as for a spring *with* friction.
 
-A crucial point about soundness: a filter can only ever **remove** behaviors,
-never invent them. So adding an energy argument can never break the coverage
-guarantee — at worst a *wrong* energy claim would prune a real behavior, which
-is your responsibility as the modeller, just like a wrong constraint.
+A filter can only **remove** behaviors, never invent them. That preserves the
+coverage guarantee only when the filter's physical premise is true of every
+system represented by the model. `EnergyFilter()` is sound for a genuinely
+conservative spring; applying it to a driven spring could remove a real
+growing-amplitude behavior and therefore invalidate coverage. Treat a filter
+like any other model constraint: it is trusted knowledge, not a heuristic.
 
 ## A second source of clutter: chatter
 
@@ -91,8 +93,11 @@ their direction away:
 result = qr.qsim(m, initial, config=qr.SimConfig(dynamic_chatter=True))
 ```
 
-You'll see `dynamic_chatter=True` again in Lesson 9, where it lets a
-two-tank model simulate that would otherwise drown in irrelevant wiggles.
+Unlike the energy filter, dynamic chatter does not assert new physics. It
+detects direction distinctions that the active constraint structure cannot
+observe, merges successors that differ only in those directions, and records
+the merged direction as `Qdir.IGN`. Variables named in temporal direction
+properties or phase-plane filters remain tracked.
 
 ## The takeaway
 
@@ -108,9 +113,8 @@ library.
    `max_states`; and discovery on with `EnergyFilter()`. Record the status and
    behavior count of each. Which is the true answer, and why do the other two
    differ?
-2. `EnergyFilter` can only remove behaviors. Explain why that means it can
-   never cause the library to *miss* a real behavior — only, if misapplied,
-   to wrongly discard one.
+2. Explain why `EnergyFilter` preserves coverage for a conservative spring
+   but may break it when applied to a driven spring.
 3. A ball bouncing on the floor loses a little height each bounce. Which
    `EnergyFilter` trend — `conserved` or `nonincreasing` — matches it?
 

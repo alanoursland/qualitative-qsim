@@ -89,15 +89,23 @@ a faster drain, a slower tap — and it will still be covered. That's the
 guarantee, made checkable. (The library's own test suite runs this over
 hundreds of randomized instances; see `tests/test_soundness.py`.)
 
-If a trajectory is **not** covered, that's real information: either your
-numeric model violates the qualitative constraints, or there's a bug. The
-oracle tells you *where* it diverged and *why*:
+If a trajectory is **not** covered, the oracle tells you where the abstracted
+observation diverged:
 
 ```python
 if not result.covered:
     print(result.divergence_index)   # first observed state that couldn't be matched
     print(result.diagnosis)          # a localized explanation
 ```
+
+Interpreting that refutation requires checking the abstraction boundary.
+Failure can mean the numeric dynamics violate the qualitative model, but it
+can also mean the samples were too sparse, the variable order or mode channel
+was wrong, measurement noise crossed a tolerance, or an important landmark
+crossing was only poorly bracketed. The result carries its
+`AbstractionConfig`, spans, and time bounds so those assumptions are
+inspectable. Event-aware solvers can supply exact `CrossingEvent` records;
+Lesson 11 develops that production path.
 
 ## The catch, precisely
 
@@ -106,8 +114,9 @@ trajectory *is* among the predicted behaviors. It does **not** confirm that
 every predicted behavior is *real* — some may be spurious (Lesson 6). This is
 the asymmetry from Lesson 1, now with a name:
 
-- **You can refute.** If a trajectory isn't covered, the model genuinely
-  cannot produce it — a sound, hard conclusion.
+- **You can refute, conditional on the abstraction.** If a correctly
+  abstracted trajectory is not covered, the qualitative model cannot produce
+  it.
 - **You cannot certify existence.** A behavior appearing in the graph is
   *possible*, not *proven* — it might be spurious.
 

@@ -83,8 +83,11 @@ variable *does along one behavior*. The library renders one directly:
 ```python
 from qrlib.viz import timeline_svg
 svg = timeline_svg(result.graph, behavior)
-open("spring.svg", "w").write(svg)
+assert svg.startswith("<svg")
 ```
+
+Notebook and host applications can display or persist the returned string.
+Here is the committed rendering:
 
 ![One period of the spring, as a timeline](figures/spring-timeline.svg)
 

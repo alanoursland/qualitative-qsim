@@ -57,6 +57,7 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
 ```
 
 - **`docs/`** — design notes: [vision](docs/vision.md),
+  the hands-on [tutorial](docs/tutorial/README.md),
   [QR landscape survey](docs/landscape.md),
   [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
   [compact constraint syntax](docs/constraint-syntax.md),

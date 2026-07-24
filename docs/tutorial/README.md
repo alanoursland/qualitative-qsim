@@ -14,6 +14,8 @@ intelligence. Each lesson is short, runnable, and ends with exercises.
 
 ## What you'll be able to do by the end
 
+The first nine lessons are the **core track**. By the end of it you can:
+
 - Describe a system — a draining tank, a swinging spring — as a **model** of
   qualitative constraints.
 - **Simulate** it and read the tree of possible behaviors.
@@ -23,7 +25,15 @@ intelligence. Each lesson is short, runnable, and ends with exercises.
 - Reach for the analysis tools: guided simulation, fault diagnosis, causal
   ordering, and comparative "what-if" analysis.
 
-## The lessons
+The advanced track then shows how to use the rest of the public library:
+portable models and results, hybrid numeric trajectories, structure learning,
+total envisionment, alternative authoring front ends, decomposition, tensor
+execution, and differentiable losses.
+
+See the [feature map](feature-map.md) for an explicit accounting of every
+public package area.
+
+## Core track
 
 | # | Lesson | You'll learn |
 |---|--------|--------------|
@@ -37,10 +47,23 @@ intelligence. Each lesson is short, runnable, and ends with exercises.
 | 8 | [Adding numbers back](08-semi-quantitative.md) | Semi-quantitative refinement and time bounds |
 | 9 | [Regions and a tour of the reasoning layer](09-regions-and-reasoning.md) | Piecewise systems; guided sim, diagnosis, causes, what-ifs |
 
+## Advanced and applied track
+
+| # | Lesson | You'll learn |
+|---|--------|--------------|
+| 10 | [Portable models and reproducible results](10-portable-models.md) | Compact syntax, schemas, model identity, and result provenance |
+| 11 | [Trustworthy hybrid trajectory abstraction](11-hybrid-abstraction.md) | Crossing events, mode channels, batching, and honest coverage failures |
+| 12 | [Learning and checking structure from data](12-learning-and-diagnosis.md) | Landmark harvest, sign estimation, induction, consistency, and diagnosis |
+| 13 | [Reasoning beyond one simulation](13-advanced-analysis.md) | Total envisionment, temporal logic, monotonicity, and stronger pruning |
+| 14 | [Composition, tensors, and scale](14-composition-and-scale.md) | QPT/devices, DecSIM, backend selection, interval batches, and losses |
+| 15 | [End-to-end host integration](15-host-integration-capstone.md) | A complete model → simulate → abstract → check → serialize workflow |
+
 ## Running the examples
 
-Every code block runs against a normal `qrlib` install. From the repository
-root:
+Examples use only a normal `qrlib` install unless an optional dependency is
+called out. Blocks build cumulatively within a lesson; output and deliberately
+incomplete sketches are marked as text rather than executable Python. From
+the repository root:
 
 ```bash
 pip install -e .        # install qrlib in editable mode

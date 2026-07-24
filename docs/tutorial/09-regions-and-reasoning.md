@@ -74,9 +74,33 @@ from "rising" to "held at the top."
 ## Part B — A tour of the reasoning layer
 
 Everything so far produces or refines a behavior graph. The library also
-*reasons about* those graphs. Here are the main tools, each a few lines, with
-pointers to go deeper. Use the plain (non-region) bathtub `m`/`initial` from
-Lessons 3–4 for these.
+*reasons about* those graphs. Here are the main tools, each a few lines.
+Rebuild the plain bathtub from Lessons 3–4 under unambiguous names:
+
+```python
+plain = qr.Model("bathtub")
+plain.variable("amount", landmarks=("0", "FULL"))
+plain.variable("level", landmarks=("0", "TOP"))
+plain.variable("outflow", landmarks=("0", "OMAX"))
+plain.variable("inflow", landmarks=("0", "IF"))
+plain.variable("netflow", landmarks=("0",), unbounded=True)
+plain.constrain(qr.MPlus("amount", "level",
+                        cvals=(("0", "0"), ("FULL", "TOP"))))
+plain.constrain(qr.MPlus("level", "outflow",
+                        cvals=(("0", "0"), ("TOP", "OMAX"))))
+plain.constrain(qr.Add("netflow", "outflow", "inflow"))
+plain.constrain(qr.Deriv("amount", "netflow"))
+plain.constrain(qr.Constant("inflow"))
+plain_initial = plain.state(
+    time=TimeTag.POINT,
+    amount=("0", Qdir.INC),
+    level=("0", Qdir.INC),
+    outflow=("0", Qdir.INC),
+    inflow=("IF", Qdir.STD),
+    netflow=(("0", "+inf"), Qdir.DEC),
+)
+plain_result = qr.qsim(plain, plain_initial)
+```
 
 ### What causes what — `analysis.causal`
 
@@ -84,7 +108,7 @@ Derives the causal structure from the constraints alone (no simulation):
 
 ```python
 from qrlib.analysis import causal
-order = causal.causal_order(m)
+order = causal.causal_order(plain)
 print(order.exogenous)        # ('inflow',)   — the driving input
 print(order.state_variables)  # ('amount',)   — the system's memory
 print(causal.narrate_causes(order))
@@ -97,7 +121,7 @@ every quantity at equilibrium.
 
 ```python
 from qrlib.analysis import compare
-change = compare.compare(m, {"inflow": +1})   # turn the tap up
+change = compare.compare(plain, {"inflow": +1})   # turn the tap up
 print({k: v.symbol for k, v in change.changes.items()})
 # {'amount': '↑', 'level': '↑', 'outflow': '↑', 'inflow': '↑', 'netflow': '·'}
 ```
@@ -106,56 +130,82 @@ Read it: raise the inflow and the equilibrium amount, level, and outflow all
 rise, while the net flow stays zero (it's an equilibrium). Derived purely by
 sign propagation — no numbers.
 
-### Focusing on behaviors of interest — `qrlib.guide`
+### Checking and focusing behaviors — `qrlib.guide`
 
-*Guided simulation*: state a temporal-logic property and keep only behaviors
-consistent with it — and get a sound verdict.
+First classify the complete, unguided graph. This is temporal-logic model
+checking:
 
 ```python
 from qrlib import guide
 from qrlib.guide import G, mag
 
 # "the amount stays below FULL forever" (a safety property)
-g = guide.guided(m, initial, G(mag("amount", "<", "FULL")))
-print(len(g.satisfied), g.universal)   # 1  True
+spec = G(mag("amount", "<", "FULL"))
+checked = guide.classify(plain_result, spec)
+print(len(checked.satisfied), len(checked.violated), checked.universal)
+# 1 2 False
 ```
 
-`universal=True` is a *sound proof* (recall Lesson 7): among all behaviors
-that keep the amount below full, the property holds — and this is the class of
-behaviors where the drain keeps up.
+One predicted behavior satisfies the property and two violate it, so it is not
+universal over the original model. Guided simulation instead treats the
+formula as an additional trajectory constraint and avoids expanding bad
+prefixes:
+
+```python
+focused = guide.guided(plain, plain_initial, spec)
+print(len(focused.satisfied), focused.result.stats["spec_filtered"])
+# 1 2
+```
+
+The focused graph still covers every real behavior that satisfies `spec`.
+Finding a satisfying qualitative path does not prove that path exists.
 
 ### Which part is broken — `qrlib.diagnosis`
 
 *Model-based diagnosis*: give components fault modes and observations, and get
-the minimal explanations. In outline:
+minimal explanations. Here a sensor expected to stay at `HIGH` is observed
+stuck at zero:
 
 ```python
 from qrlib import diagnosis
-drain = diagnosis.Component("drain", modes={
-    "ok":    (qr.MPlus("level", "outflow", cvals=(("0", "0"), ("TOP", "OMAX"))),),
-    "stuck": (qr.At("outflow", "0"), qr.Constant("outflow")),   # drain jammed shut
+from qrlib import Landmark
+from qrlib.bridge.abstraction import abstract_trajectory
+
+sensor_model = qr.Model("sensor")
+sensor_model.variable(
+    "reading",
+    landmarks=(Landmark("0", 0.0), Landmark("HIGH", 1.0)),
+)
+sensor = diagnosis.Component("sensor", modes={
+    "ok": (qr.Constant("reading"), qr.At("reading", "HIGH")),
+    "stuck_low": (qr.Constant("reading"), qr.At("reading", "0")),
 })
-# diagnosis.diagnose(base_model, [drain], observations)  -> the consistent fault sets
+observed = abstract_trajectory([[0.0]] * 20, sensor_model)
+observed_initial = sensor_model.state(reading=("0", Qdir.STD))
+diagnosed = diagnosis.diagnose(
+    sensor_model, [sensor], observed, initial=observed_initial
+)
+print(diagnosed.fault_detected)                       # True
+print(dict(diagnosed.diagnoses[0].modes))             # {'sensor': 'stuck_low'}
 ```
 
-Given a trajectory where the tub overflows even though the tap is modest,
-diagnosis reports that the `drain` being `stuck` is the minimal explanation —
-it uses the *coverage oracle* from Lesson 7 as its consistency check.
+The normal mode is refuted because its `At(reading, HIGH)` operating point
+cannot cover the observation. Diagnosis searches fault sets in increasing
+cardinality and uses the coverage oracle as its consistency check.
 
 ## Where to go next
 
-You now have the whole mental model. The remaining modules extend it; each has
-a thorough module docstring:
+You now have the core mental model. The advanced tutorial track develops the
+remaining public surfaces with runnable examples:
 
 | Want to… | Reach for |
 |---|---|
-| Author models as **processes** or by **wiring components** | `qrlib.frontends.qpt`, `qrlib.frontends.devices` |
-| **Learn a model** from trajectory data | `qrlib.induce` |
-| Scale to **larger systems** by decomposition | `qrlib.decompose` |
-| Enumerate **every** state, not just reachable ones | `qrlib.envision` |
-| Use a model as a **training signal** (gradients) | `qrlib.tensor.losses` |
-| Prune spurious oscillations by **phase geometry** | `SimConfig(phase_pairs=...)` |
-| Order-of-magnitude reasoning (`x ≪ y`) | `qrlib.Negligible` |
+| Make models/results portable and replayable | [Lesson 10](10-portable-models.md) |
+| Integrate hybrid numeric trajectories | [Lesson 11](11-hybrid-abstraction.md) |
+| Learn structure and diagnose faults | [Lesson 12](12-learning-and-diagnosis.md) |
+| Envision and analyze whole behavior spaces | [Lesson 13](13-advanced-analysis.md) |
+| Author components and scale execution | [Lesson 14](14-composition-and-scale.md) |
+| Put the complete host-facing workflow together | [Lesson 15](15-host-integration-capstone.md) |
 
 For the design behind it all, see the top-level `docs/`: `architecture.md`
 (how the pieces fit), `qsim.md` (the engine), `host-integration.md` (using the
@@ -171,15 +221,15 @@ come from).
 2. Use `compare.compare` to predict what happens to the equilibrium level if
    you made the drain more efficient (imagine an `outflow` that rises *faster*
    with level). Sketch how you'd encode that perturbation.
-3. Pick one module from the "where to go next" table, open its docstring, and
-   run its first example. Write two sentences on what new question it lets you
-   answer that the plain simulator could not.
+3. Run both the `classify` and `guided` examples. Explain why the former says
+   the property is not universal while the latter produces only one
+   satisfying behavior.
 
 ---
 
-**That's the tutorial.** You can now describe a system qualitatively, simulate
-every behavior it admits, tame spurious clutter soundly, add numbers for
-tighter bounds, and reason about causes, faults, and what-ifs — all on the
-firm footing of guaranteed coverage. Welcome to qualitative reasoning.
+**That's the core track.** You can now describe a system qualitatively,
+simulate every behavior it admits, tame spurious clutter soundly, add numbers
+for tighter bounds, and reason about causes, faults, and what-ifs. Continue
+with [Lesson 10](10-portable-models.md) for the complete public-library tour.
 
 ← [Back to the index](README.md)

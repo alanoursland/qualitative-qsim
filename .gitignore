@@ -13,3 +13,5 @@ venv/
 htmlcov/
 .ipynb_checkpoints/
 gaps/**
+.agents
+.codex
