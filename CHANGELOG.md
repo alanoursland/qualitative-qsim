@@ -11,7 +11,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
   added explicit `SimConfig.classic()` textbook semantics, profile
   provenance, distinct-frame telemetry, and actionable truncation diagnoses.
 - Renamed the per-branch landmark cap to
-  `max_landmarks_per_variable`.
+  `max_landmarks_per_variable`; the former `max_landmarks` constructor
+  keyword remains available with a deprecation warning for the 0.1 series.
+- Added an explicit maturity/qualification record, a cross-surface
+  frontend-to-DecSIM test, portable README links for PyPI, and clean-wheel
+  smoke tests in CI and the publishing workflow.
+- Made an explicitly supplied `EnergyFilter` enable the landmark detail it
+  needs, record that effective configuration, and reject infinite amplitude
+  directly instead of becoming a silent no-op under practical defaults.
 - Made installed public docstrings self-contained by removing references to
   repository-only Markdown files.
 - Made relative trajectory-direction thresholds share a trajectory time scale

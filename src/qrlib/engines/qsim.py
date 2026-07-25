@@ -46,7 +46,7 @@ from dataclasses import replace
 from math import prod
 
 from ..behavior import BehaviorGraph, Node, SimConfig, SimResult, SimStatus, TerminalClass
-from ..energy import LyapunovCertificate
+from ..energy import EnergyFilter, LyapunovCertificate
 from ..model import CompiledModel, CompiledTransition, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
@@ -78,6 +78,20 @@ def qsim(
     }
     if overrides:
         cfg = replace(cfg, **overrides)
+
+    # EnergyFilter's finite-amplitude argument compares named turning points.
+    # Supplying it is an explicit request for that stronger representation,
+    # so make the effective configuration honest and enable discovery rather
+    # than silently running an inert filter under the practical profile.
+    energy_discovery_enabled = (
+        not cfg.discover_landmarks
+        and any(
+            isinstance(keep, EnergyFilter)
+            for keep in cfg.successor_filters
+        )
+    )
+    if energy_discovery_enabled:
+        cfg = replace(cfg, discover_landmarks=True)
 
     unknown = set(cfg.ignore_qdir) - set(root_frame.var_order)
     if unknown:
@@ -155,6 +169,10 @@ def qsim(
         "limit_hits": {"max_states": 0, "max_depth": 0},
         "backend": _new_backend_stats(cfg),
     }
+    if energy_discovery_enabled:
+        stats["config_adjustments"] = [
+            "enabled landmark discovery for EnergyFilter"
+        ]
     if cfg.dynamic_chatter:
         stats["chatter_candidates"] = {
             r: sorted(root_frame.var_order[i] for i in s)

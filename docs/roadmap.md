@@ -32,8 +32,10 @@ moved up; analysis/queries attach to the phases that make them possible.
   FULL, overflow domain-exit), U-tube (single equilibrium behavior), and
   frictionless spring (single sustained oscillation, 8-transition cycle)
   match the literature.
-- Model hashing and result provenance landed with the result-v2 schema:
-  canonical model identity plus replayable built-in filter descriptors.
+- Model hashing and result provenance first landed with result v2; the current
+  `qrlib.result/v3` schema adds effective-profile and truncation diagnostics
+  while retaining canonical model identity and replayable built-in filter
+  descriptors.
 
 ## Phase 2 — Full-fidelity QSIM *(done)*
 

@@ -11,10 +11,11 @@ per host — so this ships it first-class.
 :class:`EnergyFilter` is a ready-made ``SuccessorFilter``: construct it,
 drop it in ``SimConfig(successor_filters=(EnergyFilter(...),))``, and it
 prunes successors whose amplitude would violate the declared energy trend.
-It works *through landmark discovery*: as a variable's turning points are
-minted into named landmarks, those landmarks become the amplitude bounds
-the argument enforces. The classic result — the frictionless spring, whose
-authentic QSIM run branches into spurious growing/shrinking oscillations —
+It rejects infinite amplitude directly. Finite-amplitude comparisons require
+named turning points, so QSIM enables landmark discovery when a caller
+explicitly supplies this filter and records that effective configuration in
+the result. The classic result — the frictionless spring, whose authentic
+QSIM run branches into spurious growing/shrinking oscillations — then
 collapses to its single true cycle.
 
 Two trends:
@@ -110,6 +111,15 @@ class EnergyFilter:
             except ValueError:
                 continue  # no reference landmark here: nothing to bound
             qv = cand[name]
+            # A finite initial energy that is conserved or non-increasing
+            # cannot carry an amplitude-contributing variable to either
+            # infinite endpoint. This remains decidable when discovery is
+            # disabled and no finite extremum has been named yet.
+            if (
+                qv.mag % 2 == 0
+                and space.describe(qv.mag) in ("-inf", "+inf")
+            ):
+                return False
             # discovered extrema on each side of the reference (named
             # landmarks other than the reference itself)
             pos = [space.rank_of(n) for n in space.names if space.rank_of(n) > ref]

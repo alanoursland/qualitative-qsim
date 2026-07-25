@@ -45,6 +45,15 @@ jobs:
       - name: Check distribution metadata
         run: python -m twine check --strict dist/*
 
+      - name: Smoke-test the wheel outside the source tree
+        run: |
+          python -m venv "${RUNNER_TEMP}/qrlib-wheel-smoke"
+          "${RUNNER_TEMP}/qrlib-wheel-smoke/bin/python" -m pip install --no-deps dist/*.whl
+          cd "${RUNNER_TEMP}"
+          QRLIB_SOURCE_ROOT="${GITHUB_WORKSPACE}" \
+            "${RUNNER_TEMP}/qrlib-wheel-smoke/bin/python" \
+            "${GITHUB_WORKSPACE}/tests/wheel_smoke.py"
+
       - name: Upload distributions for publication
         uses: actions/upload-artifact@v5
         with:

@@ -52,6 +52,23 @@ def test_without_the_filter_the_spring_is_intractable():
     assert tamed.status is qr.SimStatus.COMPLETE
 
 
+def test_opted_in_energy_filter_enables_the_detail_it_needs():
+    model, initial = spring()
+    result = qr.qsim(
+        model,
+        initial,
+        config=qr.SimConfig(successor_filters=(EnergyFilter(),)),
+    )
+
+    assert result.config.discover_landmarks
+    assert result.config.profile == "custom"
+    assert result.stats["config_adjustments"] == [
+        "enabled landmark discovery for EnergyFilter"
+    ]
+    assert result.stats["user_filtered"] > 0
+    assert result.status is qr.SimStatus.COMPLETE
+
+
 # --- conserved vs dissipative semantics, at the candidate level ------------
 
 
@@ -104,6 +121,27 @@ def test_nonincreasing_allows_shrinking_but_not_growth():
     # ...but a larger turning point, or outward motion at the peak, is not
     assert diss(parent, cand(beyond, Qdir.STD), frame) is False
     assert diss(parent, cand(space.rank_of("P"), Qdir.INC), frame) is False
+
+
+@pytest.mark.parametrize("trend", tuple(Trend))
+def test_energy_premise_rejects_infinite_amplitude_without_discovery(trend):
+    space = QuantitySpace(
+        (Landmark("0"),), lower_unbounded=True, upper_unbounded=True
+    )
+    frame = _Frame(space)
+    parent = QState.from_dict(
+        {"q": QVal(space.rank_of("0"), Qdir.INC)}, TimeTag.POINT
+    )
+    energy = EnergyFilter(("q",), trend=trend)
+    for endpoint, direction in (
+        ("-inf", Qdir.DEC),
+        ("+inf", Qdir.INC),
+    ):
+        candidate = QState.from_dict(
+            {"q": QVal(space.rank_of(endpoint), direction)},
+            TimeTag.POINT,
+        )
+        assert not energy(parent, candidate, frame)
 
 
 def test_negative_side_is_symmetric():

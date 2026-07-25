@@ -195,6 +195,41 @@ def test_max_landmarks_per_variable_caps_discovery():
         qr.SimConfig(max_landmarks_per_variable=-1)
 
 
+def test_legacy_max_landmarks_keyword_maps_to_per_variable_cap():
+    with pytest.warns(DeprecationWarning, match="max_landmarks_per_variable"):
+        legacy = qr.SimConfig(max_landmarks=2)
+    assert legacy.max_landmarks_per_variable == 2
+
+    with pytest.warns(DeprecationWarning):
+        with pytest.raises(ValueError, match="conflicts"):
+            qr.SimConfig(
+                max_landmarks=2,
+                max_landmarks_per_variable=3,
+            )
+
+    m, initial = damped_spring()
+    with pytest.warns(DeprecationWarning):
+        old = qr.qsim(
+            m,
+            initial,
+            config=qr.SimConfig.classic(
+                max_states=100,
+                max_landmarks=2,
+            ),
+        )
+    new = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            max_states=100,
+            max_landmarks_per_variable=2,
+        ),
+    )
+    assert old.graph.export() == new.graph.export()
+    assert old.stats == new.stats
+    assert "max_landmarks" not in old.to_dict()["config"]
+
+
 # --- chatter mitigation ----------------------------------------------------
 
 

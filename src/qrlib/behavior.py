@@ -14,9 +14,10 @@ landmark is minted.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import InitVar, dataclass, field, fields
 from enum import Enum
 from typing import Callable
+import warnings
 
 from .graph import representative_cycles
 from .model import CompiledModel
@@ -35,6 +36,7 @@ __all__ = [
 ]
 
 RESULT_SCHEMA = "qrlib.result/v3"
+_LEGACY_UNSET = object()
 
 
 class TerminalClass(Enum):
@@ -95,7 +97,8 @@ class SimConfig:
     - ``max_landmarks_per_variable``: per-variable, per-branch cap on
       discovered landmarks; beyond it, steadiness stays unnamed. This is not
       a global graph-size bound: separate branches can each mint up to the
-      cap.
+      cap. The former constructor keyword ``max_landmarks`` is accepted with
+      a deprecation warning for the 0.1 release series.
     - ``ignore_qdir``: variable names whose direction is not tracked
       (chatter abstraction): candidates are generated over all concrete
       directions, filtered normally, then projected to ``Qdir.IGN`` and
@@ -153,6 +156,7 @@ class SimConfig:
     infinity_filter: bool = True
     discover_landmarks: bool = False
     max_landmarks_per_variable: int = 6
+    max_landmarks: InitVar[int | object] = _LEGACY_UNSET
     ignore_qdir: tuple[str, ...] = ()
     dynamic_chatter: bool = True
     track_qdir: tuple[str, ...] = ()
@@ -163,7 +167,25 @@ class SimConfig:
     guide: object | None = None
     phase_pairs: tuple[tuple[str, str], ...] = ()
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, max_landmarks: int | object) -> None:
+        if max_landmarks is not _LEGACY_UNSET:
+            warnings.warn(
+                "max_landmarks is deprecated; use "
+                "max_landmarks_per_variable instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if (
+                self.max_landmarks_per_variable != 6
+                and self.max_landmarks_per_variable != max_landmarks
+            ):
+                raise ValueError(
+                    "max_landmarks conflicts with "
+                    "max_landmarks_per_variable"
+                )
+            object.__setattr__(
+                self, "max_landmarks_per_variable", max_landmarks
+            )
         if self.max_states < 1:
             raise ValueError("max_states must be at least 1")
         if self.max_depth < 1:

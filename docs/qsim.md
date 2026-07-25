@@ -106,16 +106,24 @@ abstraction on. `SimConfig.classic()` selects textbook behavior: discovery
 on, automatic chatter abstraction off. Both remain sound; practical retains
 less landmark and direction detail.
 
+An explicitly supplied `EnergyFilter` needs named turning points to enforce
+finite-amplitude comparisons. QSIM therefore enables discovery for that run,
+records the effective custom profile in `result.config`, and adds the
+adjustment to `result.stats["config_adjustments"]`. This does not introduce an
+energy assumption: the caller has already opted into one by supplying the
+filter.
+
 ## 6. Limits and termination
 
 QSIM need not terminate (new landmarks can be introduced forever). The engine
 takes explicit resource limits: max states, max depth, and
 `max_landmarks_per_variable` on each behavior branch. The landmark limit is
 not a global graph-size bound because separate branches carry separate
-frames. `max_states` is a strict graph-node bound including the root. Hitting
-a limit marks affected leaves as `TRUNCATED` and records the limits hit,
-distinct-frame count, likely cause, and safe next actions in
-`result.stats["truncation"]`.
+frames. The old constructor keyword `max_landmarks` remains a deprecated
+alias during the 0.1 release series. `max_states` is a strict graph-node bound
+including the root. Hitting a limit marks affected leaves as `TRUNCATED` and
+records the limits hit, distinct-frame count, likely cause, and safe next
+actions in `result.stats["truncation"]`.
 
 ## 7. Acceptance tests (from the literature)
 

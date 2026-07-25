@@ -67,8 +67,14 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip build
       - run: python -m build
-      - run: python -m pip install dist/*.whl
-      - run: python -c "import qrlib; print(qrlib.__name__)"
+      - name: Smoke-test the wheel outside the source tree
+        run: |
+          python -m venv "${RUNNER_TEMP}/qrlib-wheel-smoke"
+          "${RUNNER_TEMP}/qrlib-wheel-smoke/bin/python" -m pip install --no-deps dist/*.whl
+          cd "${RUNNER_TEMP}"
+          QRLIB_SOURCE_ROOT="${GITHUB_WORKSPACE}" \
+            "${RUNNER_TEMP}/qrlib-wheel-smoke/bin/python" \
+            "${GITHUB_WORKSPACE}/tests/wheel_smoke.py"
       - uses: actions/upload-artifact@v4
         with:
           name: distributions

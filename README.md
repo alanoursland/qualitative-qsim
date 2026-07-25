@@ -11,16 +11,25 @@ qualitative simulation), with the architecture deliberately laid out so other
 QR formalisms (envisionment, process-based modeling, semi-quantitative
 refinement) and tensorized/GPU-accelerated execution can slot in alongside it.
 
-> **Status: functional, pre-release.** Phases 0-7 of the
-> [roadmap](docs/roadmap.md) are implemented and covered by the test suite:
-> full QSIM (landmark discovery, chatter abstraction, analytic filters,
-> envisionment, operating regions), the numeric bridge (trajectory
-> abstraction, the coverage oracle, sign-structure intake/estimation),
-> Q2-style semi-quantitative bounds, a torch-backed tensor layer proven
-> equivalent to the reference engine, model induction and diagnosis,
-> temporal-logic-guided simulation, decomposition, comparative and causal
-> analysis, process/device front ends, explanation, and visualization.
-> No license has been chosen yet; APIs are stable-ish but unversioned.
+> **Status: functional, pre-release.** The practical QSIM path, core model
+> representation, behavior graphs, serialization, and numeric coverage bridge
+> are the supported pre-release core. The broader research surface is
+> deliberately exposed at lower maturity levels rather than implied to have
+> uniform validation. No license has been chosen yet; APIs are stable-ish but
+> unversioned.
+
+| Maturity | Surface | What the label means |
+|---|---|---|
+| **Core alpha** | Model/QSIM practical profile, behavior graphs, schemas, trajectory abstraction and coverage | Supported pre-release path; golden, adversarial, integration, and concrete-trajectory soundness checks |
+| **Experimental** | Classic landmark discovery, chatter controls, energy/Lyapunov and phase filters, Q2 refinement, tensor execution and differentiable losses | Semantics and limitations are tested, but configuration and performance contracts may change |
+| **Research preview** | Diagnosis, decomposition, induction, envisionment/guidance, process/device front ends, monotonicity and comparative/causal analysis | Usable and evidence-backed, but narrower scenario coverage; independently audit before consequential use |
+
+The
+[maturity and qualification record](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/maturity.md)
+lists the evidence and known limits behind each label. The
+[roadmap](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/roadmap.md)
+records implementation scope, not a claim that every module has equal
+validation depth.
 
 ## Why qualitative reasoning?
 
@@ -56,23 +65,30 @@ Corresponding values     Semi-quantitative (Q2)      Explanation + viz
 Operating regions        Landmark discovery          Landmark harvest/proposal
 ```
 
-- **`docs/`** — design notes: [vision](docs/vision.md),
-  the hands-on [tutorial](docs/tutorial/README.md),
-  [QR landscape survey](docs/landscape.md),
-  [research references and implementation lineage](docs/references.md),
-  [architecture](docs/architecture.md), [QSIM deep-dive](docs/qsim.md),
-  [compact constraint syntax](docs/constraint-syntax.md),
-  [signed-graph consistency](docs/monotonicity.md),
-  [tensorization & GPU strategy](docs/gpu-tensorization.md),
-  [production-shaped scale profiles](docs/scale-profiles.md),
-  [bridge to numeric dynamical systems](docs/numeric-bridge.md),
-  [embedding in a host toolkit](docs/host-integration.md),
-  [piecewise-affine qualitative analysis](docs/piecewise-affine.md),
-  [QR literature survey](docs/literature-survey.md),
-  [roadmap](docs/roadmap.md), [open questions](docs/open-questions.md).
+- **`docs/`** — design notes:
+  [vision](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/vision.md),
+  the hands-on
+  [tutorial](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/tutorial/README.md),
+  [QR landscape survey](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/landscape.md),
+  [research references and implementation lineage](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md),
+  [architecture](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/architecture.md),
+  [QSIM deep-dive](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/qsim.md),
+  [compact constraint syntax](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/constraint-syntax.md),
+  [signed-graph consistency](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/monotonicity.md),
+  [tensorization & GPU strategy](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/gpu-tensorization.md),
+  [production-shaped scale profiles](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/scale-profiles.md),
+  [numeric bridge](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/numeric-bridge.md),
+  [host integration](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/host-integration.md),
+  [piecewise-affine analysis](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/piecewise-affine.md),
+  [literature survey](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/literature-survey.md),
+  [roadmap](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/roadmap.md),
+  and
+  [open questions](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/open-questions.md).
 - **`src/qrlib/`** — the library: core representations, the reference and
   tensorized engines, the numeric bridge, semi-quantitative refinement,
-  analysis, and visualization (`docs/architecture.md` maps the layout).
+  analysis, and visualization (the
+  [architecture guide](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/architecture.md)
+  maps the layout).
 - **`tests/`** — golden models, equivalence properties, and the soundness
   harness (concrete ODE instances integrated, abstracted, and verified
   against predicted behavior graphs). **`benchmarks/`** — measured
@@ -167,28 +183,35 @@ orthant ordering, returning a contradictory signed cycle when they do not.
 3. **Numeric systems are first-class neighbors.** Interfaces are shaped so a
    numeric dynamical system (a vector field / trajectory source) can be
    abstracted into, or checked against, a qualitative model — see
-   [`docs/numeric-bridge.md`](docs/numeric-bridge.md).
+   [the numeric bridge](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/numeric-bridge.md).
 4. **Embeddable by design.** Larger dynamical-systems toolkits should be able
    to build thin adapter modules on top of qrlib — names as canonical
    identity, no CAS/graph-library dependencies in core, tensors as the only
    numeric interchange, serializable witness-carrying results — see
-   [`docs/host-integration.md`](docs/host-integration.md).
+   [host integration](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/host-integration.md).
 5. **Soundness is sacred, spuriousness is managed.** Like QSIM itself: never
    drop a real behavior; add filters to prune impossible ones.
 
 ## Research lineage and citation
 
 The core semantics follow
-[Kuipers1986](docs/references.md#kuipers1986) and the authoritative
-[Kuipers1994](docs/references.md#kuipers1994) presentation. Process-centered
-authoring draws from [Forbus1984](docs/references.md#forbus1984),
+[Kuipers1986](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md#kuipers1986)
+and the authoritative
+[Kuipers1994](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md#kuipers1994)
+presentation. Process-centered authoring draws from
+[Forbus1984](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md#forbus1984),
 device composition and envisionment from
-[deKleerBrown1984](docs/references.md#dekleerbrown1984), and
+[deKleerBrown1984](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md#dekleerbrown1984),
+and
 semi-quantitative refinement from
-[KuipersBerleant1988](docs/references.md#kuipersberleant1988).
+[KuipersBerleant1988](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md#kuipersberleant1988).
 
-The [canonical annotated bibliography](docs/references.md) maps every
-research-derived feature to its source. Machine-readable records are in
-[`paper.bib`](paper.bib), software citation metadata is in
-[`CITATION.cff`](CITATION.cff), and the draft JOSS article is
-[`paper.md`](paper.md).
+The
+[canonical annotated bibliography](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/docs/references.md)
+maps every research-derived feature to its source. Machine-readable records
+are in
+[`paper.bib`](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/paper.bib),
+software citation metadata is in
+[`CITATION.cff`](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/CITATION.cff),
+and the draft JOSS article is
+[`paper.md`](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/paper.md).
