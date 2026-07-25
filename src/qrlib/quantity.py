@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
+from math import isfinite
 
 __all__ = ["Landmark", "Qdir", "QuantitySpace", "QVal"]
 
@@ -107,6 +108,17 @@ class QuantitySpace:
             for lm in self.landmarks
         )
         object.__setattr__(self, "landmarks", norm)
+        for lm in norm:
+            for field, number in (
+                ("value", lm.value),
+                ("lo", lm.lo),
+                ("hi", lm.hi),
+            ):
+                if number is not None and not isfinite(number):
+                    raise ValueError(
+                        f"landmark {lm.name!r}: {field} must be finite, "
+                        f"got {number}"
+                    )
         names = [lm.name for lm in norm]
         if not names:
             raise ValueError("a QuantitySpace needs at least one named landmark")

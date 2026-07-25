@@ -19,6 +19,7 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Callable
 
+from .graph import representative_cycles
 from .model import CompiledModel
 from .quantity import QuantitySpace
 from .state import QState, TimeTag
@@ -115,6 +116,8 @@ class SimConfig:
       that check is path-dependent, it is incompatible with ``envisionment``.
     - ``envisionment``: merge identical (frame, state) pairs globally,
       producing the attainable envisionment graph instead of a tree.
+      Behavior access on that merged graph returns terminal-path and
+      recurrent-component representatives, bounded by graph size.
     - ``backend``: successor-filtering backend: ``"auto"`` selects from
       workload shape, ``"reference"`` forces readable Python predicates,
       and ``"tensor"`` forces tensor lookup tables. Results are identical
@@ -223,15 +226,20 @@ class BehaviorGraph:
     var_order: tuple[str, ...]
     spaces: tuple[QuantitySpace, ...]
 
-    def behaviors(self) -> tuple[Behavior, ...]:
-        """All root-to-terminal paths, in deterministic (DFS) order.
+    def iter_behaviors(self, *, limit: int | None = None):
+        """Stream deterministic behavior representatives.
 
-        A node that is both terminal and expanded (an unstable equilibrium)
-        contributes the terminated behavior *and* the extended ones. In
-        envisionment mode, an edge back to a node already on the current
-        path closes a CYCLE behavior.
+        Tree graphs yield every root-to-terminal path. Graphs with merged
+        edges (attainable envisionments) yield one parent-tree path per
+        terminal node and one concrete loop per recurrent component. This
+        keeps enumeration bounded by graph size instead of expanding a
+        compact cyclic graph into exponentially many simple paths.
+
+        ``limit`` stops after that many yielded behaviors; ``None`` means all
+        representatives.
         """
-        out: list[Behavior] = []
+        if limit is not None and limit < 0:
+            raise ValueError("behavior limit must be nonnegative or None")
 
         def states_of(path: tuple[int, ...]) -> tuple[QState, ...]:
             return tuple(self.nodes[i].state for i in path)
@@ -239,37 +247,69 @@ class BehaviorGraph:
         def regions_of(path: tuple[int, ...]) -> tuple[str, ...]:
             return tuple(self.nodes[i].region for i in path)
 
-        def walk(nid: int, path: tuple[int, ...], on_path: frozenset[int]) -> None:
+        def behavior(
+            path: tuple[int, ...],
+            terminal: TerminalClass,
+            cycle_target: int | None = None,
+        ) -> Behavior:
+            return Behavior(
+                path,
+                states_of(path),
+                terminal,
+                cycle_target,
+                regions_of(path),
+            )
+
+        def walk(nid: int, path: tuple[int, ...]):
             node = self.nodes[nid]
             path = path + (nid,)
-            on_path = on_path | {nid}
             if node.terminal is not None:
-                out.append(
-                    Behavior(
-                        path,
-                        states_of(path),
-                        node.terminal,
-                        node.cycle_target,
-                        regions_of(path),
-                    )
-                )
+                yield behavior(path, node.terminal, node.cycle_target)
             for child in node.children:
-                if child in on_path:
-                    closed = path + (child,)
-                    out.append(
-                        Behavior(
-                            closed,
-                            states_of(closed),
-                            TerminalClass.CYCLE,
-                            child,
-                            regions_of(closed),
-                        )
-                    )
-                else:
-                    walk(child, path, on_path)
+                yield from walk(child, path)
 
-        walk(self.root, (), frozenset())
-        return tuple(out)
+        def parent_path(nid: int) -> tuple[int, ...]:
+            path = []
+            while True:
+                path.append(nid)
+                parent = self.nodes[nid].parent
+                if parent is None:
+                    return tuple(reversed(path))
+                nid = parent
+
+        merged = any(
+            self.nodes[child].parent != node.id
+            for node in self.nodes.values()
+            for child in node.children
+        )
+        if merged:
+            def compact():
+                for node in self.nodes.values():
+                    if node.terminal is not None:
+                        path = parent_path(node.id)
+                        yield behavior(path, node.terminal, node.cycle_target)
+                adjacency = {
+                    node.id: tuple(node.children)
+                    for node in self.nodes.values()
+                }
+                for loop in representative_cycles(adjacency):
+                    entry = int(loop[0])
+                    prefix = parent_path(entry)
+                    closed = prefix + tuple(int(n) for n in loop[1:]) + (entry,)
+                    yield behavior(closed, TerminalClass.CYCLE, entry)
+
+            source = compact()
+        else:
+            source = walk(self.root, ())
+
+        for index, item in enumerate(source):
+            if limit is not None and index >= limit:
+                return
+            yield item
+
+    def behaviors(self, *, limit: int | None = None) -> tuple[Behavior, ...]:
+        """Materialize :meth:`iter_behaviors`; optionally cap the result."""
+        return tuple(self.iter_behaviors(limit=limit))
 
     def describe_node(self, node: Node, *, ascii: bool = False) -> str:
         text = self._describe(node.state, node.model.spaces, ascii=ascii)
@@ -375,8 +415,11 @@ class SimResult:
     config: SimConfig
     model_hash: str
 
-    def behaviors(self) -> tuple[Behavior, ...]:
-        return self.graph.behaviors()
+    def iter_behaviors(self, *, limit: int | None = None):
+        return self.graph.iter_behaviors(limit=limit)
+
+    def behaviors(self, *, limit: int | None = None) -> tuple[Behavior, ...]:
+        return self.graph.behaviors(limit=limit)
 
     def to_dict(self) -> dict:
         # Shallow extraction avoids deepcopying arbitrary user callables;

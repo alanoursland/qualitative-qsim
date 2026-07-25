@@ -91,10 +91,12 @@ level of *structure summaries*:
   landmark values from wherever they get them — equilibrium finders, guard
   thresholds, nullcline intersections, domain knowledge — as
   `(variable, name, value?, bounds?)` records. qrlib deduplicates, orders,
-  and inserts them into quantity spaces, and reports conflicts (two named
-  landmarks that cannot be ordered) instead of guessing. qrlib additionally
-  proposes landmarks from data (steady-point clustering in trajectory
-  batches) as *suggestions* the host can accept.
+  validates numeric values and bounds as finite, and inserts them into
+  quantity spaces. It reports conflicts (two named landmarks that cannot be
+  ordered) instead of guessing. Unbounded domains are represented by the
+  quantity-space flags, not by `NaN` or infinite named landmarks. qrlib
+  additionally proposes landmarks from data (steady-point clustering in
+  trajectory batches) as *suggestions* the host can accept.
 
 ## Surface 3 — Validation outputs (the coverage oracle)
 

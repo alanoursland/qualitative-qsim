@@ -40,7 +40,10 @@ Pipeline (each stage batched, GPU-friendly):
    insert point-states at change indices → ragged behaviors (index tensors
    + a small Python view layer).
 4. **Canonicalize:** merge segments shorter than a debounce threshold
-   (numeric chatter), producing clean QSIM-style behaviors.
+   (numeric chatter), then project threshold-borderline steady directions
+   onto the active model constraints. Moving directions remain observations;
+   a steady direction is promoted only to a direction evidenced by an
+   adjacent run and only when a consistent direction-only repair exists.
 
 Refined event states are inserted before these stages and protected from
 debounce. Multiple landmark records may share one time and state for a
@@ -92,8 +95,10 @@ Uses this unlocks:
   compatibility.
 - **Landmark intake:** `(variable, name, value?, bounds?)` records from any
   source (equilibrium finders, guard thresholds, domain knowledge) are
-  deduplicated, ordered, and inserted; conflicts are reported, not guessed
-  away. **Landmark proposal from data:** steady-point clustering over
+  validated as finite when numeric, deduplicated, ordered, and inserted;
+  conflicts are reported, not guessed away. Conceptual infinities use the
+  quantity-space unbounded flags rather than numeric landmark values.
+  **Landmark proposal from data:** steady-point clustering over
   trajectory batches suggests landmarks (host accepts/rejects).
 
 ## Downward: model as specification
@@ -159,9 +164,12 @@ Contract details fixed during implementation:
   endpoints, `endpoint_extremum_ratio` also suppresses residual truncation
   error when the endpoint derivative is small relative to the adjacent
   secant; setting it to zero restores raw one-sided classification.
-- **Direction thresholds have a value-scale floor.** A relative-only
-  threshold on an (essentially) constant variable is relative to rounding
-  noise and hallucinates directions.
+- **Direction thresholds share a time scale.** Relative thresholds use each
+  variable's value scale over the trajectory's common duration. They do not
+  use per-variable peak derivatives, because a steep early segment in only
+  one member of a monotone relation can otherwise make the joint direction
+  assignment inconsistent. Borderline steady assignments are subsequently
+  checked against the model constraints.
 
 ## Semantics gotchas to respect
 

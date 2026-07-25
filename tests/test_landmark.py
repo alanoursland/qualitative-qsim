@@ -37,6 +37,14 @@ def test_known_values_must_respect_order():
     QuantitySpace((Landmark("a", value=1.0), "middle", Landmark("c", value=3.0)))
 
 
+@pytest.mark.parametrize("field", ("value", "lo", "hi"))
+@pytest.mark.parametrize("number", (float("nan"), float("inf"), float("-inf")))
+def test_quantity_spaces_reject_non_finite_landmark_numbers(field, number):
+    bad = Landmark("bad", **{field: number})
+    with pytest.raises(ValueError, match="landmark 'bad'.*must be finite"):
+        QuantitySpace((Landmark("0", value=0.0), bad))
+
+
 def test_rank_of_value():
     space = QuantitySpace(
         (Landmark("0", value=0.0), Landmark("FULL", value=2.0)),

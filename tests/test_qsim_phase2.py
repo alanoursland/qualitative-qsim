@@ -1,6 +1,8 @@
 """Phase-2 machinery: landmark discovery, chatter mitigation, the
 successor-filter hook (energy arguments), and envisionment mode."""
 
+import pytest
+
 import qrlib as qr
 from qrlib import Qdir, SimStatus, TerminalClass, TimeTag
 from qrlib.analysis import queries
@@ -212,3 +214,28 @@ def test_bathtub_envisionment_matches_tree():
     env = qr.qsim(m, initial, config=qr.SimConfig(envisionment=True))
     assert env.stats["nodes"] == tree.stats["nodes"] == 5
     assert len(env.behaviors()) == len(tree.behaviors()) == 3
+
+
+def test_envisionment_cycles_are_structural_and_behavior_reporting_is_compact():
+    from qrlib.analysis import queries
+
+    m, initial = damped_spring()
+    result = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig(
+            max_states=150,
+            discover_landmarks=False,
+            envisionment=True,
+        ),
+    )
+    loops = queries.cycles(result.graph)
+    behaviors = result.behaviors()
+
+    assert loops
+    assert any(b.terminal is TerminalClass.CYCLE for b in behaviors)
+    assert len(behaviors) <= len(result.graph.nodes) + len(loops)
+    assert tuple(result.iter_behaviors(limit=5)) == behaviors[:5]
+    assert result.behaviors(limit=0) == ()
+    with pytest.raises(ValueError, match="nonnegative"):
+        result.behaviors(limit=-1)

@@ -130,7 +130,11 @@ author against.
 ### BehaviorGraph and results
 
 Directed graph over `QState`s with distinguished initial states; a
-*behavior* is a root-to-terminal path. Every terminal carries a
+*behavior* in tree mode is a root-to-terminal path. In merged attainable
+envisionments, behavior access returns one parent-tree path per terminal and
+one representative loop per recurrent component, keeping the result bounded
+by graph size; `iter_behaviors(limit=...)` supports streaming and early
+cutoff. Every terminal carries a
 `TerminalClass ∈ {QUIESCENT, CYCLE, DIVERGENT, DOMAIN_EXIT, REGION_EXIT,
 DEADEND, SPEC_PRUNED, TRUNCATED}`.
 Supports behavior iteration, state dedup (attainable envisionment),

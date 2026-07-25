@@ -108,6 +108,11 @@ print(len(loops))        # 1
 print(len(loops[0]))     # 9  — the states in the loop
 ```
 
+The query works in either representation: tree simulations record a
+`cycle_target`, while attainable-envisionment simulations encode recurrence
+as graph edges and the query extracts one concrete loop from each recurrent
+strongly connected component.
+
 ## Exercises
 
 1. Run the spring and print the `x` value (magnitude and direction) at every

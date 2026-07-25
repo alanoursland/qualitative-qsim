@@ -212,6 +212,64 @@ def test_debounce_removes_chatter_runs():
     assert [s["x"].dir for s in b.states] == [Qdir.INC]
 
 
+def test_relative_thresholds_project_monotone_pairs_consistently():
+    import math
+
+    from qrlib.bridge import coverage
+    from qrlib.engines.filters import check_state
+
+    m = qr.Model("monotone-asymptote")
+    landmarks = (
+        Landmark("0", value=0.0),
+        Landmark("one", value=1.0),
+    )
+    m.variable("x", landmarks=landmarks)
+    m.variable("y", landmarks=landmarks)
+    m.constrain(qr.MPlus("x", "y", cvals=(("0", "0"), ("one", "one"))))
+    count = 4000
+    times = [9.0 * index / (count - 1) for index in range(count)]
+    x = [1.0 - math.exp(-time) for time in times]
+    rows = [[value, value ** 0.25] for value in x]
+
+    observed = abstraction.abstract_trajectory(rows, m, times=times)
+    compiled = m.compile()
+    assert all(
+        check_state(compiled, state) is None for state in observed.states
+    )
+    assert all(
+        state["x"].dir is state["y"].dir for state in observed.states
+    )
+
+    graph = qr.qsim(
+        m,
+        m.state(x=("0", Qdir.INC), y=("0", Qdir.INC)),
+        config=qr.SimConfig(max_states=200),
+    ).graph
+    assert coverage.check(observed, graph).covered
+
+
+def test_consistency_projection_does_not_invent_motion_without_evidence():
+    from qrlib.engines.filters import check_state
+
+    m = qr.Model("invalid-monotone-pair")
+    landmarks = (
+        Landmark("0", value=0.0),
+        Landmark("one", value=1.0),
+    )
+    m.variable("x", landmarks=landmarks)
+    m.variable("y", landmarks=landmarks)
+    m.constrain(qr.MPlus("x", "y", cvals=(("0", "0"), ("one", "one"))))
+    rows = [[index / 100.0, 0.5] for index in range(100)]
+
+    observed = abstraction.abstract_trajectory(rows, m)
+
+    assert any(
+        check_state(m.compile(), state) is not None
+        for state in observed.states
+    )
+    assert all(state["y"].dir is Qdir.STD for state in observed.states)
+
+
 def test_array_like_interop():
     cm = one_var_model()
 

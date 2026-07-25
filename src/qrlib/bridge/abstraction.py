@@ -30,6 +30,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import isfinite
 
+from ..engines import filters
 from ..model import CompiledModel, Model
 from ..quantity import Qdir, QVal
 from ..state import QState, TimeTag
@@ -55,8 +56,9 @@ class AbstractionConfig:
       times differ across constrained variables.
     - ``direction_eps``: threshold on the estimated derivative below which
       the direction is STD. With ``eps_relative`` (default) it is a
-      fraction of the per-variable maximum |derivative| over the
-      trajectory, making it scale-free.
+      fraction of each variable's value scale divided by the shared
+      trajectory duration. This preserves units without allowing one
+      variable's early derivative spike to desensitize only that variable.
     - ``debounce``: interior runs shorter than this many samples are
       dropped (numeric chatter around crossings and extrema).
     - ``endpoint_extremum_ratio``: at a landmark endpoint, classify the
@@ -175,7 +177,9 @@ def abstract_trajectory(
     run_modes = modes if modes is not None else [None] * len(rows)
     runs = _runs(list(zip(codes, run_modes)))
     runs = _debounce(runs, cfg.debounce, protected=protected)
+    runs = _project_runs_consistent(runs, compiled)
     states, augmented_spans, regions = _emit(runs, compiled.var_order)
+    states = _project_consistent(states, regions, compiled)
     spans = (
         _project_spans(augmented_spans, source_indices)
         if crossings
@@ -458,12 +462,12 @@ def _directions(rows, ts, cfg: AbstractionConfig, *, ranks=None):
     for v in range(V):
         eps = cfg.direction_eps
         if cfg.eps_relative:
-            max_deriv = max(abs(derivs[t][v]) for t in range(T))
-            # floor at value-scale/duration: an (essentially) constant
-            # variable has max_deriv ~ rounding noise, and a threshold
-            # relative to noise would hallucinate directions
+            # One trajectory-wide time scale keeps related variables
+            # commensurable. Scaling by each variable's own peak derivative
+            # lets an early spike desensitize only that variable and can
+            # assemble constraint-inconsistent joint directions.
             scale = max(abs(rows[t][v]) for t in range(T))
-            eps *= max(max_deriv, scale / duration)
+            eps *= scale / duration
         for t in range(T):
             d = derivs[t][v]
             dirs[t][v] = Qdir.INC if d > eps else Qdir.DEC if d < -eps else Qdir.STD
@@ -583,3 +587,147 @@ def _emit(runs, var_order):
         states[i].time is not states[i + 1].time for i in range(len(states) - 1)
     ), "internal error: emitted states do not alternate point/interval"
     return tuple(states), tuple(spans), tuple(regions)
+
+
+def _project_runs_consistent(runs, compiled: CompiledModel):
+    """Project observed run directions, then coalesce newly equal neighbors."""
+    projected = []
+    cache = {}
+    sequence = [item[0] for item in runs]
+    sequence_alternatives = _sequence_alternatives(sequence)
+    for index, ((code, region), start, end) in enumerate(runs):
+        alternatives = sequence_alternatives[index]
+        key = (code, region, alternatives)
+        if key not in cache:
+            state = QState.from_dict(
+                {
+                    name: QVal(magnitude, direction)
+                    for name, (magnitude, direction) in zip(
+                        compiled.var_order, code
+                    )
+                },
+                TimeTag.INTERVAL,
+            )
+            repaired = _project_state_consistent(
+                state, region, compiled, alternatives
+            )
+            cache[key] = tuple(
+                (repaired[name].mag, repaired[name].dir)
+                for name in compiled.var_order
+            )
+        repaired_code = cache[key]
+        entry = [(repaired_code, region), start, end]
+        if projected and projected[-1][0] == entry[0]:
+            projected[-1][2] = end
+        else:
+            projected.append(entry)
+    return projected
+
+
+def _project_state_consistent(
+    state: QState,
+    region: str | None,
+    compiled: CompiledModel,
+    alternatives: tuple[tuple[Qdir, ...], ...],
+) -> QState:
+    try:
+        active = compiled.constraints_of(
+            region if region is not None else compiled.initial_region
+        )
+    except KeyError:
+        # Mode labels are allowed to be host metadata rather than qrlib
+        # region names; retain the model's initial-region semantics.
+        active = compiled.constraints_of(compiled.initial_region)
+    violation = filters.check_state(compiled, state, active)
+    if violation is None:
+        return state
+    domains = []
+    for index, name in enumerate(compiled.var_order):
+        qv = state[name]
+        domain = [qv]
+        if qv.dir is Qdir.STD:
+            domain.extend(
+                QVal(qv.mag, direction)
+                for direction in alternatives[index]
+            )
+        domains.append(domain)
+    pruned = filters.prune_domains(compiled, domains, active)
+    combo = (
+        next(filters.assemble(compiled, pruned, active), None)
+        if pruned is not None
+        else None
+    )
+    if combo is None:
+        return state
+    return QState.from_dict(
+        dict(zip(compiled.var_order, combo)), state.time
+    )
+
+
+def _project_consistent(states, regions, compiled: CompiledModel):
+    """Repair threshold-borderline steady directions against model semantics.
+
+    Numeric direction thresholds are per variable, so a monotone pair can
+    otherwise be assembled as one moving variable plus one steady variable.
+    Moving classifications remain trusted. A steady classification may be
+    promoted only to a moving direction evidenced by an adjacent run/state,
+    and only when needed to satisfy the active constraint set. If no such
+    repair exists, the state is retained so the coverage oracle can diagnose
+    genuinely model-inconsistent input.
+    """
+    out = []
+    cache: dict[tuple, QState] = {}
+    sequence = [
+        (
+            tuple(
+                (state[name].mag, state[name].dir)
+                for name in compiled.var_order
+            ),
+            region,
+        )
+        for state, region in zip(states, regions)
+    ]
+    sequence_alternatives = _sequence_alternatives(sequence)
+    for index, (state, region) in enumerate(zip(states, regions)):
+        alternatives = sequence_alternatives[index]
+        key = (state, region, alternatives)
+        if key in cache:
+            out.append(cache[key])
+            continue
+        projected = _project_state_consistent(
+            state, region, compiled, alternatives
+        )
+        cache[key] = projected
+        out.append(projected)
+    return tuple(out)
+
+
+def _sequence_alternatives(sequence):
+    """Nearest moving directions around each steady plateau, in linear time."""
+    if not sequence:
+        return ()
+    width = len(sequence[0][0])
+    alternatives: list[list[list[Qdir]]] = [
+        [[] for _ in range(width)] for _ in sequence
+    ]
+    for indices in (range(len(sequence)), range(len(sequence) - 1, -1, -1)):
+        last: list[Qdir | None] = [None] * width
+        prior_region = object()
+        for index in indices:
+            code, region = sequence[index]
+            if region != prior_region:
+                last = [None] * width
+                prior_region = region
+            for variable, (_magnitude, direction) in enumerate(code):
+                if direction is Qdir.STD:
+                    if (
+                        last[variable] is not None
+                        and last[variable] not in alternatives[index][variable]
+                    ):
+                        alternatives[index][variable].append(last[variable])
+                else:
+                    last[variable] = direction
+    return tuple(
+        tuple(tuple(options) for options in row)
+        for row in alternatives
+    )

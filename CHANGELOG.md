@@ -7,6 +7,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made relative trajectory-direction thresholds share a trajectory time scale
+  and project threshold-steady directions through active model constraints.
+- Added structural cycle queries and bounded representative behavior
+  enumeration for attainable-envisionment graphs, including streaming and
+  explicit result limits.
+- Rejected non-finite numeric landmark values and bounds at quantity-space
+  construction.
 - Added deterministic semantic model hashes to simulation results.
 - Added stable built-in successor-filter provenance and explicit opaque
   descriptors for non-replayable user callables.

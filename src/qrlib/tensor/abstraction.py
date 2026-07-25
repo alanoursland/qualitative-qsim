@@ -27,6 +27,8 @@ from ..bridge.abstraction import (
     AbstractionConfig,
     _debounce,
     _emit,
+    _project_consistent,
+    _project_runs_consistent,
 )
 from ..model import CompiledModel, Model
 from ..quantity import Qdir
@@ -410,13 +412,12 @@ def directions_batch(
         (B, 1, V), cfg.direction_eps, dtype=x.dtype, device=x.device
     )
     if cfg.eps_relative:
-        max_deriv = d.abs().amax(dim=1, keepdim=True)
         scale = x.abs().amax(dim=1, keepdim=True)
         duration = (ts[:, -1] - ts[:, 0]).reshape(B, 1, 1)
         duration = torch.where(
             duration == 0, torch.ones_like(duration), duration
         )
-        eps = cfg.direction_eps * torch.maximum(max_deriv, scale / duration)
+        eps = cfg.direction_eps * scale / duration
     codes = torch.full(
         (B, T, V), int(Qdir.STD), dtype=torch.long, device=x.device
     )
@@ -498,7 +499,9 @@ def abstract_batch_tensor(
     out = []
     for b, runs in enumerate(runs_by_batch):
         runs = _debounce(runs, cfg.debounce)
+        runs = _project_runs_consistent(runs, compiled)
         states, spans, regions = _emit(runs, compiled.var_order)
+        states = _project_consistent(states, regions, compiled)
         time_bounds = _time_bounds_from_run_endpoints(
             spans, endpoint_times[b]
         )

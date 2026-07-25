@@ -59,8 +59,11 @@ moved up; analysis/queries attach to the phases that make them possible.
   definiteness and nonincrease; path-aware cycle closure is rejected when
   strict progress occurred inside a repeated qualitative interval.
 - Attainable-envisionment mode (`SimConfig.envisionment`): global
-  (frame, state) merging; cycles become back-edges enumerated by
-  `behaviors()` (spring: 8-node cycle graph).
+  (frame, state) merging; cycles become back-edges. `queries.cycles`
+  discovers them structurally, while `iter_behaviors(limit=...)` and
+  `behaviors(limit=...)` expose a bounded set of terminal paths and
+  representative recurrent loops instead of exponentially many simple
+  paths (spring: 8-node cycle graph).
 - Cycle matching is frame-aware (states in different quantity spaces never
   match). Resource limits with explicit `TRUNCATED` terminals were done in
   phase 1.

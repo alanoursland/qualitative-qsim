@@ -19,9 +19,15 @@ print(len(result.behaviors()))       # 3
 ```
 
 `qsim` explores **every** qualitatively consistent way the system can evolve
-from the initial state, and returns a `SimResult`. The most useful piece is
-`result.behaviors()` — the list of complete behaviors, each a path from the
+from the initial state, and returns a `SimResult`. In the default tree mode,
+`result.behaviors()` is the list of complete behaviors, each a path from the
 start to an ending.
+
+For large results, `result.iter_behaviors(limit=...)` streams paths without
+materializing the tuple. With attainable-envisionment merging enabled, these
+accessors return compact representatives—one path per terminal and one loop
+per recurrent component—rather than exponentially expanding every simple
+path through the merged graph.
 
 ## The three bathtub behaviors
 

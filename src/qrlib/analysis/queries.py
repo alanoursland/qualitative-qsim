@@ -11,6 +11,7 @@ from collections import Counter
 from typing import Callable
 
 from ..behavior import BehaviorGraph, TerminalClass
+from ..graph import representative_cycles
 from ..state import QState
 
 __all__ = [
@@ -44,7 +45,11 @@ def quiescent_states(graph: BehaviorGraph) -> tuple[int, ...]:
 
 def cycles(graph: BehaviorGraph) -> tuple[tuple[int, ...], ...]:
     """The closed loops, as node-id paths from each cycle's re-entry point
-    (the matched ancestor) down to the node that closed it."""
+    down to the node whose edge closes it.
+
+    Tree-mode cycles use explicit ``cycle_target`` annotations. Attainable
+    envisionments encode recurrence as real graph edges, so their loops are
+    discovered structurally from strongly connected components."""
     out: list[tuple[int, ...]] = []
     for node in graph.nodes.values():
         if node.terminal is not TerminalClass.CYCLE or node.cycle_target is None:
@@ -57,6 +62,11 @@ def cycles(graph: BehaviorGraph) -> tuple[tuple[int, ...], ...]:
                 break
             nid = graph.nodes[nid].parent
         out.append(tuple(reversed(path)))
+    adjacency = {node.id: tuple(node.children) for node in graph.nodes.values()}
+    out.extend(
+        tuple(int(node) for node in loop)
+        for loop in representative_cycles(adjacency)
+    )
     return tuple(out)
 
 
