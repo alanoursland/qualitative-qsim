@@ -150,10 +150,13 @@ moved up; analysis/queries attach to the phases that make them possible.
 - `tensor/abstraction.py`: batched quantization/direction estimation over
   `(B, T, V)` tensors mirroring the reference arithmetic
   expression-for-expression (float64, bit-identical ranks/dirs); run
-  boundaries and run-row gathering stay on-device, followed by one packed
-  `O(actual runs)` host materialization with no worst-run padding and only
-  endpoint timestamps. Python handles debounce and final objects without
-  touching full sample tensors.
+  boundaries and run-row gathering stay on-device. Sparse run streams keep
+  the original packed `O(actual runs)` host path. At 25% or greater run
+  density, device-side canonical code IDs plus a three-integer/run control
+  stream drive an exact one-pass host stack equivalent to the reference
+  debounce fixpoint; only surviving full rows and endpoint timestamps are
+  then gathered. Arbitrary Python mode channels retain the reference
+  fallback.
 - **Equivalence tests**: identical behavior-graph exports and stats
   across nine engine configurations (goldens, discovery, energy filter,
   chatter, envisionment, regions); batched ≡ per-state ≡ reference

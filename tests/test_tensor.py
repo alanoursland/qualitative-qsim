@@ -1,6 +1,8 @@
 """Phase-5 equivalence: the tensorized path must reproduce the reference
 engine and abstraction pipeline exactly. Skipped when torch is absent."""
 
+import random
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -221,6 +223,124 @@ def test_ragged_tail_packs_only_actual_runs_and_endpoint_times():
         [5.0, 5.0],
         [10.0, 20.0],
     ]
+
+
+def test_compact_control_debounce_matches_reference_fixpoint():
+    from qrlib.bridge import abstraction as rabs
+
+    rng = random.Random(20260725)
+    for _ in range(200):
+        count = rng.randint(1, 50)
+        debounce = rng.randint(1, 6)
+        labels = [rng.randrange(5)]
+        for _ in range(1, count):
+            choices = [label for label in range(5) if label != labels[-1]]
+            labels.append(rng.choice(choices))
+        lengths = [rng.randint(1, 8) for _ in range(count)]
+        starts = []
+        cursor = 0
+        for length in lengths:
+            starts.append(cursor)
+            cursor += length
+
+        runs = [
+            [(label, None), start, start + length]
+            for label, start, length in zip(labels, starts, lengths)
+        ]
+        expected = rabs._debounce(runs, debounce)
+        control = torch.tensor(
+            [[0, start, label] for start, label in zip(starts, labels)],
+            dtype=torch.long,
+        )
+        actual = tabs._debounce_run_control(control, debounce, cursor)
+        decoded = [
+            [(labels[representative], None), start, end]
+            for _batch, start, end, representative in actual.tolist()
+        ]
+        assert decoded == expected
+
+
+def test_high_density_debounce_compacts_full_host_payload():
+    B, T, V = 4, 4096, 8
+    sample = torch.arange(T) % 2
+    ranks = sample.reshape(1, T, 1).expand(B, T, V).to(torch.long)
+    dirs = torch.full_like(ranks, int(Qdir.STD))
+    times = (
+        torch.arange(T, dtype=torch.float64)
+        .reshape(1, T)
+        .expand(B, T)
+    )
+    change = torch.ones((B, T - 1), dtype=torch.bool)
+
+    raw, raw_times = tabs._pack_runs_for_host(ranks, dirs, times, change)
+    telemetry = {}
+    packed, packed_times = tabs._pack_debounced_runs_for_host(
+        ranks, dirs, times, change, debounce=3, telemetry=telemetry
+    )
+
+    assert len(raw) == B * T
+    assert len(packed) == 2 * B
+    for batch in range(B):
+        assert packed[2 * batch : 2 * batch + 2, :3].tolist() == [
+            [batch, 0, T - 1],
+            [batch, T - 1, T],
+        ]
+    raw_payload = (
+        raw.numel() * raw.element_size()
+        + raw_times.numel() * raw_times.element_size()
+    )
+    compact_payload = (
+        telemetry["control_payload_bytes"]
+        + telemetry["survivor_payload_bytes"]
+    )
+    assert telemetry["raw_runs"] == B * T
+    assert telemetry["surviving_runs"] == 2 * B
+    assert telemetry["strategy"] == "debounced_dense"
+    assert compact_payload < raw_payload / 5
+
+
+def test_low_density_uses_original_packed_tail_without_overhead():
+    T = 100
+    ranks = torch.ones((1, T, 2), dtype=torch.long)
+    ranks[:, 50:] = 3
+    dirs = torch.full_like(ranks, int(Qdir.STD))
+    times = torch.arange(T, dtype=torch.float64).reshape(1, T)
+    change = ((ranks[:, 1:] != ranks[:, :-1]) | (
+        dirs[:, 1:] != dirs[:, :-1]
+    )).any(-1)
+
+    expected = tabs._pack_runs_for_host(ranks, dirs, times, change)
+    telemetry = {}
+    actual = tabs._pack_debounced_runs_for_host(
+        ranks, dirs, times, change, debounce=3, telemetry=telemetry
+    )
+    assert actual[0].equal(expected[0])
+    assert actual[1].equal(expected[1])
+    assert telemetry["strategy"] == "raw_sparse"
+    assert telemetry["control_payload_bytes"] == 0
+
+
+def test_high_density_end_to_end_matches_reference():
+    from qrlib.bridge import abstraction as rabs
+
+    model = qr.Model("dense-debounce")
+    for index in range(3):
+        model.variable(
+            f"x{index}",
+            landmarks=(qr.Landmark("0", value=0.0),),
+            unbounded=True,
+        )
+    T = 128
+    sign = (torch.arange(T, dtype=torch.float64) % 2) * 2 - 1
+    rows = torch.stack((sign, 2 * sign, 3 * sign), dim=1)
+    cfg = rabs.AbstractionConfig(
+        debounce=3,
+        direction_eps=0.0,
+        eps_relative=False,
+    )
+    reference = rabs.abstract_trajectory(rows, model, config=cfg)
+    (actual,) = tabs.abstract_batch_tensor(rows, model, config=cfg)
+    assert actual == reference
 
 
 def test_tensor_abstraction_validates_mode_shape():

@@ -110,12 +110,14 @@ def bench_abstraction(B=8, T=50_000):
 
         def packed_prefix():
             ranks = tabs.quantize_batch(xg, frame, CFG.landmark_atol)
-            dirs = tabs.directions_batch(xg, ts, CFG)
+            dirs = tabs.directions_batch(xg, ts, CFG, ranks=ranks)
             change = (
                 (ranks[:, 1:] != ranks[:, :-1])
                 | (dirs[:, 1:] != dirs[:, :-1])
             ).any(-1)
-            return tabs._pack_runs_for_host(ranks, dirs, ts, change)
+            return tabs._pack_debounced_runs_for_host(
+                ranks, dirs, ts, change, CFG.debounce
+            )
 
         packed_stage = samples(
             packed_prefix,
@@ -138,7 +140,7 @@ def bench_abstraction(B=8, T=50_000):
             + packed_times.numel() * packed_times.element_size()
         )
         print(
-            f"  ragged payload {len(packed):,} actual runs, "
+            f"  post-debounce payload {len(packed):,} full runs, "
             f"{payload / 2**20:.3f} MiB transferred"
         )
         teng = median(end_to_end)

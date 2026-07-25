@@ -3,10 +3,12 @@ trajectory-batch axis — the embarrassingly parallel case).
 
 The per-sample stages of the pipeline — quantization against landmark
 values, direction estimation, and run-boundary detection — vectorize over
-``(B, T, V)`` tensors. Run starts and their codes are gathered into a compact
-``O(runs)`` representation on-device and copied to the host in bulk.
-Debounce/emission remain the small Python view layer shared with the reference
-implementation; they never inspect the full sample tensors.
+``(B, T, V)`` tensors. Before full run records cross to the host, exact
+device-side code IDs plus a compact control stream drive the same left-to-
+right debounce fixpoint as the reference implementation. Only surviving
+rank/direction rows and endpoint timestamps are gathered for the Python view
+layer. Mode-bearing runs use the readable reference tail because arbitrary
+Python mode labels cannot be canonicalized on-device.
 
 Parity contract: identical results to
 :func:`qrlib.bridge.abstraction.abstract_trajectory` — the tensor stages
@@ -30,6 +32,8 @@ from ..model import CompiledModel, Model
 from ..quantity import Qdir
 
 __all__ = ["quantize_batch", "directions_batch", "abstract_batch_tensor"]
+
+_DEVICE_DEBOUNCE_MIN_DENSITY = 0.25
 
 
 def _normalize_modes(modes, B: int, T: int):
@@ -87,6 +91,192 @@ def _pack_runs_for_host(
         (ts[batches, starts], ts[batches, ends - 1]), dim=1
     ).to(device="cpu")
     assert packed.shape == (len(starts), 3 + 2 * V)
+    return packed, run_times
+
+
+def _run_tensors(
+    ranks: torch.Tensor,
+    dirs: torch.Tensor,
+    change: torch.Tensor,
+):
+    """Device-resident raw-run coordinates, spans, and codes."""
+    B, T, _ = ranks.shape
+    starts_mask = torch.empty((B, T), dtype=torch.bool, device=ranks.device)
+    starts_mask[:, 0] = True
+    if T > 1:
+        starts_mask[:, 1:] = change
+    coords = starts_mask.nonzero(as_tuple=False)
+    batches = coords[:, 0]
+    starts = coords[:, 1]
+    ends = torch.full_like(starts, T)
+    if len(starts) > 1:
+        same_batch = batches[:-1] == batches[1:]
+        ends[:-1] = torch.where(same_batch, starts[1:], ends[:-1])
+    return (
+        coords,
+        batches,
+        starts,
+        ends,
+        ranks[batches, starts],
+        dirs[batches, starts],
+    )
+
+
+def _debounce_run_control(
+    control: torch.Tensor,
+    debounce: int,
+    timesteps: int,
+) -> torch.Tensor:
+    """Exact reference debounce over compact ``[batch, start, code_id]``.
+
+    A stack delays deciding whether a run is an interior run until its right
+    neighbor arrives. Short runs are then removed left-to-right; if the newly
+    adjacent codes match, their spans merge and the left representative is
+    retained. This is the reference ``_debounce`` fixpoint in one pass.
+
+    The returned CPU tensor contains
+    ``[batch, merged_start, merged_end, representative_raw_run]``.
+    """
+    rows = control.to(device="cpu").tolist()
+    survivors: list[list[int]] = []
+    stack: list[list[int]] = []  # batch, start, end, code_id, representative
+    active_batch: int | None = None
+
+    def flush() -> None:
+        survivors.extend(
+            [batch, start, end, representative]
+            for batch, start, end, _code, representative in stack
+        )
+        stack.clear()
+
+    for raw_index, (batch, start, code_id) in enumerate(rows):
+        batch = int(batch)
+        start = int(start)
+        code_id = int(code_id)
+        if active_batch is not None and batch != active_batch:
+            flush()
+        active_batch = batch
+        if raw_index + 1 < len(rows) and int(rows[raw_index + 1][0]) == batch:
+            end = int(rows[raw_index + 1][1])
+        else:
+            end = timesteps
+        entry: list[int] | None = [
+            batch, start, end, code_id, raw_index
+        ]
+        while entry is not None and len(stack) > 1:
+            prior = stack[-1]
+            if prior[2] - prior[1] >= debounce:
+                break
+            stack.pop()
+            if stack[-1][3] == code_id:
+                stack[-1][2] = end
+                entry = None
+        if entry is not None:
+            stack.append(entry)
+    flush()
+    return torch.tensor(survivors, dtype=torch.long)
+
+
+def _pack_debounced_runs_for_host(
+    ranks: torch.Tensor,
+    dirs: torch.Tensor,
+    ts: torch.Tensor,
+    change: torch.Tensor,
+    debounce: int,
+    *,
+    telemetry: dict | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Transfer full records only after exact compact-control debounce.
+
+    Raw code rows receive canonical IDs on their current device. The host
+    sees only three integers per raw run for the stack control pass; the
+    surviving representative rows and their merged endpoint times are then
+    gathered on-device and copied in bulk.
+    """
+    B, T, V = ranks.shape
+    (
+        coords,
+        _batches,
+        _starts,
+        _ends,
+        run_ranks,
+        run_dirs,
+    ) = _run_tensors(ranks, dirs, change)
+    raw_runs = len(coords)
+    if raw_runs < B * T * _DEVICE_DEBOUNCE_MIN_DENSITY:
+        packed = torch.cat(
+            (
+                coords,
+                _ends.unsqueeze(1),
+                run_ranks,
+                run_dirs,
+            ),
+            dim=1,
+        ).to(device="cpu")
+        run_times = torch.stack(
+            (
+                ts[_batches, _starts],
+                ts[_batches, _ends - 1],
+            ),
+            dim=1,
+        ).to(device="cpu")
+        if telemetry is not None:
+            payload = (
+                packed.numel() * packed.element_size()
+                + run_times.numel() * run_times.element_size()
+            )
+            telemetry.update(
+                {
+                    "strategy": "raw_sparse",
+                    "raw_runs": raw_runs,
+                    "surviving_runs": raw_runs,
+                    "control_payload_bytes": 0,
+                    "survivor_payload_bytes": payload,
+                }
+            )
+        return packed, run_times
+    codes = torch.cat((run_ranks, run_dirs), dim=1)
+    _, code_ids = torch.unique(codes, dim=0, return_inverse=True)
+    control = torch.cat((coords, code_ids.unsqueeze(1)), dim=1)
+    survivors = _debounce_run_control(control, debounce, T)
+    selection = survivors.to(device=ranks.device)
+    batches = selection[:, 0]
+    starts = selection[:, 1]
+    ends = selection[:, 2]
+    representatives = selection[:, 3]
+    packed = torch.cat(
+        (
+            selection[:, :3],
+            run_ranks[representatives],
+            run_dirs[representatives],
+        ),
+        dim=1,
+    ).to(device="cpu")
+    preceding = torch.clamp(starts - 1, min=0)
+    run_times = torch.stack(
+        (
+            ts[batches, starts],
+            ts[batches, ends - 1],
+            ts[batches, preceding],
+        ),
+        dim=1,
+    ).to(device="cpu")
+    assert packed.shape == (len(survivors), 3 + 2 * V)
+    if telemetry is not None:
+        telemetry.update(
+            {
+                "strategy": "debounced_dense",
+                "raw_runs": len(control),
+                "surviving_runs": len(survivors),
+                "control_payload_bytes": (
+                    control.numel() * control.element_size()
+                ),
+                "survivor_payload_bytes": (
+                    packed.numel() * packed.element_size()
+                    + run_times.numel() * run_times.element_size()
+                ),
+            }
+        )
     return packed, run_times
 
 
@@ -272,15 +462,24 @@ def abstract_batch_tensor(
     ranks = quantize_batch(x, compiled, cfg.landmark_atol)
     dirs = directions_batch(x, ts, cfg, ranks=ranks)
     mode_rows, mode_change = _normalize_modes(modes, B, T)
-    # Run boundaries and row gathering stay in tensor land. Python receives
-    # one compact O(runs) stream, not B*T samples or per-run device views.
+    # Run boundaries and row gathering stay in tensor land. Without a Python
+    # mode channel, a compact control stream applies exact debounce before
+    # full records cross the host boundary. Arbitrary mode labels retain the
+    # readable reference fallback.
     if T > 1:
         change = ((ranks[:, 1:] != ranks[:, :-1]) | (dirs[:, 1:] != dirs[:, :-1])).any(-1)
         if mode_change is not None:
             change |= mode_change.to(device=x.device)
     else:
         change = torch.zeros((B, 0), dtype=torch.bool, device=x.device)
-    packed, packed_times = _pack_runs_for_host(ranks, dirs, ts, change)
+    if cfg.debounce > 1 and mode_rows is None:
+        packed, packed_times = _pack_debounced_runs_for_host(
+            ranks, dirs, ts, change, cfg.debounce
+        )
+    else:
+        packed, packed_times = _pack_runs_for_host(
+            ranks, dirs, ts, change
+        )
 
     runs_by_batch = [[] for _ in range(B)]
     endpoint_times = [dict() for _ in range(B)]
@@ -293,6 +492,8 @@ def abstract_batch_tensor(
         runs_by_batch[b].append([(code, mode), start, end])
         endpoint_times[b][start] = time_pair[0]
         endpoint_times[b][end - 1] = time_pair[1]
+        if len(time_pair) == 3:
+            endpoint_times[b][max(start - 1, 0)] = time_pair[2]
 
     out = []
     for b, runs in enumerate(runs_by_batch):

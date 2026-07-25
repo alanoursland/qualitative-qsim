@@ -102,9 +102,11 @@ identically ordered, and whole-graph equivalence is asserted in tests.
 
 Measured on CPU (see `benchmarks/bench_tensor.py`): trajectory abstraction
 uses tensor-native boundary detection and gathers a packed `O(actual runs)`
-stream on-device. One bulk host transfer replaces per-trajectory start
-copies, per-run code copies, and full timestamp copies; Python touches only
-the compact run stream and final result objects. Batched frontier filtering
+stream on-device. Sparse streams use the original bulk host transfer. Dense
+streams first canonicalize full code rows on-device, transfer a compact
+three-integer/run control stream for the exact debounce stack, and gather
+only surviving full records. Python touches only compact run metadata and
+final result objects. Batched frontier filtering
 measured ×1.5 at B=2048; single-state
 expansion ×0.25 for the small chattery model. QSIM therefore defaults to
 `SimConfig(backend="auto")`: constrained interpretation products below 2,048
@@ -147,6 +149,21 @@ the reference and 4.68× faster than the previous per-run-transfer
 qualification (0.682635 s). Final Python `QState`/behavior construction now
 dominates the remaining time. During the run, 10.71 GiB of 12.00 GiB was
 free; the process had 0.01 GiB allocated and 0.06 GiB reserved.
+
+### Dense-run debounce follow-up (2026-07-25)
+
+The packed tail is adaptive at 25% run density. Below that threshold the
+qualified sparse path above is unchanged. At or above it, exact device-side
+code IDs and a compact host stack remove debounce chatter before full
+rank/direction records and timestamps are materialized.
+
+The B=4, T=4096, V=8 alternating CPU stress profile reduced 16,384 raw full
+records to 8 transferred full records and the host payload from 2,752,512 to
+394,624 bytes. Median end-to-end latency fell from the committed 0.246 s
+CPU baseline to 0.072 s and from the 0.229 s CUDA baseline to 0.020 s on the
+same RTX 3080 Ti, with the same 12 emitted states. The control algorithm is
+checked against the readable Python `_debounce` oracle over randomized run
+streams, and hardware-gated end-to-end tests assert CUDA/reference parity.
 
 ### Native-extension boundary
 

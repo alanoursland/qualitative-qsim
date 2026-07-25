@@ -33,6 +33,10 @@ spirit) with their resolutions; new questions raised by that design follow.
    Heterogeneous ensembles are currently 2–12 models in library workflows and
    remain independently scheduled; no first-class padded model axis, int8
    conversion, or `torch.compile` work is justified by the measurements.
+   The follow-up high-density debounce gap is also resolved: an adaptive
+   compact-control tail reduces the 16,384-run stress payload by 85.7% and
+   median CPU latency by about 70.8%, while sparse profiles retain their
+   original packed path.
 8. **Crossing refinement at the seam.** → Resolved. The sample-only path
    remains the default. Event-aware hosts can supply `CrossingEvent` records
    containing the exact time, declared landmark, and complete solver state.

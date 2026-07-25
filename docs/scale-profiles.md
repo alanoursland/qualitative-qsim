@@ -44,8 +44,9 @@ an RTX 3080 Ti (12 GiB), and a 24-logical-CPU AMD64 host:
 | High run density | 246 ms | 229 ms | 10.6 ms | 100% | 2.625 MiB | 7.8 MiB |
 
 The packed prefix includes quantization, direction estimation, run detection,
-and the compact device-to-host transfer. The difference between that prefix
-and total latency is Python debounce and final `QState`/behavior construction.
+adaptive compact debounce, and device-to-host transfer. The difference
+between that prefix and total latency is the final reference-oracle pass and
+`QState`/behavior construction.
 
 Two independent sizes predict cost:
 
@@ -53,8 +54,11 @@ Two independent sizes predict cost:
   The two largest dense profiles used about 48–49 bytes per scalar value at
   peak with the current float64/int64 implementation.
 - Ragged transfer and final-object work scale with actual runs and emitted
-  states. The packed wire size is `(5 + 2*V) * 8` bytes per run: batch/start/end,
-  ranks, directions, and two endpoint times.
+  states. Sparse streams use the original `(5 + 2*V) * 8` bytes per run:
+  batch/start/end, ranks, directions, and two endpoint times. Dense streams
+  use 24 control bytes per raw run, then `(6 + 2*V) * 8` bytes per surviving
+  full run (including the preceding timestamp needed for a synthesized
+  boundary).
 
 Consequently, "one million timesteps" is a valid target only together with
 variable count and run density. The qualified million-timestep/V=8 smooth
@@ -121,11 +125,30 @@ Keep eager tensor code and the readable reference oracle. Reconsider dtype
 compression or compilation only when a measured workload is dense-prefix- or
 memory-bound.
 
-## Discovered stress limitation
+## High-density debounce follow-up (2026-07-25)
 
-The high-run-density profile transfers 16,384 raw runs but emits only 12
-states after debounce. CPU scaling measured 0.107, 0.234, 0.543, and 1.001
-seconds for 8,192 through 65,536 raw runs. This is approximately linear, but
-it performs avoidable host transfer and Python deletion work. A separate gap
-tracks exact pre-transfer/device-side debounce for sustained chattery inputs;
-it does not invalidate the smooth million-timestep qualification.
+The stress limitation is resolved with an adaptive exact compact tail. At
+run density below 25%, qrlib uses the original packed implementation with no
+canonicalization or control-stream overhead. At higher density it assigns
+exact canonical IDs to rank/direction rows on-device, transfers only
+`[batch, start, code_id]` control triples, applies the reference left-to-right
+debounce fixpoint as a one-pass stack, and gathers full rows only for the
+survivors. Mode-bearing trajectories retain the readable fallback because
+their labels may be arbitrary Python objects.
+
+On the same CPU high-density profile (B=4, T=4096, V=8, debounce=3):
+
+| Measure | Before | After |
+|---|---:|---:|
+| Raw runs | 16,384 | 16,384 |
+| Full run records materialized | 16,384 | 8 |
+| Host payload | 2,752,512 bytes | 394,624 bytes |
+| Median CPU end-to-end latency | 0.246 s | 0.072 s |
+| Median CUDA end-to-end latency | 0.229 s | 0.020 s |
+| Emitted qualitative states | 12 | 12 |
+
+That is an 85.7% payload reduction and about 70.8% lower median latency.
+On the same RTX 3080 Ti, median CUDA latency is about 91.3% lower.
+Randomized fixpoint tests cover first/last protection, cascading removal,
+equal-neighbor merging, spans, and thresholds; end-to-end reference parity,
+mode fallback parity, endpoint time bounds, and CUDA parity remain covered.

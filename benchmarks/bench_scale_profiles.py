@@ -253,17 +253,35 @@ def _packed_stats(x, frame, config):
         .expand(B, T)
     )
     ranks = tabs.quantize_batch(x, frame, config.landmark_atol)
-    dirs = tabs.directions_batch(x, ts, config)
+    dirs = tabs.directions_batch(x, ts, config, ranks=ranks)
     change = (
         (ranks[:, 1:] != ranks[:, :-1])
         | (dirs[:, 1:] != dirs[:, :-1])
     ).any(-1)
-    packed, times = tabs._pack_runs_for_host(ranks, dirs, ts, change)
-    payload = (
-        packed.numel() * packed.element_size()
-        + times.numel() * times.element_size()
-    )
-    return len(packed), payload
+    telemetry = {}
+    if config.debounce > 1:
+        packed, times = tabs._pack_debounced_runs_for_host(
+            ranks,
+            dirs,
+            ts,
+            change,
+            config.debounce,
+            telemetry=telemetry,
+        )
+        raw_runs = telemetry["raw_runs"]
+        payload = (
+            telemetry["control_payload_bytes"]
+            + telemetry["survivor_payload_bytes"]
+        )
+    else:
+        packed, times = tabs._pack_runs_for_host(ranks, dirs, ts, change)
+        raw_runs = len(packed)
+        payload = (
+            packed.numel() * packed.element_size()
+            + times.numel() * times.element_size()
+        )
+    raw_payload = raw_runs * ((3 + 2 * x.shape[2]) * 8 + 2 * 8)
+    return raw_runs, len(packed), payload, raw_payload
 
 
 def qualify_abstraction(profile: AbstractionProfile, device: torch.device):
@@ -291,7 +309,9 @@ def qualify_abstraction(profile: AbstractionProfile, device: torch.device):
         if device.type == "cuda"
         else None
     )
-    run_count, payload_bytes = _packed_stats(x, frame, config)
+    run_count, transferred_runs, payload_bytes, raw_payload_bytes = (
+        _packed_stats(x, frame, config)
+    )
     qualitative_states = sum(len(item.states) for item in result)
     total_steps = profile.batch * profile.timesteps
     input_bytes = x.numel() * x.element_size()
@@ -311,9 +331,11 @@ def qualify_abstraction(profile: AbstractionProfile, device: torch.device):
         "samples_s": total_steps / median(observed),
         "scalar_values_s": x.numel() / median(observed),
         "actual_runs": run_count,
+        "transferred_full_runs": transferred_runs,
         "run_density": run_count / total_steps,
         "qualitative_states": qualitative_states,
         "packed_payload_bytes": payload_bytes,
+        "raw_packed_payload_bytes": raw_payload_bytes,
         "input_bytes": input_bytes,
         "host_working_set_peak_bytes": host_working_set_peak,
         "host_peak_delta_bytes": host_peak_delta,
