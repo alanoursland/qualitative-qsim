@@ -184,7 +184,11 @@ def test_spring_covered_by_discovery_graph_via_frame_translation():
 
     m, initial, rows = spring_instance(0)
     result = qr.qsim(
-        m, initial, config=qr.SimConfig(successor_filters=(energy_filter,))
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(energy_filter,)
+        ),
     )
     assert result.status is qr.SimStatus.COMPLETE
     observed = abstraction.abstract_trajectory(rows, m, config=CFG)

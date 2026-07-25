@@ -37,16 +37,18 @@ moved up; analysis/queries attach to the phases that make them possible.
 
 ## Phase 2 — Full-fidelity QSIM *(done)*
 
-- New-landmark introduction (default on): I5/I9 arrivals mint named
+- New-landmark introduction (explicit `SimConfig.classic()` profile): I5/I9
+  arrivals mint named
   landmarks (`x*0`, …) into per-branch **frames** (compiled models with
   grown spaces and rank-shifted constraint references); minting also
   records new corresponding values for M±/MINUS/ADD constraints whose
-  variables all sit at landmarks. `max_landmarks` caps per-variable
-  discovery (beyond it, steadiness stays unnamed — sound).
+  variables all sit at landmarks. `max_landmarks_per_variable` caps
+  per-variable, per-branch discovery (beyond it, steadiness stays unnamed —
+  sound).
 - Chatter mitigation: `ignore_qdir` — untracked directions (`Qdir.IGN`)
   generated over all concrete directions, filtered normally, then
   projected and merged (damped spring: 403 truncated nodes → 15 complete).
-  Automatic chatter-box *detection* deferred.
+  Automatic structural chatter detection is enabled by the practical profile.
 - Successor-filter hook (`SimConfig.successor_filters`): user vetoes over
   `(parent, candidate, frame)`. Regression-tested with the classic energy
   argument: undamped spring with discovery branches intractably
@@ -135,8 +137,9 @@ moved up; analysis/queries attach to the phases that make them possible.
   masses against data; localizes corrupted structure).
 - **Versioned schemas frozen**: `qrlib.model/v1`
   (`Model.to_dict/from_dict`, JSON round-trip preserving semantics,
-  regions and landmark values included) and `qrlib.result/v2`
-  (region-tagged graph export plus model/config provenance).
+  regions and landmark values included) and `qrlib.result/v3`
+  (region-tagged graph export plus effective configuration profile,
+  model/config provenance, and truncation diagnostics).
 
 ## Phase 5 — Tensorized engine *(done)*
 

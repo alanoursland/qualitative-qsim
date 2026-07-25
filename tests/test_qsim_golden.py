@@ -45,7 +45,7 @@ def bathtub():
 
 def test_bathtub_three_outcomes():
     m, initial = bathtub()
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     assert result.status is SimStatus.COMPLETE
 
     behaviors = result.behaviors()
@@ -72,7 +72,7 @@ def test_bathtub_three_outcomes():
 
 def test_bathtub_discovery_records_corresponding_values():
     m, initial = bathtub()
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     def amount_desc(node):
         space = node.model.spaces[node.model.index("amount")]
         return space.describe(node.state["amount"].mag)
@@ -96,7 +96,7 @@ def test_bathtub_discovery_records_corresponding_values():
 
 def test_bathtub_tree_shape():
     m, initial = bathtub()
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     # root point -> single interval state -> three terminal points
     root = result.graph.nodes[result.graph.root]
     assert len(root.children) == 1
@@ -132,7 +132,7 @@ def utube():
 
 def test_utube_single_equilibrium_behavior():
     m, initial = utube()
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     assert result.status is SimStatus.COMPLETE
 
     behaviors = result.behaviors()
@@ -216,6 +216,8 @@ def test_truncation_is_reported():
     assert result.status is SimStatus.TRUNCATED
     census = queries.terminal_census(result.graph)
     assert TerminalClass.TRUNCATED in census
+    assert result.stats["truncation"]["limits_hit"] == ["max_depth"]
+    assert result.stats["truncation"]["likely_cause"] == "depth_limit"
 
 
 def test_max_states_is_a_strict_node_limit():

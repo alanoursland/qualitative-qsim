@@ -267,8 +267,8 @@ def test_declared_rank_dissolves_discovered_landmarks():
         b for b in result.behaviors() if b.terminal is TerminalClass.QUIESCENT
     ]
     streams = [dc.episode_stream(graph, b, ("amount",), declared) for b in quiescent]
-    # below-FULL equilibrium sits at discovered amount*0: in declared terms
-    # it stays inside (0, FULL); the at-FULL equilibrium reaches rank 2
+    # The unnamed below-FULL equilibrium stays inside (0, FULL) in declared
+    # terms; the at-FULL equilibrium reaches rank 2.
     words = {s.letters for s in streams}
     assert words == {((0,), (1,), (1,)), ((0,), (1,), (2,))}
     assert all(s.forever for s in streams)

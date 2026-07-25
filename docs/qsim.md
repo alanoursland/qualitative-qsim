@@ -93,7 +93,7 @@ subsequent states of that behavior branch. Consequences we must design for:
 
 Weakly-constrained variables (typically higher derivatives) can oscillate
 their qdir spuriously, exploding the tree with distinctions that carry no
-information. Standard mitigations, in the order we'll implement them:
+information. The engine supports:
 
 1. **ignore-qdir** per variable (user annotation): drop direction distinctions
    for named variables.
@@ -101,17 +101,21 @@ information. Standard mitigations, in the order we'll implement them:
    into a single abstract state with `qdir = unknown` for chattering
    variables.
 
-Chatter handling is a *filter module*, not core semantics — toggleable, and
-off means textbook behavior.
+`SimConfig.practical()` is the default: discovery off, automatic chatter
+abstraction on. `SimConfig.classic()` selects textbook behavior: discovery
+on, automatic chatter abstraction off. Both remain sound; practical retains
+less landmark and direction detail.
 
 ## 6. Limits and termination
 
 QSIM need not terminate (new landmarks can be introduced forever). The engine
-takes explicit resource limits: max states, max depth, and max landmarks per
-variable. `max_states` is a strict graph-node bound including the root.
-Hitting a limit marks affected leaves as
-`TRUNCATED` in the behavior graph — never silently dropped, per the soundness
-commitment.
+takes explicit resource limits: max states, max depth, and
+`max_landmarks_per_variable` on each behavior branch. The landmark limit is
+not a global graph-size bound because separate branches carry separate
+frames. `max_states` is a strict graph-node bound including the root. Hitting
+a limit marks affected leaves as `TRUNCATED` and records the limits hit,
+distinct-frame count, likely cause, and safe next actions in
+`result.stats["truncation"]`.
 
 ## 7. Acceptance tests (from the literature)
 

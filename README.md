@@ -121,17 +121,23 @@ for b in result.behaviors():
     print(explain.narrate(result.graph, b))
 ```
 
-yields exactly the three textbook outcomes — equilibrium below FULL (at a
-*discovered* landmark `amount*0`), equilibrium exactly at FULL, and
-overflow:
+yields exactly the three textbook outcomes — equilibrium below FULL,
+equilibrium exactly at FULL, and overflow. The practical default keeps an
+intermediate equilibrium unnamed:
 
 ```
 Behavior of 'bathtub': 3 states, ending in quiescent.
   0. Initially, amount at 0, rising, level at 0, rising, ...
   1. Then, over an interval, amount rises into (0, FULL); ...
-  2. At the next instant, amount becomes steady at amount*0 (a newly
-     identified value); ... — the system is in equilibrium ...
+  2. At the next instant, amount levels off in (0, FULL); ...
+     — the system is in equilibrium ...
 ```
+
+`SimConfig()` is the sound, bounded practical profile: landmark discovery is
+off and structurally unobservable direction chatter is merged automatically.
+Use `SimConfig.classic()` when named intermediate extrema and full textbook
+QSIM discovery are required; classic runs may not terminate and report
+actionable diagnostics when a resource limit is reached.
 
 Constraints may equivalently use the optional compact authoring syntax, for
 example `m.constrain("Deriv(amount, netflow)")`; models still store and

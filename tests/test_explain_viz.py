@@ -16,7 +16,7 @@ from test_regions import two_region_bathtub
 
 def test_explain_structure_and_events():
     m, initial = bathtub()
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     (below_full,) = [
         b
         for b in result.behaviors()

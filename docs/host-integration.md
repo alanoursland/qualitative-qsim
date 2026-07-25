@@ -221,9 +221,11 @@ The downward direction: hand-authored or abstracted qualitative models as
   filtering are always reported, never silent, because a host treating a
   truncated behavior set as exhaustive would void the soundness guarantee it
   is buying.
-- **Config objects** (`SimConfig`: limits, filter toggles, region policy;
-  abstraction configs: tolerances, hysteresis, debounce) are values,
-  captured inside the results they produced.
+- **Config objects** (`SimConfig`: effective practical/classic/custom profile,
+  limits, filter toggles, region policy; abstraction configs: tolerances,
+  hysteresis, debounce) are values captured inside the results they produced.
+  Truncated simulations include plain-data diagnostics naming the limits hit,
+  frame growth, likely cause, and safe next actions.
 - **Determinism**: same model + config → identical graphs, across runs and
   devices; state ids are content-derived (encoded-state hashes), so host
   records referencing them stay valid.

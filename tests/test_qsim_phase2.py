@@ -69,15 +69,59 @@ def energy_filter(parent, cand, frame):
 # --- landmark discovery ----------------------------------------------------
 
 
+def test_practical_profile_is_the_default_and_tames_damped_spring():
+    assert qr.SimConfig() == qr.SimConfig.practical()
+    assert qr.SimConfig().profile == "practical"
+    assert qr.SimConfig.classic().profile == "classic"
+    assert qr.SimConfig.classic() == qr.SimConfig(
+        discover_landmarks=True,
+        dynamic_chatter=False,
+    )
+
+    spring_model, spring_initial = spring()
+    classic = qr.qsim(
+        spring_model,
+        spring_initial,
+        config=qr.SimConfig.classic(max_states=100),
+    )
+    explicit_previous_defaults = qr.qsim(
+        spring_model,
+        spring_initial,
+        config=qr.SimConfig(
+            discover_landmarks=True,
+            dynamic_chatter=False,
+            max_states=100,
+        ),
+    )
+    assert classic.graph.export() == explicit_previous_defaults.graph.export()
+    assert classic.stats == explicit_previous_defaults.stats
+
+    m, initial = damped_spring()
+    result = qr.qsim(m, initial)
+
+    assert result.status is SimStatus.COMPLETE
+    assert result.stats["nodes"] < result.config.max_states
+    assert result.stats["nodes"] == 78
+    assert result.stats["landmarks_minted"] == 0
+    assert result.stats["chatter_merged"] > 0
+    assert result.to_dict()["config"]["profile"] == "practical"
+
+
 def test_spring_discovery_shows_intractable_branching():
     # Authentic QSIM: each successive extremum can be below/at/above the
     # previous one's landmark -> spurious amplitude branching, unbounded
     # landmark creation, truncation.
     m, initial = spring()
-    result = qr.qsim(m, initial, max_states=300)
+    result = qr.qsim(
+        m, initial, config=qr.SimConfig.classic(max_states=300)
+    )
     assert result.status is SimStatus.TRUNCATED
     assert result.stats["landmarks_minted"] > 10
     assert len(result.behaviors()) > 3
+    diagnostic = result.stats["truncation"]
+    assert diagnostic["limits_hit"] == ["max_states"]
+    assert diagnostic["likely_cause"] == "landmark_growth"
+    assert "SimConfig.practical()" in diagnostic["suggestions"][0]
 
     def x_beyond_first_peak(node):
         frame = node.model
@@ -92,7 +136,11 @@ def test_spring_discovery_shows_intractable_branching():
 def test_spring_energy_filter_tames_branching_to_the_true_cycle():
     m, initial = spring()
     result = qr.qsim(
-        m, initial, config=qr.SimConfig(successor_filters=(energy_filter,))
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(energy_filter,)
+        ),
     )
     assert result.status is SimStatus.COMPLETE
     assert result.stats["user_filtered"] > 0  # the filter did real work
@@ -114,7 +162,11 @@ def test_spring_energy_filter_tames_branching_to_the_true_cycle():
 def test_discovery_mints_corresponding_values_for_minus():
     m, initial = spring()
     result = qr.qsim(
-        m, initial, config=qr.SimConfig(successor_filters=(energy_filter,))
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(energy_filter,)
+        ),
     )
     (b,) = result.behaviors()
     frame = result.graph.nodes[b.node_ids[-1]].model
@@ -125,13 +177,22 @@ def test_discovery_mints_corresponding_values_for_minus():
     assert (x_space.rank_of("x*0"), a_space.rank_of("a*0")) in minus.cvals
 
 
-def test_max_landmarks_caps_discovery():
+def test_max_landmarks_per_variable_caps_discovery():
     m, initial = spring()
-    result = qr.qsim(m, initial, config=qr.SimConfig(max_landmarks=1), max_states=200)
+    result = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            max_landmarks_per_variable=1,
+            max_states=200,
+        ),
+    )
     for node in result.graph.nodes.values():
         for vi in range(len(node.model.var_order)):
             space = node.model.spaces[vi]
             assert sum("*" in n for n in space.names) <= 1
+    with pytest.raises(ValueError, match="max_landmarks_per_variable"):
+        qr.SimConfig(max_landmarks_per_variable=-1)
 
 
 # --- chatter mitigation ----------------------------------------------------
@@ -139,13 +200,20 @@ def test_max_landmarks_caps_discovery():
 
 def test_ignore_qdir_collapses_chatter():
     m, initial = damped_spring()
-    cfg = qr.SimConfig(discover_landmarks=False, max_states=400)
+    cfg = qr.SimConfig(
+        discover_landmarks=False,
+        dynamic_chatter=False,
+        max_states=400,
+    )
     plain = qr.qsim(m, initial, config=cfg)
     ignored = qr.qsim(
         m,
         initial,
         config=qr.SimConfig(
-            discover_landmarks=False, max_states=400, ignore_qdir=("s", "a")
+            discover_landmarks=False,
+            dynamic_chatter=False,
+            max_states=400,
+            ignore_qdir=("s", "a"),
         ),
     )
     # chatter blows the plain run past the state budget; abstraction

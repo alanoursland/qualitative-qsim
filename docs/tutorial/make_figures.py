@@ -238,17 +238,25 @@ def main() -> None:
     ref = qr.semiquant.refine(result.graph, below)
     write("semiquant-timeline.svg", timeline_svg(result.graph, below, refinement=ref))
 
-    # spring: the true cycle (discovery off)
+    # spring: the true cycle (practical profile)
     ms, si = spring()
-    cyc = qr.qsim(ms, si, config=qr.SimConfig(discover_landmarks=False))
+    cyc = qr.qsim(ms, si)
     write("spring-cycle.svg", tree_svg(cyc.graph))
     (loop,) = cyc.behaviors()
     write("spring-timeline.svg", timeline_svg(cyc.graph, loop))
 
     # spring: spurious branching (discovery on, capped) vs tamed (energy)
-    wild = qr.qsim(ms, si, max_states=22)
+    wild = qr.qsim(
+        ms, si, config=qr.SimConfig.classic(max_states=22)
+    )
     write("spring-intractable.svg", tree_svg(wild.graph))
-    tamed = qr.qsim(ms, si, config=qr.SimConfig(successor_filters=(qr.EnergyFilter(),)))
+    tamed = qr.qsim(
+        ms,
+        si,
+        config=qr.SimConfig.classic(
+            successor_filters=(qr.EnergyFilter(),)
+        ),
+    )
     write("spring-tamed.svg", tree_svg(tamed.graph))
 
     # operating regions: filling -> steady overflow

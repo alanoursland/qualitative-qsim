@@ -71,7 +71,7 @@ def test_overflow_time_bounds_and_correct_refutation():
     # overflow crossing survives — with the classic time bounds
     # [FULL/IF, FULL/(IF - OMAX)].
     m, initial, _ = two_region_bathtub(values=True)
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     refined = semiquant.refine_all(result)
     assert len(refined) == 3
 
@@ -112,7 +112,7 @@ def test_envelopes_pin_the_discovered_equilibrium():
     # at equilibrium outflow = inflow = 1, so the discovered landmark
     # amount*0 must lie in [1/1.1^2, 1/0.9^2].
     m, initial, (c_al, c_lo) = bathtub_with(full=2.0)
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     env = {c_al: band(0.9, 1.1), c_lo: band(0.9, 1.1)}
 
     refined = semiquant.refine_all(result, envelopes=env)
@@ -145,7 +145,7 @@ def test_strong_drain_prunes_overflow():
     # impossible (outflow would exceed inflow); only the below-FULL
     # equilibrium survives.
     m, initial, _ = bathtub_with(omax_bounds=(1.5, 1.6))
-    result = qr.qsim(m, initial)
+    result = qr.qsim(m, initial, config=qr.SimConfig.classic())
     assert len(result.behaviors()) == 3
     feasible = semiquant.feasible_behaviors(result)
     assert len(feasible) == 1

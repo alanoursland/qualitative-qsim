@@ -72,16 +72,17 @@ initial = m.state(time=TimeTag.POINT, x=("0", Qdir.STD))
 result = qr.qsim(m, initial)
 result_data = result.to_dict()
 
-print(result_data["schema"])                # qrlib.result/v2
+print(result_data["schema"])                # qrlib.result/v3
 assert result_data["model_hash"] == m.content_hash()
 assert result_data["config"]["backend"] == "auto"
+assert result_data["config"]["profile"] == "practical"
 json.dumps(result_data)                     # entirely plain JSON data
 ```
 
-The result records the input model identity even if simulation later grows
-per-branch quantity spaces through landmark discovery. It also records the
-configuration and terminal/statistical information needed to interpret the
-graph.
+The result records the input model identity even if a classic or custom
+configuration later grows per-branch quantity spaces through landmark
+discovery. It also records the configuration and terminal/statistical
+information needed to interpret the graph.
 
 Built-in successor filters describe themselves in replayable form:
 

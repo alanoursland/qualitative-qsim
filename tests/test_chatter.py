@@ -19,7 +19,12 @@ from test_phase import damped_spring
 from test_qsim_golden import bathtub, spring, utube
 from test_soundness import CFG, rk4
 
-AUTO_CFG = qr.SimConfig(max_states=1500, max_depth=34, dynamic_chatter=True)
+AUTO_CFG = qr.SimConfig(
+    max_states=1500,
+    max_depth=34,
+    discover_landmarks=True,
+    dynamic_chatter=True,
+)
 
 
 @pytest.fixture(scope="module")
@@ -67,8 +72,15 @@ def test_candidates_without_wiggles_change_nothing():
     # its directions: no merge ever fires and the graph is untouched —
     # exactly what static (up-front) abstraction would have lost
     m, init = utube()
-    plain = qr.qsim(m, init)
-    auto = qr.qsim(m, init, config=qr.SimConfig(dynamic_chatter=True))
+    plain = qr.qsim(m, init, config=qr.SimConfig.classic())
+    auto = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            discover_landmarks=True,
+            dynamic_chatter=True,
+        ),
+    )
     assert auto.stats["chatter_candidates"] == {
         "default": ["diff", "flow", "mflow"]
     }
@@ -78,8 +90,15 @@ def test_candidates_without_wiggles_change_nothing():
 
 def test_no_candidates_change_nothing():
     m, init = bathtub()
-    plain = qr.qsim(m, init)
-    auto = qr.qsim(m, init, config=qr.SimConfig(dynamic_chatter=True))
+    plain = qr.qsim(m, init, config=qr.SimConfig.classic())
+    auto = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            discover_landmarks=True,
+            dynamic_chatter=True,
+        ),
+    )
     assert auto.stats["chatter_candidates"] == {"default": []}
     assert auto.graph.export() == plain.graph.export()
 
@@ -101,9 +120,16 @@ def test_cascade_completes_automatically():
     # without abstraction the cascade blows the budget on netB direction
     # wiggles; dynamic chatter finds and collapses them by itself
     m, init = cascade()
-    plain = qr.qsim(m, init)
+    plain = qr.qsim(m, init, config=qr.SimConfig.classic())
     assert plain.status is qr.SimStatus.TRUNCATED
-    auto = qr.qsim(m, init, config=qr.SimConfig(dynamic_chatter=True))
+    auto = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            discover_landmarks=True,
+            dynamic_chatter=True,
+        ),
+    )
     assert auto.status is qr.SimStatus.COMPLETE
     assert auto.stats["nodes"] == 19
     census = Counter(b.terminal for b in auto.behaviors())

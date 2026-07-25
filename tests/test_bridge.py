@@ -305,7 +305,9 @@ def test_coverage_translates_discovered_landmarks():
         v=(("0", "+inf"), Qdir.STD),
         a=("0", Qdir.DEC),
     )
-    result = qr.qsim(m, initial)  # discovery on: n2 has x at x*0
+    result = qr.qsim(
+        m, initial, config=qr.SimConfig.classic()
+    )  # discovery on: n2 has x at x*0
     peak = result.graph.nodes[2]
     assert "x*0" in peak.model.spaces[peak.model.index("x")].names
 

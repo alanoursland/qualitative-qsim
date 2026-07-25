@@ -32,11 +32,11 @@ initial = m.state(
 )
 ```
 
-We'll simulate with landmark discovery turned **off** for now (you'll learn
-what that means in Lesson 6):
+The practical default keeps landmark discovery off (you'll meet the classic
+alternative in Lesson 6):
 
 ```python
-result = qr.qsim(m, initial, config=qr.SimConfig(discover_landmarks=False))
+result = qr.qsim(m, initial)
 (behavior,) = result.behaviors()
 print(behavior.terminal)          # TerminalClass.CYCLE
 print(len(behavior.states))       # 9

@@ -64,8 +64,12 @@ ENGINE_CASES = [
     ("utube", utube, SimConfig()),
     ("spring-nodiscover", spring, SimConfig(discover_landmarks=False)),
     ("spring-envision", spring, SimConfig(discover_landmarks=False, envisionment=True)),
-    ("spring-discover", spring, SimConfig(max_states=200)),
-    ("spring-energy", spring, SimConfig(successor_filters=(energy_filter,))),
+    ("spring-discover", spring, SimConfig.classic(max_states=200)),
+    (
+        "spring-energy",
+        spring,
+        SimConfig.classic(successor_filters=(energy_filter,)),
+    ),
     ("damped-ignore", damped_spring, SimConfig(discover_landmarks=False, max_states=400, ignore_qdir=("s", "a"))),
     ("damped-chatter", damped_spring, SimConfig(discover_landmarks=False, max_states=150)),
 ]

@@ -34,7 +34,7 @@ __all__ = [
     "RESULT_SCHEMA",
 ]
 
-RESULT_SCHEMA = "qrlib.result/v2"
+RESULT_SCHEMA = "qrlib.result/v3"
 
 
 class TerminalClass(Enum):
@@ -84,13 +84,18 @@ SuccessorFilter = Callable[[QState, QState, CompiledModel], bool]
 @dataclass(frozen=True)
 class SimConfig:
     """Engine configuration. Filter toggles exist for experimentation and
-    testing; defaults are textbook QSIM behavior.
+    testing. The defaults are the sound, bounded ``practical`` profile:
+    unnamed steady values stay abstract and structurally unobservable
+    direction chatter is merged. Use :meth:`classic` for textbook QSIM
+    landmark discovery and concrete direction tracking.
 
     - ``discover_landmarks``: mint named landmarks where variables become
       steady at unnamed values (per-branch quantity spaces). Off = phase-1
       semantics (steady values stay unnamed; still sound).
-    - ``max_landmarks``: per-variable cap on discovered landmarks; beyond
-      it, steadiness stays unnamed (bounds the classic landmark explosion).
+    - ``max_landmarks_per_variable``: per-variable, per-branch cap on
+      discovered landmarks; beyond it, steadiness stays unnamed. This is not
+      a global graph-size bound: separate branches can each mint up to the
+      cap.
     - ``ignore_qdir``: variable names whose direction is not tracked
       (chatter abstraction): candidates are generated over all concrete
       directions, filtered normally, then projected to ``Qdir.IGN`` and
@@ -146,10 +151,10 @@ class SimConfig:
     no_change_filter: bool = True
     cycle_detection: bool = True
     infinity_filter: bool = True
-    discover_landmarks: bool = True
-    max_landmarks: int = 6
+    discover_landmarks: bool = False
+    max_landmarks_per_variable: int = 6
     ignore_qdir: tuple[str, ...] = ()
-    dynamic_chatter: bool = False
+    dynamic_chatter: bool = True
     track_qdir: tuple[str, ...] = ()
     successor_filters: tuple[SuccessorFilter, ...] = ()
     envisionment: bool = False
@@ -163,6 +168,8 @@ class SimConfig:
             raise ValueError("max_states must be at least 1")
         if self.max_depth < 1:
             raise ValueError("max_depth must be at least 1")
+        if self.max_landmarks_per_variable < 0:
+            raise ValueError("max_landmarks_per_variable must be nonnegative")
         valid = ("auto", "reference", "tensor")
         if self.backend not in valid:
             raise ValueError(f"backend must be one of {valid}, got {self.backend!r}")
@@ -177,6 +184,35 @@ class SimConfig:
                     f"backend={self.backend!r} conflicts with "
                     f"use_tensor={self.use_tensor!r}"
                 )
+
+    @classmethod
+    def practical(cls, **overrides) -> "SimConfig":
+        """The sound bounded profile used by the constructor defaults."""
+        values = {
+            "discover_landmarks": False,
+            "dynamic_chatter": True,
+        }
+        values.update(overrides)
+        return cls(**values)
+
+    @classmethod
+    def classic(cls, **overrides) -> "SimConfig":
+        """Textbook QSIM semantics, including its possible state explosion."""
+        values = {
+            "discover_landmarks": True,
+            "dynamic_chatter": False,
+        }
+        values.update(overrides)
+        return cls(**values)
+
+    @property
+    def profile(self) -> str:
+        """Effective high-level profile for result provenance."""
+        if not self.discover_landmarks and self.dynamic_chatter:
+            return "practical"
+        if self.discover_landmarks and not self.dynamic_chatter:
+            return "classic"
+        return "custom"
 
     @property
     def backend_mode(self) -> str:
@@ -427,6 +463,7 @@ class SimResult:
             item.name: getattr(self.config, item.name)
             for item in fields(self.config)
         }
+        config["profile"] = self.config.profile
         config["successor_filters"] = [
             _successor_filter_descriptor(keep)
             for keep in self.config.successor_filters

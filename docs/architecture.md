@@ -142,7 +142,10 @@ path-predicate filtering, and a **neutral export** (node table + edge list +
 labels as plain arrays; dot on top). Engines return a `SimResult`: the
 graph, `status ∈ {COMPLETE, TRUNCATED}`, per-filter pruning statistics, and
 the `SimConfig` + model hash that produced it — frozen, `to_dict()`-able,
-designed to be wrapped into host provenance records.
+designed to be wrapped into host provenance records. Configuration provenance
+labels the effective `practical`, `classic`, or `custom` profile. Truncated
+results additionally identify limits hit, distinct frame count, likely cause,
+and suggested next actions.
 
 ### Engines and filters
 

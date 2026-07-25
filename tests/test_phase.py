@@ -39,7 +39,7 @@ def damped_spring(*, values=False):
 
 # the friction-chain variables (a, fv, load) chatter; their directions are
 # irrelevant to the (x, v) phase plane
-DAMPED_CFG = qr.SimConfig(
+DAMPED_CFG = qr.SimConfig.classic(
     max_states=1500, max_depth=34, ignore_qdir=("a", "fv", "load")
 )
 NIC_CFG = replace(DAMPED_CFG, phase_pairs=(("x", "v"),))
@@ -130,8 +130,12 @@ def test_undamped_spring_discovery_wobbles_pruned():
     # model is conservative). Non-intersection prunes the wobbles while
     # the true closed orbit survives.
     m, init = spring()
-    plain = qr.qsim(m, init)
-    nic = qr.qsim(m, init, config=qr.SimConfig(phase_pairs=(("x", "v"),)))
+    plain = qr.qsim(m, init, config=qr.SimConfig.classic())
+    nic = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig.classic(phase_pairs=(("x", "v"),)),
+    )
     assert len(plain.behaviors()) == 199
     assert len(nic.behaviors()) == 119
     assert nic.stats["phase_filtered"] == 120

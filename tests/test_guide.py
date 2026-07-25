@@ -56,7 +56,7 @@ def test_focusing_eventually_full():
     m, init = bathtub()
     r = guide.guided(m, init, F(mag("amount", "==", "FULL")))
     assert len(r.satisfied) == 2  # at-FULL equilibrium + overflow
-    assert len(r.violated) == 1  # equilibrium at amount*0: F(FULL) fails forever
+    assert len(r.violated) == 1  # below-FULL equilibrium: F(FULL) fails forever
     assert not r.universal
     assert r.result.stats["spec_filtered"] == 0
 
@@ -76,7 +76,7 @@ def test_until_prunes_the_settling_branch():
     m, init = bathtub()
     r = guide.guided(m, init, U(dir_is("amount", "inc"), mag("amount", "==", "FULL")))
     assert len(r.satisfied) == 2
-    assert r.result.stats["spec_filtered"] == 1  # amount*0 equilibrium prefix dies
+    assert r.result.stats["spec_filtered"] == 1  # below-FULL equilibrium prefix dies
     assert r.universal
 
 
@@ -123,7 +123,7 @@ def test_lasso_verdicts_on_the_spring_cycle():
 
 def test_quiescent_constant_suffix_semantics():
     m, init = bathtub()
-    result = qr.qsim(m, init)
+    result = qr.qsim(m, init, config=qr.SimConfig.classic())
     graph = result.graph
     below_full = next(
         b

@@ -36,7 +36,7 @@ def introduce_landmarks(
     compiled: CompiledModel,
     parent_vals: tuple[QVal, ...],
     vals: tuple[QVal, ...],
-    max_landmarks: int,
+    max_landmarks_per_variable: int,
 ) -> tuple[CompiledModel, tuple[QVal, ...], list[tuple[str, str]]]:
     """Mint landmarks for I5/I9 arrivals in a candidate point state.
 
@@ -44,9 +44,9 @@ def introduce_landmarks(
     candidate point values (both in ``compiled``'s encoding). Returns the
     (possibly new) frame, the re-encoded values, and ``(variable, name)``
     pairs for each minted landmark. Variables whose direction is untracked
-    (``IGN``) never mint. A variable that already carries ``max_landmarks``
-    discovered landmarks keeps its steady value unnamed (sound, just less
-    informative).
+    (``IGN``) never mint. A variable that already carries
+    ``max_landmarks_per_variable`` discovered landmarks keeps its steady
+    value unnamed (sound, just less informative).
     """
     minted: list[tuple[str, str]] = []
     minted_idx: set[int] = set()
@@ -60,7 +60,7 @@ def introduce_landmarks(
         var = compiled.var_order[vi]
         space = compiled.spaces[vi]
         already = sum(1 for n in space.names if n.startswith(var + "*"))
-        if already >= max_landmarks:
+        if already >= max_landmarks_per_variable:
             continue
         name = f"{var}*{already}"
         r = nv.mag

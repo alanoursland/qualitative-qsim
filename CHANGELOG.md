@@ -7,6 +7,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made the sound bounded `SimConfig.practical()` profile the default and
+  added explicit `SimConfig.classic()` textbook semantics, profile
+  provenance, distinct-frame telemetry, and actionable truncation diagnoses.
+- Renamed the per-branch landmark cap to
+  `max_landmarks_per_variable`.
 - Made installed public docstrings self-contained by removing references to
   repository-only Markdown files.
 - Made relative trajectory-direction thresholds share a trajectory time scale
@@ -19,7 +24,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Added deterministic semantic model hashes to simulation results.
 - Added stable built-in successor-filter provenance and explicit opaque
   descriptors for non-replayable user callables.
-- Advanced the result export schema to `qrlib.result/v2`.
+- Advanced the result export schema to `qrlib.result/v3`.
 - Added workload-aware QSIM backend selection with explicit reference/tensor
   overrides and per-result dispatch telemetry.
 - Added solver-refined crossing events and physical-time bounds to trajectory

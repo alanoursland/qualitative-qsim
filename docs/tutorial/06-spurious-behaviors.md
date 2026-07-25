@@ -9,14 +9,19 @@ Lesson 1 warned that the library's output can contain *spurious* behaviors —
 extra paths no real system follows. Now we meet them head-on, because the
 frictionless spring is where they famously appear.
 
-In Lesson 5 we ran the spring with `discover_landmarks=False` and got one
-clean cycle. Turn discovery on (the default) and watch what happens:
+In Lesson 5 the practical profile kept landmark discovery off and produced
+one clean cycle. Select textbook QSIM discovery explicitly and watch what
+happens:
 
 ```python
 import qrlib as qr
 # ... spring model `m`, `initial` as in Lesson 5 ...
 
-result = qr.qsim(m, initial, max_states=22)   # cap the work; see why below
+result = qr.qsim(
+    m,
+    initial,
+    config=qr.SimConfig.classic(max_states=22),
+)
 print(result.status)          # SimStatus.TRUNCATED  — it didn't finish!
 print(len(result.behaviors()))
 ```
@@ -55,8 +60,13 @@ the whole mess.
 The library ships this as a ready-made filter, `EnergyFilter`:
 
 ```python
-tamed = qr.qsim(m, initial,
-                config=qr.SimConfig(successor_filters=(qr.EnergyFilter(),)))
+tamed = qr.qsim(
+    m,
+    initial,
+    config=qr.SimConfig.classic(
+        successor_filters=(qr.EnergyFilter(),),
+    ),
+)
 print(tamed.status)              # SimStatus.COMPLETE
 print(len(tamed.behaviors()))    # 1
 ```
@@ -119,11 +129,21 @@ use tree-mode QSIM rather than `envisionment=True`.
 Sometimes a variable's *direction* wobbles meaninglessly — increasing,
 decreasing, steady, back again — without anything observable depending on it.
 This is called **chatter**, and it multiplies behaviors just like discovery
-does. The library can detect chattering variables automatically and abstract
-their direction away:
+does. The practical profile detects chattering variables automatically and
+abstracts their direction away:
 
 ```python
-result = qr.qsim(m, initial, config=qr.SimConfig(dynamic_chatter=True))
+result = qr.qsim(m, initial)  # SimConfig.practical()
+```
+
+To combine chatter abstraction with classic landmark discovery, request both
+controls explicitly:
+
+```python
+config = qr.SimConfig(
+    discover_landmarks=True,
+    dynamic_chatter=True,
+)
 ```
 
 Unlike the energy filter, dynamic chatter does not assert new physics. It
@@ -134,18 +154,18 @@ properties or phase-plane filters remain tracked.
 
 ## The takeaway
 
-The bare qualitative model gives you *guaranteed coverage but maybe clutter*.
-You then **add sound knowledge** — energy arguments, chatter abstraction — to
-prune the clutter *without ever risking the guarantee*. That trade — coverage
-first, precision through added knowledge — is the rhythm of working with this
-library.
+The practical profile starts with a sound abstraction that avoids the two
+largest sources of accidental growth. Select `SimConfig.classic()` when the
+extra landmark distinctions are the question being studied, then add trusted
+knowledge such as energy or phase arguments to prune classic QSIM's spurious
+branches.
 
 ## Exercises
 
-1. Run the spring three ways: discovery off; discovery on with a small
-   `max_states`; and discovery on with `EnergyFilter()`. Record the status and
-   behavior count of each. Which is the true answer, and why do the other two
-   differ?
+1. Run the spring three ways: `SimConfig.practical()`;
+   `SimConfig.classic(max_states=22)`; and the classic profile with
+   `EnergyFilter()`. Record the status and behavior count of each. Which
+   distinctions does each profile preserve?
 2. Explain why `EnergyFilter` preserves coverage for a conservative spring
    but may break it when applied to a driven spring.
 3. A ball bouncing on the floor loses a little height each bounce. Which

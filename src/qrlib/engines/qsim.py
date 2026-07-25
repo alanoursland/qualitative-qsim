@@ -152,6 +152,7 @@ def qsim(
         "phase_filtered": 0,
         "chatter_merged": 0,
         "deadends": 0,
+        "limit_hits": {"max_states": 0, "max_depth": 0},
         "backend": _new_backend_stats(cfg),
     }
     if cfg.dynamic_chatter:
@@ -202,6 +203,7 @@ def qsim(
                 return "merged"
         if len(nodes) >= cfg.max_states:
             truncated = True
+            stats["limit_hits"]["max_states"] += 1
             if parent.terminal is None:
                 parent.terminal = TerminalClass.TRUNCATED
             return "limit"
@@ -225,7 +227,13 @@ def qsim(
         is_point = state.time is TimeTag.POINT
         active_idx = frame.region_named(node.region).constraint_idx
 
-        if len(nodes) >= cfg.max_states or node.depth >= cfg.max_depth:
+        if len(nodes) >= cfg.max_states:
+            stats["limit_hits"]["max_states"] += 1
+            node.terminal = TerminalClass.TRUNCATED
+            truncated = True
+            continue
+        if node.depth >= cfg.max_depth:
+            stats["limit_hits"]["max_depth"] += 1
             node.terminal = TerminalClass.TRUNCATED
             truncated = True
             continue
@@ -318,7 +326,59 @@ def qsim(
 
     graph = BehaviorGraph(nodes, 0, root_frame.var_order, root_frame.spaces)
     status = SimStatus.TRUNCATED if truncated else SimStatus.COMPLETE
+    stats["distinct_frames"] = len({node.model for node in nodes.values()})
+    if truncated:
+        stats["truncation"] = _truncation_diagnostic(cfg, stats)
     return SimResult(graph, status, stats, cfg, root_frame.model_hash)
+
+
+def _truncation_diagnostic(cfg: SimConfig, stats: dict) -> dict:
+    """Plain-data explanation and safe next actions for a truncated run."""
+    limits = [
+        name for name, count in stats["limit_hits"].items() if count
+    ]
+    if cfg.discover_landmarks and stats["landmarks_minted"]:
+        likely_cause = "landmark_growth"
+        message = (
+            f"Landmark discovery minted {stats['landmarks_minted']} landmarks "
+            f"across {stats['distinct_frames']} distinct frames before the "
+            f"{', '.join(limits)} limit."
+        )
+        suggestions = [
+            "Use SimConfig.practical() when named intermediate extrema are "
+            "not required.",
+            "Use SimConfig.classic() only when full landmark discovery is "
+            "intentional.",
+            "Add trusted energy, Lyapunov, or phase constraints only when "
+            "the model justifies them.",
+        ]
+    elif "max_depth" in limits and "max_states" not in limits:
+        likely_cause = "depth_limit"
+        message = f"Simulation reached max_depth={cfg.max_depth}."
+        suggestions = [
+            "Raise max_depth if the additional event history is required.",
+            "Inspect repeated qualitative phases before increasing the limit.",
+        ]
+    else:
+        likely_cause = "state_space_growth"
+        message = (
+            f"Simulation exhausted {', '.join(limits)} after creating "
+            f"{stats['nodes']} nodes."
+        )
+        suggestions = []
+        if not cfg.dynamic_chatter:
+            suggestions.append(
+                "Enable dynamic chatter abstraction with SimConfig.practical()."
+            )
+        suggestions.append(
+            "Add trusted successor filters only when domain knowledge justifies them."
+        )
+    return {
+        "limits_hit": limits,
+        "likely_cause": likely_cause,
+        "message": message,
+        "suggestions": suggestions,
+    }
 
 
 def _bounces(
@@ -548,7 +608,7 @@ def _expand(
         child_state = cand_state
         if next_time is TimeTag.POINT and cfg.discover_landmarks:
             child_frame, minted_vals, minted = introduce_landmarks(
-                frame, vals, projected, cfg.max_landmarks
+                frame, vals, projected, cfg.max_landmarks_per_variable
             )
             if minted:
                 stats["landmarks_minted"] += len(minted)

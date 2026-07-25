@@ -97,7 +97,7 @@ def test_result_carries_pre_discovery_model_hash_for_model_and_compiled_input():
     assert direct.model_hash == expected
     assert compiled.model_hash == expected
     assert direct.to_dict()["model_hash"] == expected
-    assert direct.to_dict()["schema"] == "qrlib.result/v2"
+    assert direct.to_dict()["schema"] == "qrlib.result/v3"
 
 
 def test_landmark_discovery_preserves_the_input_model_hash():
@@ -105,7 +105,7 @@ def test_landmark_discovery_preserves_the_input_model_hash():
 
     model, initial = bathtub()
     expected = model.content_hash()
-    result = qr.qsim(model, initial)
+    result = qr.qsim(model, initial, config=qr.SimConfig.classic())
 
     assert result.stats["landmarks_minted"] > 0
     assert result.model_hash == expected

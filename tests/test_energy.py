@@ -15,9 +15,19 @@ from test_qsim_phase2 import energy_filter, spring
 
 def test_reproduces_the_handwritten_spring_filter():
     m, initial = spring()
-    hand = qr.qsim(m, initial, config=qr.SimConfig(successor_filters=(energy_filter,)))
+    hand = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(energy_filter,)
+        ),
+    )
     for ef in (EnergyFilter(), EnergyFilter(("x", "v", "a"))):
-        decl = qr.qsim(m, initial, config=qr.SimConfig(successor_filters=(ef,)))
+        decl = qr.qsim(
+            m,
+            initial,
+            config=qr.SimConfig.classic(successor_filters=(ef,)),
+        )
         # byte-for-byte the same behavior graph as the bespoke filter
         assert decl.graph.export() == hand.graph.export()
         assert decl.stats["nodes"] == 17
@@ -28,9 +38,17 @@ def test_reproduces_the_handwritten_spring_filter():
 
 def test_without_the_filter_the_spring_is_intractable():
     m, initial = spring()
-    plain = qr.qsim(m, initial, max_states=300)
+    plain = qr.qsim(
+        m, initial, config=qr.SimConfig.classic(max_states=300)
+    )
     assert plain.status is qr.SimStatus.TRUNCATED
-    tamed = qr.qsim(m, initial, config=qr.SimConfig(successor_filters=(EnergyFilter(),)))
+    tamed = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(EnergyFilter(),)
+        ),
+    )
     assert tamed.status is qr.SimStatus.COMPLETE
 
 
@@ -134,7 +152,11 @@ def test_energy_filtered_graph_still_covers_real_springs():
 
     m, initial, rows = spring_instance(0)
     result = qr.qsim(
-        m, initial, config=qr.SimConfig(successor_filters=(EnergyFilter(),))
+        m,
+        initial,
+        config=qr.SimConfig.classic(
+            successor_filters=(EnergyFilter(),)
+        ),
     )
     assert result.status is qr.SimStatus.COMPLETE
     observed = abstraction.abstract_trajectory(rows, m, config=CFG)

@@ -60,11 +60,7 @@ have behaviors satisfying the property?”:
 from qrlib import guide
 from qrlib.guide import F, G, mag
 
-cycle_result = qr.qsim(
-    spring,
-    spring_initial,
-    config=qr.SimConfig(discover_landmarks=False),
-)
+cycle_result = qr.qsim(spring, spring_initial)
 returns_to_zero = G(F(mag("x", "==", "0")))
 classification = guide.classify(cycle_result, returns_to_zero)
 print(classification.universal)               # True

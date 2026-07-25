@@ -19,9 +19,11 @@ print(len(result.behaviors()))       # 3
 ```
 
 `qsim` explores **every** qualitatively consistent way the system can evolve
-from the initial state, and returns a `SimResult`. In the default tree mode,
-`result.behaviors()` is the list of complete behaviors, each a path from the
-start to an ending.
+from the initial state, and returns a `SimResult`. The default
+`SimConfig.practical()` profile leaves new steady values unnamed and merges
+structurally unobservable direction chatter, preserving coverage while
+keeping common models bounded. In tree mode, `result.behaviors()` is the list
+of complete behaviors, each a path from the start to an ending.
 
 For large results, `result.iter_behaviors(limit=...)` streams paths without
 materializing the tuple. With attainable-envisionment merging enabled, these
