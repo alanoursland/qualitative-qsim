@@ -1,7 +1,7 @@
 """Device-centric compositional authoring (after de Kleer & Brown's
 ENVISION).
 
-Research lineage: [deKleerBrown1984] in ``docs/references.md``.
+Research lineage: de Kleer and Brown (1984).
 
 Models are built by wiring instances of reusable **component types**
 rather than by writing one flat constraint list. A :class:`ComponentType`

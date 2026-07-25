@@ -1,8 +1,8 @@
 """The coverage oracle: is an observed behavior a path in a behavior graph?
 
-The flagship validation surface (docs/host-integration.md, Surface 3): given
-an abstracted trajectory and a QSIM-predicted :class:`BehaviorGraph`, decide
-whether the observation is consistent with the prediction, returning a
+Given an abstracted trajectory and a QSIM-predicted
+:class:`BehaviorGraph`, decide whether the observation is consistent with
+the prediction, returning a
 witness path on success and a localized diagnosis on failure.
 
 Matching semantics:
@@ -221,7 +221,7 @@ def score(
     """Fraction of observations covered, with per-observation results.
 
     The aggregate is the qualitative-consistency score used for model
-    validation and selection (docs/host-integration.md, Surface 3)."""
+    validation and selection."""
     results = tuple(check(obs, graph) for obs in observations)
     fraction = (
         sum(1 for r in results if r.covered) / len(results) if results else 1.0

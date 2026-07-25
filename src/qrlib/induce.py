@@ -1,14 +1,14 @@
 """QDE induction: learn qualitative models from trajectory data.
 
-Research lineage: [RichardsKraanKuipers1992] and
-[RamachandranMooneyKuipers1994] in ``docs/references.md``. The implementation
-is a qrlib-specific parsimony-ranked procedure, not a reproduction of MISQ.
+Research lineage: Richards, Kraan, and Kuipers (1992), and Ramachandran,
+Mooney, and Kuipers (1994). The implementation is a qrlib-specific
+parsimony-ranked procedure, not a reproduction of MISQ.
 
 The inverse of simulation. Instead of authoring a :class:`~qrlib.model.Model`
 and predicting its behaviors, :func:`induce` searches for the model whose
 structure the observed trajectories are consistent with — the GENMODEL/MISQ
-lineage (docs/literature-survey.md), realized here as **structure selection
-over a parsimony ladder, validated by the data-consistency checker**. It is
+lineage, realized here as **structure selection over a parsimony ladder,
+validated by the data-consistency checker**. It is
 diagnosis with the whole model as the unknown, reusing the same parts: the
 least-squares sign fit and the per-constraint consistency test
 (``bridge.signs``).
@@ -38,8 +38,8 @@ The pipeline:
 5. **Rank** consistent candidates ahead of inconsistent ones, then by
    **parsimony** (fewer influences), then by mean violation.
 
-Soundness follows the governing caveat (docs/literature-survey.md).
-Inconsistency is a sound refutation: if the data violates a constraint the
+Soundness follows the guaranteed-coverage asymmetry. Inconsistency is a
+sound refutation: if the data violates a constraint the
 structure asserts, that structure is wrong (modulo the tolerance and the
 sampling). Consistency is **not** proof of uniqueness — weak influences are
 nearly invisible qualitatively, so several structures are typically

@@ -1,11 +1,11 @@
 """Comparative analysis: how an equilibrium depends on its parameters.
 
-Research lineage: [ChiuKuipers1992] in ``docs/references.md``. This module
-implements a narrower equilibrium comparative-statics procedure.
+Research lineage: Chiu and Kuipers (1992). This module implements a narrower
+equilibrium comparative-statics procedure.
 
-Weld's *differential qualitative* analysis (docs/literature-survey.md §"not
-yet assessed") asks the perturbation question — *change a parameter in a
-known direction; which way does the behavior move?* — e.g. "raise the
+Weld's *differential qualitative* analysis asks the perturbation question —
+*change a parameter in a known direction; which way does the behavior move?*
+— e.g. "raise the
 inflow: does the equilibrium level rise?". This module answers the sound,
 well-defined core of that question, **comparative statics**: compare two
 equilibria of the same model whose exogenous parameters differ

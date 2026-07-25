@@ -1,5 +1,5 @@
-"""Render-agnostic visualization data (docs/host-integration.md, Surface 4:
-data first; hosts restyle in their own stacks).
+"""Render-agnostic visualization data that hosts can restyle in their own
+stacks.
 
 - :func:`timeline_bands`: one behavior as per-variable bands over
   qualitative time — magnitude rank/label + direction per state, with

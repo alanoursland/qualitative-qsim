@@ -1,6 +1,6 @@
 """DecSIM-style decomposed simulation.
 
-Research lineage: [ClancyKuipers1997] in ``docs/references.md``.
+Research lineage: Clancy and Kuipers (1997).
 
 Monolithic QSIM branches on every qualitative event of every variable: ``n``
 simultaneously moving but mutually unconstrained variables produce up to

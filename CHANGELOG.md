@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made installed public docstrings self-contained by removing references to
+  repository-only Markdown files.
 - Made relative trajectory-direction thresholds share a trajectory time scale
   and project threshold-steady directions through active model constraints.
 - Added structural cycle queries and bounded representative behavior

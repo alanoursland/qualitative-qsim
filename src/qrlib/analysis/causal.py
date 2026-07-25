@@ -1,12 +1,11 @@
 """Causal ordering: which variable determines which.
 
-Research lineage: [IwasakiSimon1986] and [deKleerBrown1986] in
-``docs/references.md``.
+Research lineage: Iwasaki and Simon (1986), and de Kleer and Brown (1986).
 
 Derives causal structure from a model's constraints alone — no simulation —
-following the Simon / Iwasaki-Simon account (docs/literature-survey.md §4).
-The library's explanation layer narrates *what* changes along a behavior;
-this narrates *what causes what* in the model's structure.
+following the Simon / Iwasaki-Simon account. The library's explanation layer
+narrates *what* changes along a behavior; this narrates *what causes what* in
+the model's structure.
 
 Method (structural matching + strongly-connected components):
 

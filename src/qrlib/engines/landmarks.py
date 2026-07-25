@@ -1,4 +1,4 @@
-"""QSIM new-landmark introduction (docs/qsim.md §4).
+"""QSIM new-landmark introduction.
 
 When a variable that was moving becomes steady *inside* an open interval
 (an I5/I9 transition), the value it is steady at is a discovered landmark:

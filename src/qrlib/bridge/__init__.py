@@ -1,7 +1,7 @@
 """Numeric <-> qualitative bridge.
 
 The reference (pure-Python, per-trajectory) implementations of the bridge
-surfaces (docs/numeric-bridge.md, docs/host-integration.md):
+surfaces:
 
 - ``abstraction`` — sampled trajectories -> QSIM-style qualitative
   behaviors, with explicit abstraction parameters.

@@ -1,7 +1,6 @@
 """Tensor codecs and compiled constraint tables.
 
-The bridge between symbolic states and integer tensors
-(docs/gpu-tensorization.md §2-3):
+The bridge between symbolic states and integer tensors:
 
 - **qcode**: a qualitative value packs into one integer,
   ``mag_rank * 4 + dir`` (direction base 4 so states carrying ``IGN`` also

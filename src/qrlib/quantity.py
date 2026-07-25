@@ -6,8 +6,7 @@ The foundational representations of QSIM-style qualitative reasoning:
   identity, with optional numeric knowledge attached (an exact ``value``
   and/or interval bounds ``(lo, hi)``). Purely qualitative machinery uses
   only names and order; abstraction, coverage checking, and
-  semi-quantitative propagation use the numbers when present (see
-  docs/host-integration.md, Surface 1).
+  semi-quantitative propagation use the numbers when present.
 - :class:`QuantitySpace` — a totally ordered tuple of landmarks, optionally
   unbounded below/above (conceptual ``-inf`` / ``+inf`` endpoints).
 - :class:`Qdir` — direction of change (decreasing / steady / increasing).
@@ -23,8 +22,7 @@ integer tensors used by ``qrlib.tensor``.
 
 Note (QSIM landmark discovery): quantity spaces are immutable values here;
 inserting a new landmark produces a *new* space. Engines that discover
-landmarks mid-simulation therefore version their spaces per behavior branch
-(see docs/qsim.md §4).
+landmarks mid-simulation therefore version their spaces per behavior branch.
 """
 
 from __future__ import annotations

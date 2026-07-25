@@ -1,10 +1,9 @@
 """Guided qualitative simulation: temporal-logic trajectory constraints.
 
-Research lineage: [BrajnikClancy1998] and [ShultsKuipers1997] in
-``docs/references.md``.
+Research lineage: Brajnik and Clancy (1998), and Shults and Kuipers (1997).
 
-TeQSIM-style guidance (docs/literature-survey.md §3): a propositional
-linear-temporal-logic specification over qualitative states is treated as
+TeQSIM-style guidance treats a propositional linear-temporal-logic
+specification over qualitative states as
 part of the model. Simulation is interleaved with **formula progression**
 (each behavior-graph node carries the spec's residual formula; a successor
 whose residual collapses to ``FALSE`` is a *bad prefix* — no extension can
@@ -25,8 +24,8 @@ of interest; **exogenous time-varying inputs** expressed as temporal
 constraints over otherwise-unconstrained input variables; boundary-condition
 problems; and folding observations into simulation.
 
-Soundness (the guaranteed-coverage asymmetry — docs/literature-survey.md,
-governing caveat): pruning only removes behaviors whose *every* extension
+Soundness follows the guaranteed-coverage asymmetry: pruning only removes
+behaviors whose *every* extension
 violates the spec, so the guided behavior set still covers every real
 behavior that satisfies the spec. An empty ``violated`` (and empty
 ``undetermined``) set proves the **universal** claim "all real behaviors

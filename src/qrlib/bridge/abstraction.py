@@ -1,8 +1,8 @@
 """Trajectory abstraction: numeric trajectories -> qualitative behaviors.
 
-The upward bridge (docs/numeric-bridge.md): quantize sampled trajectories
-against landmark values, estimate directions, segment into runs, debounce,
-and emit a QSIM-style alternating point/interval state sequence with the
+The upward bridge quantizes sampled trajectories against landmark values,
+estimates directions, segments them into runs, debounces numeric chatter,
+and emits a QSIM-style alternating point/interval state sequence with the
 mapping back to sample indices.
 
 This is the **reference implementation**: pure Python, one trajectory at a
@@ -10,7 +10,7 @@ time, exact and readable. The batched/tensorized version (phase 5) must
 reproduce it. Inputs accept any array-like — nested sequences, numpy
 arrays, torch tensors (anything with ``tolist()``).
 
-Semantics notes (docs/numeric-bridge.md, gotchas):
+Important semantics:
 
 - Landmark crossings between samples are *synthesized* as point states
   (magnitude jumps of one landmark); a jump across more than one landmark

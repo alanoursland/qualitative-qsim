@@ -1,6 +1,6 @@
 """Declarative energy and Lyapunov successor filters.
 
-Research lineage: [FoucheKuipers1992] in ``docs/references.md``.
+Research lineage: Fouché and Kuipers (1992).
 
 The canonical spurious-behavior killer is an *energy argument*: a
 conserved or dissipated quantity constrains how far a system can swing.

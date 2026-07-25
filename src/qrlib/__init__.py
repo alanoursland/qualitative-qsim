@@ -1,9 +1,8 @@
 """qrlib — qualitative reasoning about dynamical systems.
 
-Pre-alpha. See the repository's ``docs/`` for the design:
-``docs/architecture.md`` maps this package layout, ``docs/roadmap.md`` says
-what exists vs. what is planned. The reference QSIM engine is available as
-:func:`qrlib.qsim`.
+Pre-alpha. The reference QSIM engine is available as :func:`qrlib.qsim`;
+the package also provides behavior analysis, numeric-trajectory bridges,
+model frontends, and tensorized execution.
 """
 
 from .behavior import (

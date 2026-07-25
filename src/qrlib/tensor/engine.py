@@ -1,4 +1,4 @@
-"""Tensorized successor filtering (docs/gpu-tensorization.md §3).
+"""Tensorized successor filtering.
 
 The combinatorial core of QSIM — prune per-variable candidate domains,
 then filter the cross-product of interpretations — as batched tensor ops

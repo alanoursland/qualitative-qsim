@@ -3,8 +3,7 @@
 The output side of every engine: a :class:`BehaviorGraph` of
 :class:`~qrlib.state.QState` nodes with terminal classifications, wrapped in
 a :class:`SimResult` that records the config and statistics that produced it
-(truncation and filtering are always reported, never silent — see
-docs/host-integration.md, cross-cutting conventions).
+(truncation and filtering are always reported, never silent).
 
 Because QSIM discovers landmarks mid-simulation, quantity spaces are
 per-branch: every node carries its **frame** (a

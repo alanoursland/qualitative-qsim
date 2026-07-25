@@ -1,16 +1,15 @@
 """Reference QSIM engine.
 
-Research lineage: [Kuipers1986], [Kuipers1994], and [Kuipers2001] in
-``docs/references.md``.
+Research lineage: Kuipers (1986; 1994; 2001).
 
-The classic agenda loop (docs/qsim.md §2): pop a state, classify terminals,
-generate per-variable candidates from the transition tables, filter
+The classic agenda loop pops a state, classifies terminals, generates
+per-variable candidates from the transition tables, and filters
 (tuple/Waltz -> global assembly -> global filters), attach surviving
 successors, repeat. Written for clarity and auditability; the tensorized
 engine (phase 5) must agree with it exactly.
 
-Phase-2 machinery (docs/qsim.md §8): landmark discovery (per-branch
-frames), chatter abstraction (``ignore_qdir``), user successor filters,
+Additional machinery includes landmark discovery (per-branch frames),
+chatter abstraction (``ignore_qdir``), user successor filters,
 path-aware Lyapunov recurrence pruning, and envisionment mode.
 
 Phase-4 machinery — operating regions: every node carries its region; the

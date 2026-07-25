@@ -8,9 +8,9 @@ constraints into :class:`CompiledConstraint` records. The compiled
 artifacts are inert data; the consistency predicates that interpret them
 live with the engines (``qrlib.engines.filters``).
 
-Operating regions (docs/host-integration.md, Surface 5): a region names a
-subset of the model's constraints that are active while the system is in
-it, and **transitions** declare when the system crosses into another
+An operating region names a subset of the model's constraints that are
+active while the system is in it, and **transitions** declare when the
+system crosses into another
 region — guard conditions are conjunctions of landmark predicates
 (``amount == FULL``, ``netflow > 0``) evaluated on qualitative magnitudes.
 A model with no declared regions has one implicit region (``"default"``)
@@ -186,8 +186,8 @@ class CompiledModel:
 @dataclass(frozen=True)
 class SignStructure:
     """The sign/monotonicity closure a model's constraints imply, as plain
-    data (docs/host-integration.md, Surface 6): what a host maps onto its
-    own regression parameterization or checks against its own analyses.
+    data that a host can map onto its own regression parameterization or
+    check against its own analyses.
 
     - ``monotone``: (x, y, s) with s = sign of dy/dx (M+, M-, MINUS).
     - ``derivatives``: (x, y) with dx/dt = y.

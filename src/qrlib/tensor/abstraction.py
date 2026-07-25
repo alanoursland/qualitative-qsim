@@ -1,5 +1,5 @@
-"""Batched trajectory abstraction (docs/gpu-tensorization.md §1: the
-trajectory-batch axis — the embarrassingly parallel case).
+"""Batched trajectory abstraction over the embarrassingly parallel
+trajectory-batch axis.
 
 The per-sample stages of the pipeline — quantization against landmark
 values, direction estimation, and run-boundary detection — vectorize over

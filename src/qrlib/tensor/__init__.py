@@ -1,6 +1,6 @@
 """Tensorized execution — the only subpackage that imports torch.
 
-Contents (docs/gpu-tensorization.md):
+Contents:
 
 - ``encoding`` — qcode packing, canonical ``(B, 2V)`` frontier codecs, and
   per-frame dense constraint tables built from the reference predicates

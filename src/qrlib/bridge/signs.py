@@ -1,5 +1,4 @@
-"""Sign-structure intake and estimation (docs/host-integration.md, Surface 2)
-and the downward consistency checker (Surface 6).
+"""Sign-structure intake, estimation, and downward consistency checking.
 
 - :func:`model_from_signs`: compile an interaction sign matrix
   ``S[i][j] = sign of d(dx_i/dt)/dx_j`` — however the host obtained it —
@@ -8,7 +7,7 @@ and the downward consistency checker (Surface 6).
 - :func:`estimate_signs`: estimate the matrix from ``(x, dx/dt)`` data with
   per-entry confidences (linear least-squares first cut: exact for linear
   systems, average monotonicity for monotone nonlinear ones; it asserts
-  signs or UNKNOWN, never a confident zero — see docs/open-questions.md #10).
+  signs or UNKNOWN, never a confident zero).
 - :func:`check_consistency`: per-constraint violation masses of a model
   against sampled data — does ``outflow`` actually increase with ``level``?
 

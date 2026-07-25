@@ -3,11 +3,11 @@
 Constraints are inert data: they name the variables they relate and carry
 optional *corresponding values* (tuples of landmark names, one per variable,
 known to co-occur — e.g. ``f(0) = 0`` for an ``MPlus``). Consistency
-predicates and their compiled table forms live with the engines (phase 1;
-see docs/qsim.md §3), keeping the model description engine-agnostic.
+predicates and their compiled table forms live with the engines, keeping the
+model description engine-agnostic.
 
-Research lineage: QSIM constraints [Kuipers1986; Kuipers1994] and the FOG
-negligibility relation [Raiman1986], all in ``docs/references.md``.
+Research lineage: QSIM constraints (Kuipers, 1986; 1994) and the FOG
+negligibility relation (Raiman, 1986).
 """
 
 from __future__ import annotations

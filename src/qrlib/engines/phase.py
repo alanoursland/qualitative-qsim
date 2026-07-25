@@ -1,6 +1,6 @@
 """Phase-space non-intersection filter (after Lee & Kuipers).
 
-Research lineage: [LeeKuipers1988] in ``docs/references.md``.
+Research lineage: Lee and Kuipers (1988).
 
 A trajectory of an autonomous planar flow cannot cross itself. Projected
 onto a declared phase pair ``(x, y)`` — ``y = dx/dt`` via a ``Deriv``

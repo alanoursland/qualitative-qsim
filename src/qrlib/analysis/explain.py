@@ -1,8 +1,8 @@
 """Behavior explanation: structured step records + prose narration.
 
-Every state in a behavior is symbolic, so narration is cheap and faithful
-(docs/host-integration.md, cross-cutting conventions): :func:`explain`
-derives, for each step of a behavior, what changed per variable (reaching a
+Every state in a behavior is symbolic, so narration is cheap and faithful:
+:func:`explain` derives, for each step of a behavior, what changed per
+variable (reaching a
 landmark, becoming steady at a discovered value, starting to rise/fall,
 crossing into another operating region) as structured :class:`Event`
 records; :func:`narrate` renders them as prose. Hosts embed the structured

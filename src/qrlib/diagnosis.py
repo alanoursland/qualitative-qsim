@@ -1,9 +1,9 @@
 """Consistency-based model-based diagnosis over qualitative dynamic models.
 
-Research lineage: [SubramanianMooney1996] in ``docs/references.md``.
+Research lineage: Subramanian and Mooney (1996).
 
 The GDE/Sherlock lineage extended to continuous dynamics in the manner of
-QDOCS (docs/literature-survey.md §2): components carry **behavioral modes**
+QDOCS: components carry **behavioral modes**
 (a normal mode plus fault modes, each a set of constraints); a **candidate**
 assigns one mode to every component; a candidate is *consistent* when the
 model under that assignment — simulated from the initial state — **covers**
@@ -11,8 +11,7 @@ every observation (the coverage oracle is the consistency check, and its
 refutations are the conflicts). Diagnoses are the consistent candidates
 with minimal faulted-component sets, searched in order of fault cardinality.
 
-Soundness semantics (the guaranteed-coverage asymmetry, see
-docs/literature-survey.md, governing caveat):
+Soundness follows the guaranteed-coverage asymmetry:
 
 - **Refutations are sound**: QSIM predicts every real behavior of a
   candidate's model, so an observation not covered genuinely rules that

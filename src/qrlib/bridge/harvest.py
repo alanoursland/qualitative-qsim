@@ -1,8 +1,8 @@
 """Landmark intake and data-driven landmark proposal.
 
-Surface 2 of docs/host-integration.md: hosts contribute candidate landmark
-values from wherever they get them (equilibrium finders, guard thresholds,
-domain knowledge) as :class:`LandmarkRecord`s; :func:`harvest_into_model`
+Hosts contribute candidate landmark values from equilibrium finders, guard
+thresholds, or domain knowledge as :class:`LandmarkRecord`s;
+:func:`harvest_into_model`
 inserts them into a model's quantity spaces by numeric value, reporting
 conflicts instead of guessing. :func:`propose_landmarks` runs the other way:
 sustained steady stretches in trajectory data at unnamed values suggest

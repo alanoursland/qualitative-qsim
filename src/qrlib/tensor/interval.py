@@ -1,4 +1,4 @@
-"""Batched interval propagation (docs/gpu-tensorization.md §6-7).
+"""Batched interval propagation.
 
 The semi-quantitative layer (:mod:`qrlib.semiquant`) refines a *single*
 behavior's numeric bounds by interval propagation to a fixpoint. Its

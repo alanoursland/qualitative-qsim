@@ -1,8 +1,8 @@
 """Queries over behavior graphs.
 
-Host-facing questions (docs/host-integration.md, Surface 4) answered with
-plain data and the small algorithms in ``qrlib.graph`` — no external graph
-dependencies. All functions take a :class:`~qrlib.behavior.BehaviorGraph`.
+Host-facing questions are answered with plain data and the small algorithms
+in ``qrlib.graph`` — no external graph dependencies. All functions take a
+:class:`~qrlib.behavior.BehaviorGraph`.
 """
 
 from __future__ import annotations

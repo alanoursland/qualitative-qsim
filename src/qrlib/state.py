@@ -5,7 +5,7 @@ of a model at one qualitative time — either a distinguished time *point* or
 the open *interval* between two distinguished points (QSIM time alternates
 between the two). States are immutable values: hashable, comparable, and
 (given a compiled model's frozen landmark→rank mapping) encodable as a flat
-integer vector — see docs/gpu-tensorization.md §2.
+integer vector.
 """
 
 from __future__ import annotations

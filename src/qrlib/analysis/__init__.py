@@ -11,7 +11,6 @@
   consistent orthant ordering and returns a contradictory signed cycle when
   they do not.
 
-(docs/host-integration.md, Surface 4 and cross-cutting conventions.)
 """
 
 from . import causal, compare, explain, monotonicity, queries
