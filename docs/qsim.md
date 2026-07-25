@@ -119,11 +119,16 @@ QSIM need not terminate (new landmarks can be introduced forever). The engine
 takes explicit resource limits: max states, max depth, and
 `max_landmarks_per_variable` on each behavior branch. The landmark limit is
 not a global graph-size bound because separate branches carry separate
-frames. The old constructor keyword `max_landmarks` remains a deprecated
-alias during the 0.1 release series. `max_states` is a strict graph-node bound
-including the root. Hitting a limit marks affected leaves as `TRUNCATED` and
-records the limits hit, distinct-frame count, likely cause, and safe next
-actions in `result.stats["truncation"]`.
+frames. The old constructor keyword and read-only attribute `max_landmarks`
+remain deprecated aliases during the 0.1 release series. `max_states` is a
+strict graph-node bound including the root and defaults to 512, enough for the
+canonical energy-filtered spring while remaining a hard bound. Explicit
+smaller budgets are never raised automatically. Hitting a limit marks affected leaves as
+`TRUNCATED` and records the limits hit, distinct-frame count, likely cause,
+and safe next actions in `result.stats["truncation"]`. When an energy filter
+enabled discovery, the diagnostic names that adjustment and recommends an
+explicit larger state budget rather than telling the caller to select the
+practical profile they already requested.
 
 ## 7. Acceptance tests (from the literature)
 

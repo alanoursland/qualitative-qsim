@@ -12,6 +12,7 @@ import inspect
 import os
 from pathlib import Path
 import pydoc
+import warnings
 
 import qrlib as qr
 
@@ -61,6 +62,16 @@ def _assert_installed_docstrings_are_self_contained() -> None:
 
 
 def _exercise_public_entry_point() -> None:
+    config = qr.SimConfig(max_landmarks_per_variable=5)
+    assert config.max_states == 512
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert config.max_landmarks == 5
+    assert any(
+        issubclass(warning.category, DeprecationWarning)
+        for warning in caught
+    )
+
     model = qr.Model("wheel-smoke")
     model.variable("x", landmarks=("0",), upper_unbounded=True)
     model.constrain(qr.Constant("x"))

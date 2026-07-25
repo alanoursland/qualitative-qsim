@@ -214,7 +214,7 @@ def test_cascade_unguided_downstream_blows_up():
     free = qr.qsim(
         part.model, sub_init, config=qr.SimConfig(ignore_qdir=("netB", "outA"))
     )
-    assert free.status is SimStatus.TRUNCATED  # blows the 500-state budget
+    assert free.status is SimStatus.TRUNCATED  # blows the default state budget
 
 
 # --- cyclic coupling falls back to chatter + post-hoc join -----------------

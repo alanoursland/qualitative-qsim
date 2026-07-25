@@ -357,19 +357,37 @@ def _truncation_diagnostic(cfg: SimConfig, stats: dict) -> dict:
     ]
     if cfg.discover_landmarks and stats["landmarks_minted"]:
         likely_cause = "landmark_growth"
+        energy_enabled_discovery = any(
+            "EnergyFilter" in adjustment
+            for adjustment in stats.get("config_adjustments", ())
+        )
+        prefix = (
+            "EnergyFilter enabled landmark discovery, which"
+            if energy_enabled_discovery
+            else "Landmark discovery"
+        )
         message = (
-            f"Landmark discovery minted {stats['landmarks_minted']} landmarks "
-            f"across {stats['distinct_frames']} distinct frames before the "
+            f"{prefix} minted {stats['landmarks_minted']} landmarks across "
+            f"{stats['distinct_frames']} distinct frames before the "
             f"{', '.join(limits)} limit."
         )
-        suggestions = [
-            "Use SimConfig.practical() when named intermediate extrema are "
-            "not required.",
-            "Use SimConfig.classic() only when full landmark discovery is "
-            "intentional.",
-            "Add trusted energy, Lyapunov, or phase constraints only when "
-            "the model justifies them.",
-        ]
+        if energy_enabled_discovery:
+            suggestions = [
+                f"Raise max_states above {cfg.max_states} to retain the "
+                "energy-filtered landmark detail.",
+                "Remove EnergyFilter only if its physical premise is not "
+                "required; the practical profile will then keep extrema "
+                "unnamed.",
+            ]
+        else:
+            suggestions = [
+                "Use SimConfig.practical() when named intermediate extrema "
+                "are not required.",
+                "Use SimConfig.classic() only when full landmark discovery "
+                "is intentional.",
+                "Add trusted energy, Lyapunov, or phase constraints only when "
+                "the model justifies them.",
+            ]
     elif "max_depth" in limits and "max_states" not in limits:
         likely_cause = "depth_limit"
         message = f"Simulation reached max_depth={cfg.max_depth}."

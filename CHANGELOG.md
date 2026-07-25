@@ -19,6 +19,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Made an explicitly supplied `EnergyFilter` enable the landmark detail it
   needs, record that effective configuration, and reject infinite amplitude
   directly instead of becoming a silent no-op under practical defaults.
+- Raised the bounded default state budget from 500 to 512 so the canonical
+  502-node energy-filtered spring completes, while preserving every explicit
+  smaller budget and improving auto-discovery truncation advice.
+- Replaced the deprecated `max_landmarks` `InitVar` sentinel with a real
+  warning read alias and constructor shim; dataclass equality, replacement,
+  representation, and serialization continue to use only
+  `max_landmarks_per_variable`.
 - Made installed public docstrings self-contained by removing references to
   repository-only Markdown files.
 - Made relative trajectory-direction thresholds share a trajectory time scale

@@ -69,6 +69,23 @@ def test_opted_in_energy_filter_enables_the_detail_it_needs():
     assert result.status is qr.SimStatus.COMPLETE
 
 
+def test_energy_auto_discovery_truncation_names_the_budget_tradeoff():
+    model, initial = spring()
+    result = qr.qsim(
+        model,
+        initial,
+        config=qr.SimConfig(
+            max_states=10,
+            successor_filters=(EnergyFilter(),),
+        ),
+    )
+
+    assert result.status is qr.SimStatus.TRUNCATED
+    diagnostic = result.stats["truncation"]
+    assert "EnergyFilter enabled landmark discovery" in diagnostic["message"]
+    assert "max_states above 10" in diagnostic["suggestions"][0]
+
+
 # --- conserved vs dissipative semantics, at the candidate level ------------
 
 

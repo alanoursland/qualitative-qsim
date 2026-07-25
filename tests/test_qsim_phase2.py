@@ -1,6 +1,9 @@
 """Phase-2 machinery: landmark discovery, chatter mitigation, the
 successor-filter hook (energy arguments), and envisionment mode."""
 
+from dataclasses import asdict, replace
+import warnings
+
 import pytest
 
 import qrlib as qr
@@ -71,6 +74,7 @@ def energy_filter(parent, cand, frame):
 
 def test_practical_profile_is_the_default_and_tames_damped_spring():
     assert qr.SimConfig() == qr.SimConfig.practical()
+    assert qr.SimConfig().max_states == 512
     assert qr.SimConfig().profile == "practical"
     assert qr.SimConfig.classic().profile == "classic"
     assert qr.SimConfig.classic() == qr.SimConfig(
@@ -228,6 +232,20 @@ def test_legacy_max_landmarks_keyword_maps_to_per_variable_cap():
     assert old.graph.export() == new.graph.export()
     assert old.stats == new.stats
     assert "max_landmarks" not in old.to_dict()["config"]
+
+    with pytest.warns(DeprecationWarning, match="max_landmarks_per_variable"):
+        assert legacy.max_landmarks == 2
+    assert "max_landmarks" not in asdict(legacy)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        copied = replace(legacy, max_states=20)
+    assert copied.max_landmarks_per_variable == 2
+    assert not [
+        warning
+        for warning in caught
+        if issubclass(warning.category, DeprecationWarning)
+    ]
 
 
 # --- chatter mitigation ----------------------------------------------------

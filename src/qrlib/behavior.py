@@ -14,7 +14,7 @@ landmark is minted.
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Callable
 import warnings
@@ -97,8 +97,9 @@ class SimConfig:
     - ``max_landmarks_per_variable``: per-variable, per-branch cap on
       discovered landmarks; beyond it, steadiness stays unnamed. This is not
       a global graph-size bound: separate branches can each mint up to the
-      cap. The former constructor keyword ``max_landmarks`` is accepted with
-      a deprecation warning for the 0.1 release series.
+      cap. The former constructor keyword and read-only attribute
+      ``max_landmarks`` remain as deprecated aliases for the 0.1 release
+      series.
     - ``ignore_qdir``: variable names whose direction is not tracked
       (chatter abstraction): candidates are generated over all concrete
       directions, filtered normally, then projected to ``Qdir.IGN`` and
@@ -144,19 +145,19 @@ class SimConfig:
       pair's equilibria lie at declared landmarks; a pair violating this
       can prune real behaviors. Path-dependent: incompatible with
       ``envisionment``.
-    - ``max_states``: strict upper bound on graph nodes, including the root.
-      When admitting another successor would exceed it, the current frontier
-      is marked truncated and the result status is ``TRUNCATED``.
+    - ``max_states``: strict upper bound on graph nodes, including the root
+      (default 512). When admitting another successor would exceed it, the
+      current frontier is marked truncated and the result status is
+      ``TRUNCATED``.
     """
 
-    max_states: int = 500
+    max_states: int = 512
     max_depth: int = 100
     no_change_filter: bool = True
     cycle_detection: bool = True
     infinity_filter: bool = True
     discover_landmarks: bool = False
     max_landmarks_per_variable: int = 6
-    max_landmarks: InitVar[int | object] = _LEGACY_UNSET
     ignore_qdir: tuple[str, ...] = ()
     dynamic_chatter: bool = True
     track_qdir: tuple[str, ...] = ()
@@ -167,25 +168,7 @@ class SimConfig:
     guide: object | None = None
     phase_pairs: tuple[tuple[str, str], ...] = ()
 
-    def __post_init__(self, max_landmarks: int | object) -> None:
-        if max_landmarks is not _LEGACY_UNSET:
-            warnings.warn(
-                "max_landmarks is deprecated; use "
-                "max_landmarks_per_variable instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if (
-                self.max_landmarks_per_variable != 6
-                and self.max_landmarks_per_variable != max_landmarks
-            ):
-                raise ValueError(
-                    "max_landmarks conflicts with "
-                    "max_landmarks_per_variable"
-                )
-            object.__setattr__(
-                self, "max_landmarks_per_variable", max_landmarks
-            )
+    def __post_init__(self) -> None:
         if self.max_states < 1:
             raise ValueError("max_states must be at least 1")
         if self.max_depth < 1:
@@ -242,6 +225,82 @@ class SimConfig:
         if self.use_tensor is not None:
             return "tensor" if self.use_tensor else "reference"
         return self.backend
+
+    @property
+    def max_landmarks(self) -> int:
+        """Deprecated alias for :attr:`max_landmarks_per_variable`."""
+        warnings.warn(
+            "max_landmarks is deprecated; use "
+            "max_landmarks_per_variable instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.max_landmarks_per_variable
+
+
+_SIMCONFIG_GENERATED_INIT = SimConfig.__init__
+
+
+def _simconfig_init(
+    self,
+    max_states: int = 512,
+    max_depth: int = 100,
+    no_change_filter: bool = True,
+    cycle_detection: bool = True,
+    infinity_filter: bool = True,
+    discover_landmarks: bool = False,
+    max_landmarks_per_variable: int = 6,
+    ignore_qdir: tuple[str, ...] = (),
+    dynamic_chatter: bool = True,
+    track_qdir: tuple[str, ...] = (),
+    successor_filters: tuple[SuccessorFilter, ...] = (),
+    envisionment: bool = False,
+    backend: str = "auto",
+    use_tensor: bool | None = None,
+    guide: object | None = None,
+    phase_pairs: tuple[tuple[str, str], ...] = (),
+    *,
+    max_landmarks: int | object = _LEGACY_UNSET,
+) -> None:
+    """Initialize a config, accepting the deprecated landmark-cap alias."""
+    if max_landmarks is not _LEGACY_UNSET:
+        warnings.warn(
+            "max_landmarks is deprecated; use "
+            "max_landmarks_per_variable instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if (
+            max_landmarks_per_variable != 6
+            and max_landmarks_per_variable != max_landmarks
+        ):
+            raise ValueError(
+                "max_landmarks conflicts with "
+                "max_landmarks_per_variable"
+            )
+        max_landmarks_per_variable = max_landmarks
+    _SIMCONFIG_GENERATED_INIT(
+        self,
+        max_states=max_states,
+        max_depth=max_depth,
+        no_change_filter=no_change_filter,
+        cycle_detection=cycle_detection,
+        infinity_filter=infinity_filter,
+        discover_landmarks=discover_landmarks,
+        max_landmarks_per_variable=max_landmarks_per_variable,
+        ignore_qdir=ignore_qdir,
+        dynamic_chatter=dynamic_chatter,
+        track_qdir=track_qdir,
+        successor_filters=successor_filters,
+        envisionment=envisionment,
+        backend=backend,
+        use_tensor=use_tensor,
+        guide=guide,
+        phase_pairs=phase_pairs,
+    )
+
+
+SimConfig.__init__ = _simconfig_init
 
 
 @dataclass

@@ -130,11 +130,20 @@ def test_undamped_spring_discovery_wobbles_pruned():
     # model is conservative). Non-intersection prunes the wobbles while
     # the true closed orbit survives.
     m, init = spring()
-    plain = qr.qsim(m, init, config=qr.SimConfig.classic())
+    # Keep the historical 500-node comparison budget explicit; the general
+    # default is 512 so the canonical energy-filtered spring can complete.
+    plain = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig.classic(max_states=500),
+    )
     nic = qr.qsim(
         m,
         init,
-        config=qr.SimConfig.classic(phase_pairs=(("x", "v"),)),
+        config=qr.SimConfig.classic(
+            max_states=500,
+            phase_pairs=(("x", "v"),),
+        ),
     )
     assert len(plain.behaviors()) == 199
     assert len(nic.behaviors()) == 119
