@@ -84,9 +84,12 @@ level of *structure summaries*:
   trajectory or `(x, dx/dt)` sample tensors, qrlib estimates the sign matrix.
   The calibrated path reports deterministic bootstrap sign agreement in
   `[0, 1]` with explicit seed/resample metadata and maps unstable or fitted
-  zero effects to `UNKNOWN`. This is a sample-stability measure, not a
-  posterior truth probability. Hosts with a CAS will prefer their exact
-  route; the estimator also serves as a cross-check on it.
+  zero effects to `UNKNOWN`. Numerical-zero classification combines an
+  absolute coefficient floor with a scale-aware contribution floor, because
+  bootstrap agreement alone cannot distinguish stable round-off. Confidence
+  remains a sample-stability measure, not a posterior truth probability.
+  Hosts with a CAS will prefer their exact route; the estimator also serves
+  as a cross-check on it.
 - **Landmark intake** (`qrlib.bridge.harvest`): hosts contribute candidate
   landmark values from wherever they get them — equilibrium finders, guard
   thresholds, nullcline intersections, domain knowledge — as

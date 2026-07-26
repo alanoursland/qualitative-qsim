@@ -25,8 +25,15 @@ def test_model_from_signs_damped_spring_structure():
 
 def test_model_from_signs_zero_row_and_unknown():
     m = signs.model_from_signs(["x", "u"], [[0, 0], [signs.UNKNOWN, 0]])
-    # x has no influences at all -> constant
-    assert any(isinstance(c, Constant) and c.x == "x" for c in m.constraints)
+    # x has no rate influences -> its derivative is constant, but x itself
+    # can still move at a nonzero constant rate.
+    assert "d_x" in m.variables
+    assert any(isinstance(c, Constant) and c.x == "d_x" for c in m.constraints)
+    assert any(
+        isinstance(c, Deriv) and c.x == "x" and c.y == "d_x"
+        for c in m.constraints
+    )
+    assert not any(isinstance(c, Constant) and c.x == "x" for c in m.constraints)
     # u depends on x in an unknown direction: derivative variable exists,
     # Deriv ties it, but no monotonic constraint is asserted
     assert "d_u" in m.variables
@@ -66,6 +73,12 @@ def test_estimate_signs_recovers_linear_system():
                 assert S[i][j] is signs.UNKNOWN  # never a confident zero
             else:
                 assert S[i][j] == true, (i, j)
+
+
+def test_sign_threshold_never_promotes_a_fitted_zero():
+    assert signs.signs_with_threshold([[0]], [[float("inf")]], threshold=0) == [
+        [signs.UNKNOWN]
+    ]
 
 
 def test_estimate_signs_average_monotonicity_for_nonlinear():
@@ -124,6 +137,28 @@ def test_calibrated_signs_leave_weak_noisy_effect_unknown():
     assert matrix[1][1] is signs.UNKNOWN
 
 
+def test_estimators_reject_roundoff_in_a_constant_rate_row():
+    xs, dxs = [], []
+    for step in range(201):
+        t = step / 100
+        velocity = 10.0 - 9.8 * t
+        xs.append([10.0 * t - 4.9 * t * t, velocity])
+        dxs.append([velocity, -9.8])
+
+    raw_signs, raw_confidence = signs.estimate_signs(xs, dxs)
+    calibrated = signs.estimate_signs_calibrated(
+        xs,
+        dxs,
+        resamples=40,
+        seed=3,
+    )
+
+    assert raw_signs[1] == [0, 0]
+    assert raw_confidence[1] == [0.0, 0.0]
+    assert calibrated.signs[1] == (0, 0)
+    assert calibrated.confidence[1] == (0.0, 0.0)
+
+
 def test_calibrated_signs_are_reproducible_and_legacy_api_is_unchanged():
     xs = [[float(i), float((i * 7) % 11)] for i in range(20)]
     dxs = [[2.0 * row[0], -3.0 * row[1]] for row in xs]
@@ -142,6 +177,8 @@ def test_calibrated_sign_parameter_validation():
         signs.estimate_signs_calibrated(xs, dxs, resamples=0)
     with pytest.raises(ValueError, match="between 0 and 1"):
         signs.estimate_signs_calibrated(xs, dxs, resamples=2).threshold(1.1)
+    with pytest.raises(ValueError, match="coefficient_rtol"):
+        signs.estimate_signs_calibrated(xs, dxs, coefficient_rtol=-1)
 
 
 def test_sign_structure_export():

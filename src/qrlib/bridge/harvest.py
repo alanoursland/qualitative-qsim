@@ -16,7 +16,13 @@ from typing import Sequence
 
 from ..model import CompiledModel, Model, Variable
 from ..quantity import Landmark, Qdir
-from .abstraction import AbstractionConfig, _directions, _quantize, _to_rows
+from .abstraction import (
+    AbstractionConfig,
+    _directions,
+    _quantize,
+    _to_rows,
+    _validate_times,
+)
 
 __all__ = ["LandmarkRecord", "harvest_into_model", "propose_landmarks"]
 
@@ -104,29 +110,36 @@ def propose_landmarks(
 ) -> tuple[LandmarkRecord, ...]:
     """Suggest landmarks from steady stretches in trajectory data.
 
-    ``xs`` is one trajectory (T, V) or a batch of them. A variable holding
-    steady (direction STD) at an *unnamed* magnitude for at least
-    ``min_dwell`` samples proposes its mean value; proposals across
-    stretches and trajectories merge when within ``merge_tol`` (default:
-    2% of the variable's observed range). Suggested names are
-    ``var^0, var^1, ...`` — the host decides whether to accept them
+    ``xs`` is one trajectory (T, V) or a batch of them. ``times`` accepts
+    either one vector (T,), broadcast across the batch, or one vector per
+    trajectory (B, T). A variable holding steady (direction STD) at an
+    *unnamed* magnitude for at least ``min_dwell`` samples proposes its mean
+    value; proposals across stretches and trajectories merge when within
+    ``merge_tol`` (default: 2% of the variable's observed range). Suggested
+    names are ``var^0, var^1, ...`` — the host decides whether to accept them
     (e.g. via :func:`harvest_into_model`).
     """
     compiled = model.compile() if isinstance(model, Model) else model
     cfg = config or AbstractionConfig()
     V = len(compiled.var_order)
     trajectories = _as_batch(xs, V)
-    ts_batch = times if times is not None else [None] * len(trajectories)
+    ts_batch = _as_times_batch(times, len(trajectories))
 
     means: dict[int, list[float]] = {vi: [] for vi in range(V)}
     ranges: dict[int, tuple[float, float]] = {}
-    for x, t in zip(trajectories, ts_batch):
+    for batch_index, (x, t) in enumerate(zip(trajectories, ts_batch)):
         rows = _to_rows(x, V)
         ts = (
             [float(v) for v in t]
             if t is not None
             else [float(i) for i in range(len(rows))]
         )
+        if len(ts) != len(rows):
+            raise ValueError(
+                f"times for trajectory {batch_index} has length {len(ts)}; "
+                f"expected {len(rows)}"
+            )
+        _validate_times(ts)
         ranks = _quantize(rows, compiled, cfg)
         dirs = _directions(rows, ts, cfg)
         for vi in range(V):
@@ -186,3 +199,29 @@ def _as_batch(xs, width: int):
         return [xs]
     except (TypeError, ValueError):
         return list(xs)
+
+
+def _as_times_batch(times, batch_size: int):
+    """Normalize broadcast ``(T,)`` or batched ``(B, T)`` timestamps."""
+    if times is None:
+        return [None] * batch_size
+    if hasattr(times, "tolist"):
+        times = times.tolist()
+    try:
+        values = list(times)
+    except TypeError as exc:
+        raise ValueError(
+            "times must have shape (T,) or (B, T)"
+        ) from exc
+    if not values:
+        raise ValueError("times must have shape (T,) or (B, T), not be empty")
+
+    first = values[0]
+    if not hasattr(first, "__len__"):
+        return [values] * batch_size
+    if len(values) != batch_size:
+        raise ValueError(
+            f"batched times has size {len(values)}; expected batch size "
+            f"{batch_size}"
+        )
+    return values

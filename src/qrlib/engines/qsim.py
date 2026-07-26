@@ -79,10 +79,11 @@ def qsim(
     if overrides:
         cfg = replace(cfg, **overrides)
 
-    # EnergyFilter's finite-amplitude argument compares named turning points.
-    # Supplying it is an explicit request for that stronger representation,
-    # so make the effective configuration honest and enable discovery rather
-    # than silently running an inert filter under the practical profile.
+    # Energy and phase-plane filters compare named turning/crossing points.
+    # Supplying either is an explicit request for that stronger
+    # representation, so make the effective configuration honest and enable
+    # discovery rather than silently running an inert filter under the
+    # practical profile.
     energy_discovery_enabled = (
         not cfg.discover_landmarks
         and any(
@@ -90,7 +91,10 @@ def qsim(
             for keep in cfg.successor_filters
         )
     )
-    if energy_discovery_enabled:
+    phase_discovery_enabled = (
+        not cfg.discover_landmarks and bool(cfg.phase_pairs)
+    )
+    if energy_discovery_enabled or phase_discovery_enabled:
         cfg = replace(cfg, discover_landmarks=True)
 
     unknown = set(cfg.ignore_qdir) - set(root_frame.var_order)
@@ -169,10 +173,17 @@ def qsim(
         "limit_hits": {"max_states": 0, "max_depth": 0},
         "backend": _new_backend_stats(cfg),
     }
+    config_adjustments = []
     if energy_discovery_enabled:
-        stats["config_adjustments"] = [
+        config_adjustments.append(
             "enabled landmark discovery for EnergyFilter"
-        ]
+        )
+    if phase_discovery_enabled:
+        config_adjustments.append(
+            "enabled landmark discovery for phase_pairs"
+        )
+    if config_adjustments:
+        stats["config_adjustments"] = config_adjustments
     if cfg.dynamic_chatter:
         stats["chatter_candidates"] = {
             r: sorted(root_frame.var_order[i] for i in s)
@@ -357,28 +368,58 @@ def _truncation_diagnostic(cfg: SimConfig, stats: dict) -> dict:
     ]
     if cfg.discover_landmarks and stats["landmarks_minted"]:
         likely_cause = "landmark_growth"
+        adjustments = stats.get("config_adjustments", ())
         energy_enabled_discovery = any(
-            "EnergyFilter" in adjustment
-            for adjustment in stats.get("config_adjustments", ())
+            "EnergyFilter" in adjustment for adjustment in adjustments
         )
-        prefix = (
-            "EnergyFilter enabled landmark discovery, which"
-            if energy_enabled_discovery
-            else "Landmark discovery"
+        phase_enabled_discovery = any(
+            "phase_pairs" in adjustment for adjustment in adjustments
         )
+        enabled_by = []
+        if energy_enabled_discovery:
+            enabled_by.append("EnergyFilter")
+        if phase_enabled_discovery:
+            enabled_by.append("phase_pairs")
+        if enabled_by:
+            prefix = (
+                " and ".join(enabled_by)
+                + " enabled landmark discovery, which"
+            )
+        else:
+            prefix = "Landmark discovery"
         message = (
             f"{prefix} minted {stats['landmarks_minted']} landmarks across "
             f"{stats['distinct_frames']} distinct frames before the "
             f"{', '.join(limits)} limit."
         )
-        if energy_enabled_discovery:
+        if enabled_by:
+            detail = (
+                "filter-required"
+                if len(enabled_by) > 1
+                else (
+                    "energy-filtered"
+                    if energy_enabled_discovery
+                    else "phase-filtered"
+                )
+            )
             suggestions = [
                 f"Raise max_states above {cfg.max_states} to retain the "
-                "energy-filtered landmark detail.",
-                "Remove EnergyFilter only if its physical premise is not "
-                "required; the practical profile will then keep extrema "
-                "unnamed.",
+                f"{detail} landmark detail."
             ]
+            if energy_enabled_discovery:
+                suggestions.append(
+                    "Remove EnergyFilter only if its physical premise is not "
+                    "required."
+                )
+            if phase_enabled_discovery:
+                suggestions.append(
+                    "Remove phase_pairs only if its autonomous "
+                    "non-intersection premise is not required."
+                )
+            suggestions[-1] += (
+                " Without these filters, the practical profile keeps extrema "
+                "unnamed."
+            )
         else:
             suggestions = [
                 "Use SimConfig.practical() when named intermediate extrema "

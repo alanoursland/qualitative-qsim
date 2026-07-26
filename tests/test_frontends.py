@@ -51,9 +51,9 @@ def test_unconditioned_process_matches_handwritten_qde():
     h.variable("flow", landmarks=("0",), unbounded=True)
     h.constrain(qr.Add("diff", "b", "a"))
     h.constrain(qr.MPlus("diff", "flow", cvals=(("0", "0"),)))
-    h.variable("a'", landmarks=("0",), unbounded=True)
+    h.variable("a'", landmarks=(qr.Landmark("0", value=0.0),), unbounded=True)
     h.constrain(qr.Deriv("a", "a'"))
-    h.variable("b'", landmarks=("0",), unbounded=True)
+    h.variable("b'", landmarks=(qr.Landmark("0", value=0.0),), unbounded=True)
     h.constrain(qr.Deriv("b", "b'"))
     h.constrain(qr.MMinus("flow", "a'", cvals=(("0", "0"),)))
     h.constrain(qr.MPlus("flow", "b'", cvals=(("0", "0"),)))
@@ -102,6 +102,15 @@ def test_sole_mechanism_pins_uninfluenced_rates():
     off = dict(m.regions)["!transfer"]
     kinds = Counter(type(c).__name__ for c in off)
     assert kinds["At"] == 2 and kinds["Constant"] == 2  # a' = 0, b' = 0
+
+
+def test_generated_rate_zero_has_a_numeric_value():
+    s = equalization_system()
+    s.process("transfer").influence("a", -1, "flow")
+    compiled = s.build().compile()
+
+    zero = compiled.spaces[compiled.index("a'")].landmark("0")
+    assert zero.value == 0.0
 
 
 def test_qpt_validation():

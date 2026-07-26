@@ -391,3 +391,27 @@ def test_propose_landmarks_finds_steady_plateau():
     # round-trip: proposals harvest cleanly
     grown = harvest.harvest_into_model(m, [rec])
     assert "x^0" in grown.variables["x"].space.names
+
+
+def test_propose_landmarks_accepts_and_broadcasts_one_time_vector():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), upper_unbounded=True)
+    xs = [[min(3.0, 0.1 * i)] for i in range(120)]
+    times = [0.25 * i for i in range(len(xs))]
+
+    single = harvest.propose_landmarks(xs, m, times=times)
+    batched = harvest.propose_landmarks([xs, xs], m, times=times)
+
+    assert single
+    assert batched == single
+
+
+def test_propose_landmarks_validates_batched_time_shapes():
+    m = qr.Model("m")
+    m.variable("x", landmarks=(Landmark("0", value=0.0),), upper_unbounded=True)
+    xs = [[[0.1 * i] for i in range(20)]]
+
+    with pytest.raises(ValueError, match="batched times.*batch size"):
+        harvest.propose_landmarks(xs, m, times=[[0.0] * 20, [0.0] * 20])
+    with pytest.raises(ValueError, match="times for trajectory 0.*expected 20"):
+        harvest.propose_landmarks(xs, m, times=[0.0, 1.0])

@@ -48,10 +48,11 @@ UNKNOWN = None  # sign-matrix entry: dependence direction not known
 class CalibratedSignEstimate:
     """Reproducible bootstrap stability for an estimated sign matrix.
 
-    ``confidence[i][j]`` is the fraction of bootstrap fits whose coefficient
-    sign agrees with ``signs[i][j]``. It is therefore bounded in ``[0, 1]``
-    and has an explicit resampling interpretation; it is not a posterior
-    probability that the dependency is physically true.
+    ``confidence[i][j]`` is the fraction of bootstrap fits whose resolved
+    coefficient sign agrees with ``signs[i][j]``. Numerically negligible
+    effects have sign zero and confidence zero before resampling. Confidence
+    is bounded in ``[0, 1]`` and has an explicit resampling interpretation;
+    it is not a posterior probability that the dependency is physically true.
     """
 
     signs: tuple[tuple[int, ...], ...]
@@ -63,6 +64,7 @@ class CalibratedSignEstimate:
     ridge: float
     coefficient_atol: float
     method: str = "bootstrap-sign-agreement"
+    coefficient_rtol: float = 1e-9
 
     def threshold(self, min_confidence: float = 0.95):
         """Return a model-ready matrix, mapping unstable/zero effects to UNKNOWN."""
@@ -90,6 +92,7 @@ class CalibratedSignEstimate:
             "seed": self.seed,
             "ridge": self.ridge,
             "coefficient_atol": self.coefficient_atol,
+            "coefficient_rtol": self.coefficient_rtol,
         }
 
 
@@ -105,8 +108,9 @@ def model_from_signs(
     dependence), or ``UNKNOWN`` (None — an unconstrained influence).
     State variables get unbounded spaces around ``0``; auxiliary variables
     are ``d_<x>`` (the derivative of x), ``t_<x>_<y>`` (y's influence term
-    on x), and ``s_<x>_<k>`` (partial sums). An all-zero row compiles to
-    ``Constant(x)``.
+    on x), and ``s_<x>_<k>`` (partial sums). An all-zero row means the
+    rate has no state dependence, so it compiles to ``Constant(d_x)`` plus
+    ``Deriv(x, d_x)``; it does not assert that ``x`` itself is stationary.
     """
     V = len(names)
     if len(S) != V or any(len(row) != V for row in S):
@@ -124,7 +128,9 @@ def model_from_signs(
             (names[j], S[i][j]) for j in range(V) if S[i][j] != 0
         ]
         if not terms:
-            m.constrain(Constant(xi))
+            d_var = aux(f"d_{xi}")
+            m.constrain(Constant(d_var))
+            m.constrain(Deriv(xi, d_var))
             continue
         term_vars: list[str] = []
         for xj, sign in terms:
@@ -157,6 +163,8 @@ def estimate_signs(
     dx,
     *,
     ridge: float = 1e-9,
+    coefficient_atol: float = 1e-12,
+    coefficient_rtol: float = 1e-9,
 ) -> tuple[list[list[int]], list[list[float]]]:
     """Estimate the interaction sign matrix from samples.
 
@@ -166,10 +174,21 @@ def estimate_signs(
     ``(signs, confidence)`` where ``signs[i][j] = sign(a_ij)`` and
     ``confidence[i][j]`` is a t-like statistic (|a_ij| * spread of x_j *
     sqrt(N) / residual scale). Threshold with :func:`signs_with_threshold`.
-    Exact for linear systems; average monotonicity for nonlinear ones.
+    Coefficients below ``coefficient_atol`` or whose observed contribution is
+    below ``coefficient_rtol`` of the fitted rate scale are treated as
+    numerical zero. Exact for linear systems; average monotonicity for
+    nonlinear ones.
     """
+    _validate_coefficient_tolerances(coefficient_atol, coefficient_rtol)
     xs, ds, N, V = _validated_samples(x, dx)
     coefficients = _fit_coefficients(xs, ds, ridge)
+    fitted_signs = _coefficient_signs(
+        coefficients,
+        xs,
+        ds,
+        coefficient_atol,
+        coefficient_rtol,
+    )
     cols = V + 1
 
     def std(col: list[float]) -> float:
@@ -187,7 +206,9 @@ def estimate_signs(
         res_scale = (sum(r * r for r in residuals) / max(N - cols, 1)) ** 0.5
         for j in range(V):
             spread = std([xs[n][j] for n in range(N)])
-            signs[i][j] = (w[j] > 0) - (w[j] < 0)
+            signs[i][j] = fitted_signs[i][j]
+            if signs[i][j] == 0:
+                continue
             confidence[i][j] = (
                 abs(w[j]) * spread * (N**0.5) / (res_scale + 1e-30)
             )
@@ -202,6 +223,7 @@ def estimate_signs_calibrated(
     seed: int = 0,
     ridge: float = 1e-9,
     coefficient_atol: float = 1e-12,
+    coefficient_rtol: float = 1e-9,
 ) -> CalibratedSignEstimate:
     """Estimate signs with deterministic bootstrap sign agreement.
 
@@ -209,8 +231,12 @@ def estimate_signs_calibrated(
     :func:`estimate_signs`. Each bootstrap replicate resamples complete
     ``(x, dx)`` rows with replacement and refits all derivative equations.
     Confidence is the fraction of replicate coefficient signs agreeing with
-    the full-sample sign. A coefficient within ``coefficient_atol`` is treated
-    as zero; zero is never promoted to a known no-dependence assertion.
+    the full-sample sign. A coefficient within ``coefficient_atol``, or whose
+    contribution over the observed source spread is within
+    ``coefficient_rtol`` of the fitted rate scale, is treated as numerical
+    zero. Bootstrap agreement measures sampling stability and cannot by
+    itself distinguish deterministic round-off. Zero is never promoted to a
+    known no-dependence assertion by :meth:`CalibratedSignEstimate.threshold`.
     """
     if not isinstance(resamples, int) or isinstance(resamples, bool) or resamples < 1:
         raise ValueError("resamples must be a positive integer")
@@ -218,19 +244,17 @@ def estimate_signs_calibrated(
         raise ValueError("seed must be an integer")
     if ridge <= 0:
         raise ValueError("ridge must be positive")
-    if coefficient_atol < 0:
-        raise ValueError("coefficient_atol must be non-negative")
+    _validate_coefficient_tolerances(coefficient_atol, coefficient_rtol)
 
     xs, ds, N, V = _validated_samples(x, dx)
     coefficients = _fit_coefficients(xs, ds, ridge)
-
-    def coefficient_sign(value: float) -> int:
-        return 1 if value > coefficient_atol else -1 if value < -coefficient_atol else 0
-
-    fitted_signs = [
-        [coefficient_sign(coefficients[i][j]) for j in range(V)]
-        for i in range(V)
-    ]
+    fitted_signs = _coefficient_signs(
+        coefficients,
+        xs,
+        ds,
+        coefficient_atol,
+        coefficient_rtol,
+    )
     agreements = [[0] * V for _ in range(V)]
     rng = random.Random(seed)
     for _ in range(resamples):
@@ -238,10 +262,17 @@ def estimate_signs_calibrated(
         bx = [xs[index] for index in indices]
         bd = [ds[index] for index in indices]
         replicate = _fit_coefficients(bx, bd, ridge)
+        replicate_signs = _coefficient_signs(
+            replicate,
+            bx,
+            bd,
+            coefficient_atol,
+            coefficient_rtol,
+        )
         for i in range(V):
             for j in range(V):
                 target = fitted_signs[i][j]
-                if target != 0 and coefficient_sign(replicate[i][j]) == target:
+                if target != 0 and replicate_signs[i][j] == target:
                     agreements[i][j] += 1
 
     confidence = [
@@ -257,6 +288,7 @@ def estimate_signs_calibrated(
         seed=seed,
         ridge=ridge,
         coefficient_atol=coefficient_atol,
+        coefficient_rtol=coefficient_rtol,
     )
 
 
@@ -267,7 +299,11 @@ def signs_with_threshold(
     confidence threshold become ``UNKNOWN`` (never a confident zero)."""
     return [
         [
-            signs[i][j] if confidence[i][j] >= threshold else UNKNOWN
+            (
+                signs[i][j]
+                if signs[i][j] != 0 and confidence[i][j] >= threshold
+                else UNKNOWN
+            )
             for j in range(len(signs[i]))
         ]
         for i in range(len(signs))
@@ -385,6 +421,58 @@ def check_consistency(
 
 
 # --- small numerics --------------------------------------------------------
+
+
+def _validate_coefficient_tolerances(atol: float, rtol: float) -> None:
+    if not isfinite(atol) or atol < 0:
+        raise ValueError("coefficient_atol must be finite and non-negative")
+    if not isfinite(rtol) or rtol < 0:
+        raise ValueError("coefficient_rtol must be finite and non-negative")
+
+
+def _coefficient_signs(
+    coefficients,
+    xs,
+    ds,
+    coefficient_atol: float,
+    coefficient_rtol: float,
+) -> list[list[int]]:
+    """Classify fitted slopes using absolute and scale-aware effect floors.
+
+    Raw coefficient size is unit-dependent. ``abs(a_ij) * spread(x_j)`` is
+    the fitted rate contribution over the observed source range, so compare
+    that with the equation's observed/fitted rate scale. This also catches
+    deterministic round-off in a constant-rate row, where bootstrap
+    resampling would otherwise reproduce the same meaningless sign.
+    """
+    V = len(xs[0])
+
+    def std(values) -> float:
+        mean = sum(values) / len(values)
+        return (sum((value - mean) ** 2 for value in values) / len(values)) ** 0.5
+
+    spreads = [std([row[j] for row in xs]) for j in range(V)]
+    signs = [[0] * V for _ in range(V)]
+    for i in range(V):
+        effects = [
+            abs(coefficients[i][j]) * spreads[j]
+            for j in range(V)
+        ]
+        rate_scale = max(
+            [abs(row[i]) for row in ds]
+            + effects
+            + [abs(coefficients[i][V])]
+        )
+        relative_floor = coefficient_rtol * rate_scale
+        for j in range(V):
+            value = coefficients[i][j]
+            if (
+                abs(value) <= coefficient_atol
+                or effects[j] <= relative_floor
+            ):
+                continue
+            signs[i][j] = (value > 0) - (value < 0)
+    return signs
 
 
 def _validated_samples(x, dx):

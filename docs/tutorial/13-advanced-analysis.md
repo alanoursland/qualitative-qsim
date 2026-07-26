@@ -130,16 +130,19 @@ phase_checked = qr.qsim(
     spring,
     spring_initial,
     config=qr.SimConfig(
-        discover_landmarks=False,
         phase_pairs=(("x", "v"),),
     ),
 )
-print(phase_checked.stats["phase_filtered"])  # 0 for this already-clean cycle
+print(phase_checked.stats["phase_filtered"])
+print(phase_checked.stats["config_adjustments"])
+# ['enabled landmark discovery for phase_pairs']
 ```
 
-The filter acts only when landmark order proves a crossing conflict. Unknown
-or unseparated crossings survive. It therefore strengthens QSIM without
-turning the library into a numeric reachability engine.
+The declaration enables landmark discovery because the filter needs named
+turning points for its crossing comparisons. The filter acts only when
+landmark order proves a crossing conflict; unknown or unseparated crossings
+survive. It therefore strengthens QSIM without turning the library into a
+numeric reachability engine.
 
 ## Choosing the right question
 
@@ -156,8 +159,9 @@ turning the library into a numeric reachability engine.
 1. Replace the final `MMinus` in the signed cycle with `MPlus` and inspect the
    polarity assignment.
 2. Compare `len(attainable.graph.nodes)` with the number of nodes in `total`.
-3. Turn landmark discovery on for the phase-checked spring and compare
-   behavior counts with and without `phase_pairs`.
+3. Compare behavior counts for the spring with and without `phase_pairs`, and
+   inspect the phase-checked result's effective configuration and adjustment
+   telemetry.
 
 ---
 

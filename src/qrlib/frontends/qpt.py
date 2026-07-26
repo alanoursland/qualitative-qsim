@@ -41,6 +41,7 @@ from itertools import product
 
 from ..constraints import Add, At, Constant, Constraint, Deriv, MMinus, MPlus
 from ..model import Model
+from ..quantity import Landmark
 from ..state import QState
 
 __all__ = ["Process", "System"]
@@ -146,7 +147,11 @@ class System:
         base: list[Constraint] = list(m.constraints)
         for q in influenced:
             rate_of[q] = f"{q}'"
-            m.variable(rate_of[q], landmarks=("0",), unbounded=True)
+            m.variable(
+                rate_of[q],
+                landmarks=(Landmark("0", value=0.0),),
+                unbounded=True,
+            )
             base.append(m.constrain(Deriv(q, rate_of[q])))
 
         conditioned = [p for p in self._processes if p.when]

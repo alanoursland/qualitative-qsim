@@ -106,12 +106,12 @@ abstraction on. `SimConfig.classic()` selects textbook behavior: discovery
 on, automatic chatter abstraction off. Both remain sound; practical retains
 less landmark and direction detail.
 
-An explicitly supplied `EnergyFilter` needs named turning points to enforce
-finite-amplitude comparisons. QSIM therefore enables discovery for that run,
-records the effective custom profile in `result.config`, and adds the
-adjustment to `result.stats["config_adjustments"]`. This does not introduce an
-energy assumption: the caller has already opted into one by supplying the
-filter.
+Explicitly supplied `EnergyFilter` and `phase_pairs` constraints need named
+turning or crossing points. QSIM therefore enables discovery for that run,
+records the effective custom profile in `result.config`, and adds each
+adjustment to `result.stats["config_adjustments"]`. This does not introduce a
+physical assumption: the caller has already opted into one by supplying the
+filter or phase-pair declaration.
 
 ## 6. Limits and termination
 

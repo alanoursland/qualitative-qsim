@@ -5,6 +5,7 @@ import json
 import pytest
 
 from qrlib import induce
+from qrlib.constraints import Constant, Deriv
 
 from test_soundness import rk4
 
@@ -53,6 +54,27 @@ def test_damped_oscillator_recovers_the_damping_term():
     two = next(c for c in res.candidates if c.n_influences == 2)
     assert not two.consistent
     assert two.worst == "deriv"
+
+
+def test_constant_acceleration_has_no_spurious_state_influence():
+    # dy = v, dv = -9.8: the second rate is constant, not state-dependent.
+    data = rk4(lambda y: [y[1], -9.8], [0.0, 10.0], 0.01, 200)
+    res = induce.induce(data, ["y", "v"])
+
+    assert influences(res.best) == {("y", "v", 1)}
+    constraints = res.best.model.constraints
+    assert any(
+        isinstance(c, Constant) and c.x == "d_v"
+        for c in constraints
+    )
+    assert any(
+        isinstance(c, Deriv) and c.x == "v" and c.y == "d_v"
+        for c in constraints
+    )
+    assert not any(
+        isinstance(c, Constant) and c.x == "v"
+        for c in constraints
+    )
 
 
 def test_tolerance_trades_sparsity_for_fidelity():
@@ -106,7 +128,7 @@ def test_ranked_set_and_note():
     # candidates are ranked consistent-first, then by parsimony
     kinds = [(c.consistent, c.n_influences) for c in res.candidates]
     assert kinds == sorted(kinds, key=lambda k: (0 if k[0] else 1, k[1]))
-    # forcing the all-constant structure on moving data is soundly refuted
+    # forcing state-independent rates on an oscillator is soundly refuted
     refuted = induce.induce(data, ["x", "v"], thresholds=[1e30])
     assert refuted.best is None
     assert refuted.note is not None

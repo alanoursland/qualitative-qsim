@@ -361,6 +361,27 @@ def test_lyapunov_certificate_prunes_recurrence_within_one_interval():
     )
 
 
+def test_lyapunov_certificate_does_not_need_landmark_discovery():
+    model, initial = _strict_progress_spring()
+    certificate = LyapunovCertificate(
+        "V",
+        equilibrium={"x": "0", "v": "0"},
+        strict_when=(("v", "!=", "0"),),
+    )
+    result = qr.qsim(
+        model,
+        initial,
+        config=qr.SimConfig(
+            successor_filters=(certificate,),
+            max_states=200,
+        ),
+    )
+
+    assert result.config.discover_landmarks is False
+    assert "config_adjustments" not in result.stats
+    assert result.stats["lyapunov_cycles_filtered"] > 0
+
+
 def test_lyapunov_certificate_is_replayable_and_validated():
     certificate = LyapunovCertificate(
         "V",

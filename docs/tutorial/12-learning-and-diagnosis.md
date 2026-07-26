@@ -73,7 +73,10 @@ print(matrix, estimate.confidence)            # [[-1]] ((1.0,),)
 
 Confidence is stability under the observed sample distribution—not the
 probability that the physical law is true. Weak, unstable, and fitted-zero
-effects become `UNKNOWN` when thresholded.
+effects become `UNKNOWN` when thresholded. Fitted-zero classification uses
+both an absolute coefficient floor and a relative contribution floor, so
+deterministic floating-point residue does not receive perfect bootstrap
+confidence merely because every resample reproduces it.
 
 The matrix can seed a QDE:
 
@@ -84,7 +87,9 @@ print(candidate_model.sign_structure().monotone)
 
 `UNKNOWN` entries remain unconstrained. The conversion never invents a
 confident zero or a corresponding landmark value that the sign matrix did not
-contain.
+contain. An all-zero row means the rate has no state dependence; it compiles
+to `Constant(d_x)` plus `Deriv(x, d_x)`, allowing `x` to move at a nonzero
+constant rate.
 
 ## Checking a declared relation
 

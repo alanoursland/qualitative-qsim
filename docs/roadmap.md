@@ -130,9 +130,10 @@ moved up; analysis/queries attach to the phases that make them possible.
   matrices compose via the region API.
 - Sign estimation from data (`estimate_signs` + `signs_with_threshold`):
   least-squares first cut with t-like per-entry confidences — exact on
-  linear systems, average monotonicity on nonlinear ones; asserts signs
-  or `UNKNOWN`, never a confident zero (open-questions #10 refinement
-  still open).
+  linear systems, average monotonicity on nonlinear ones; absolute and
+  scale-aware contribution floors suppress numerical-zero coefficients
+  before confidence is assigned; asserts signs or `UNKNOWN`, never a
+  confident zero.
 - `Model.sign_structure()` export (monotone pairs, derivative couplings,
   sums/products, constants, corresponding values) + downward
   consistency checker (`check_consistency`: per-constraint violation
@@ -355,12 +356,13 @@ in recommended order:
   validated by the data-consistency checker. A pooled least-squares rate
   fit yields signed influence coefficients with confidences; a descending
   confidence threshold sweeps candidate structures from dense to
-  all-constant; each compiles to a QDE (Deriv + M+/M-/Add, or Constant)
-  whose latent influence-term and derivative variables carry the fitted
-  values, so `bridge.signs.check_consistency` scores every asserted
-  constraint against the data. Candidates rank consistent-first, then by
-  parsimony, then by violation mass. Recovers the true sparse structure on
-  first-order decay, decoupled decay, and undamped/damped oscillators
+  state-independent rates; each compiles to a QDE
+  (`Deriv` + `M+`/`M-`/`Add`, or `Constant(d_x)` + `Deriv(x, d_x)`)
+  whose latent influence-term and derivative variables carry fitted or
+  observed rate values, so `bridge.signs.check_consistency` scores every
+  asserted constraint against the data. Candidates rank consistent-first,
+  then by parsimony, then by violation mass. Recovers the true sparse
+  structure on first-order decay, decoupled decay, and undamped/damped oscillators
   (the damping influence is exactly the one a too-sparse structure drops,
   refuted by its derivative row). `tol` is the sparsity/fidelity knob;
   the result is a ranked set, not a unique model (the governing caveat:

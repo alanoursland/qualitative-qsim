@@ -22,13 +22,14 @@ The pipeline:
 2. **Ladder**: sweep a descending confidence threshold. Each level keeps
    the influences it is at-least-that-confident in and drops the rest,
    giving candidate structures from dense (every influence) through sparse
-   to empty (all-constant). Duplicate structures collapse.
+   to empty (state-independent constant rates). Duplicate structures collapse.
 3. **Compile** each structure to a QDE: an influenced variable gets a
    derivative variable driven by the qualitative sum of its signed
    monotone influences (``Deriv`` + ``M+``/``M-`` + ``Add``); an
-   uninfluenced one becomes ``Constant``. Latent influence-term and
-   derivative variables carry the fitted values, so every constraint the
-   structure asserts is checkable against the data.
+   uninfluenced rate becomes ``Constant(d_x)`` plus ``Deriv(x, d_x)``.
+   Latent influence-term and derivative variables carry fitted or observed
+   rate values, so every constraint the structure asserts is checkable
+   against the data.
 4. **Validate** with :func:`~qrlib.bridge.signs.check_consistency`: each
    constraint's violation mass against the (augmented) data. A structure
    that drops a real influence leaves its derivative rows disagreeing with
@@ -54,7 +55,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from .bridge.signs import ConsistencyRecord, _solve, check_consistency
+from .bridge.signs import (
+    ConsistencyRecord,
+    _coefficient_signs,
+    _fit_coefficients,
+    _validate_coefficient_tolerances,
+    check_consistency,
+)
 from .constraints import Add, Constant, Deriv, MMinus, MPlus
 from .model import Model
 from .quantity import Landmark
@@ -129,6 +136,8 @@ def induce(
     thresholds: Sequence[float] | None = None,
     tol: float = 0.02,
     max_candidates: int = 12,
+    coefficient_atol: float = 1e-12,
+    coefficient_rtol: float = 1e-9,
 ) -> InductionResult:
     """Induce candidate QDE models over ``variables`` from trajectory data.
 
@@ -139,13 +148,22 @@ def induce(
     omitted. ``thresholds``: the confidence ladder (descending); derived
     from the fitted confidences when omitted. ``tol``: the per-constraint
     violation a consistent structure may not exceed — the sparsity/fidelity
-    knob (higher tolerates dropping weak influences).
+    knob (higher tolerates dropping weak influences). Fitted slopes below
+    ``coefficient_atol`` or whose observed contribution is below
+    ``coefficient_rtol`` of their rate scale are treated as numerical zero.
     """
+    _validate_coefficient_tolerances(coefficient_atol, coefficient_rtol)
     trajs = _as_trajectories(observations, len(variables))
     derivs = _as_derivatives(derivatives, trajs)
     names = tuple(variables)
 
-    A, conf = _fit(trajs, derivs, len(names))
+    A, conf = _fit(
+        trajs,
+        derivs,
+        len(names),
+        coefficient_atol,
+        coefficient_rtol,
+    )
     levels = _ladder(conf) if thresholds is None else sorted(thresholds, reverse=True)
 
     seen: set[tuple] = set()
@@ -158,7 +176,9 @@ def induce(
         if signed in seen:
             continue
         seen.add(signed)
-        candidates.append(_evaluate(names, A, signed, thr, trajs, tol))
+        candidates.append(
+            _evaluate(names, A, signed, thr, trajs, derivs, tol)
+        )
         if len(candidates) >= max_candidates:
             break
 
@@ -176,16 +196,20 @@ def _rank_key(c: Candidate) -> tuple:
 # --- candidate construction + validation -----------------------------------
 
 
-def _build(names: tuple[str, ...], A, signed) -> tuple[Model, list, tuple]:
-    """Compile a signed structure to a QDE, returning the model, the latent
-    variable reconstruction recipes ``(name, {col: coeff})``, and the
-    influence tuple. Each influenced variable's rate is the qualitative sum
-    of its signed monotone influences; latent term/derivative variables
-    carry the fitted values so the structure is checkable against data."""
+def _build(names: tuple[str, ...], A, signed) -> tuple[Model, list, dict, tuple]:
+    """Compile a signed structure to a QDE.
+
+    Return the model, fitted latent recipes ``(name, coefficients, offset)``,
+    observed constant-rate variables, and the influence tuple. Each
+    influenced variable's rate is the qualitative sum of its signed monotone
+    influences; an empty row means a state-independent rate, not a stationary
+    state.
+    """
     m = Model("induced")
     for n in names:
         m.variable(n, landmarks=(Landmark("0", value=0.0),), unbounded=True)
-    recipes: list[tuple[str, dict[int, float]]] = []
+    recipes: list[tuple[str, dict[int, float], float]] = []
+    constant_rates: dict[str, int] = {}
     influences: list[tuple[str, str, int]] = []
 
     def aux(n: str) -> str:
@@ -195,52 +219,69 @@ def _build(names: tuple[str, ...], A, signed) -> tuple[Model, list, tuple]:
     for i, xi in enumerate(names):
         terms = [(j, signed[i][j]) for j in range(len(names)) if signed[i][j] != 0]
         if not terms:
-            m.constrain(Constant(xi))
+            dname = aux(f"d_{xi}")
+            m.constrain(Constant(dname))
+            m.constrain(Deriv(xi, dname))
+            constant_rates[dname] = i
             continue
         term_vars: list[str] = []
-        for j, sign in terms:
+        for term_index, (j, sign) in enumerate(terms):
             influences.append((xi, names[j], sign))
             tname = aux(f"d_{xi}") if len(terms) == 1 else aux(f"t_{xi}_{names[j]}")
             m.constrain((MPlus if sign > 0 else MMinus)(names[j], tname))
-            recipes.append((tname, {j: A[i][j]}))
+            offset = A[i][len(names)] if term_index == 0 else 0.0
+            recipes.append((tname, {j: A[i][j]}, offset))
             term_vars.append(tname)
         if len(term_vars) == 1:
             m.constrain(Deriv(xi, term_vars[0]))
             continue
         acc = term_vars[0]
         acc_coeffs = {terms[0][0]: A[i][terms[0][0]]}
+        acc_offset = A[i][len(names)]
         for k in range(1, len(term_vars)):
             is_last = k == len(term_vars) - 1
             nxt = aux(f"d_{xi}" if is_last else f"s_{xi}_{k}")
             m.constrain(Add(acc, term_vars[k], nxt))
             acc_coeffs = {**acc_coeffs, terms[k][0]: A[i][terms[k][0]]}
-            recipes.append((nxt, dict(acc_coeffs)))
+            recipes.append((nxt, dict(acc_coeffs), acc_offset))
             acc = nxt
         m.constrain(Deriv(xi, acc))
-    return m, recipes, tuple(influences)
+    return m, recipes, constant_rates, tuple(influences)
 
 
-def _augment(rows, names, recipes) -> list[list[float]]:
+def _augment(rows, derivative_rows, names, recipes, constant_rates):
     """Full-model trajectory in model-variable order: state columns from
-    data, latent columns from their fitted linear recipes."""
+    data, fitted latent terms, and observed state-independent rates."""
     idx = {n: i for i, n in enumerate(names)}
-    order = list(names) + [name for name, _ in recipes]
+    order = (
+        list(names)
+        + [name for name, _, _ in recipes]
+        + list(constant_rates)
+    )
     out = []
-    for row in rows:
+    for sample, row in enumerate(rows):
         vals = {n: row[idx[n]] for n in names}
-        for name, coeffs in recipes:
-            vals[name] = sum(c * row[j] for j, c in coeffs.items())
+        for name, rate_index in constant_rates.items():
+            vals[name] = derivative_rows[sample][rate_index]
+        for name, coeffs, offset in recipes:
+            vals[name] = offset + sum(c * row[j] for j, c in coeffs.items())
         out.append([vals[v] for v in order])
     return out, tuple(order)
 
 
-def _evaluate(names, A, signed, threshold, trajs, tol) -> Candidate:
-    model, recipes, influences = _build(names, A, signed)
+def _evaluate(names, A, signed, threshold, trajs, derivs, tol) -> Candidate:
+    model, recipes, constant_rates, influences = _build(names, A, signed)
     order = tuple(model.variables)
 
     per_kind: dict[str, list[float]] = {}
-    for rows in trajs:
-        augmented, aug_order = _augment(rows, names, recipes)
+    for rows, derivative_rows in zip(trajs, derivs):
+        augmented, aug_order = _augment(
+            rows,
+            derivative_rows,
+            names,
+            recipes,
+            constant_rates,
+        )
         # reorder augmented columns into the model's variable order
         pos = {n: i for i, n in enumerate(aug_order)}
         matrix = [[arow[pos[v]] for v in order] for arow in augmented]
@@ -262,7 +303,7 @@ def _evaluate(names, A, signed, threshold, trajs, tol) -> Candidate:
 # --- fitting ---------------------------------------------------------------
 
 
-def _fit(trajs, derivs, V):
+def _fit(trajs, derivs, V, coefficient_atol, coefficient_rtol):
     """Pooled least-squares fit dx_i ~ sum_j a_ij x_j + b_i; returns the
     coefficient matrix A and a confidence matrix (t-like statistic)."""
     xs: list[list[float]] = []
@@ -276,35 +317,32 @@ def _fit(trajs, derivs, V):
             f"need at least {V + 2} pooled samples for {V} variables, got {N}"
         )
     cols = V + 1
-    M = [[0.0] * cols for _ in range(cols)]
-    for row in xs:
-        ext = list(row) + [1.0]
-        for a in range(cols):
-            for b in range(cols):
-                M[a][b] += ext[a] * ext[b]
-    for a in range(cols):
-        M[a][a] += 1e-9
+    coefficients = _fit_coefficients(xs, ds, 1e-9)
+    fitted_signs = _coefficient_signs(
+        coefficients,
+        xs,
+        ds,
+        coefficient_atol,
+        coefficient_rtol,
+    )
 
     def std(col):
         mean = sum(col) / len(col)
         return (sum((v - mean) ** 2 for v in col) / len(col)) ** 0.5
 
-    A = [[0.0] * V for _ in range(V)]
+    A = [row[:] for row in coefficients]
     conf = [[0.0] * V for _ in range(V)]
     for i in range(V):
-        b = [0.0] * cols
-        for row, drow in zip(xs, ds):
-            ext = list(row) + [1.0]
-            for a in range(cols):
-                b[a] += ext[a] * drow[i]
-        w = _solve([r[:] for r in M], b[:])
+        w = coefficients[i]
         residuals = [
             ds[n][i] - sum(w[j] * xs[n][j] for j in range(V)) - w[V] for n in range(N)
         ]
         res_scale = (sum(r * r for r in residuals) / max(N - cols, 1)) ** 0.5
         for j in range(V):
             spread = std([xs[n][j] for n in range(N)])
-            A[i][j] = w[j]
+            if fitted_signs[i][j] == 0:
+                A[i][j] = 0.0
+                continue
             conf[i][j] = abs(w[j]) * spread * (N**0.5) / (res_scale + 1e-30)
     return A, conf
 

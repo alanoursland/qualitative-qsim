@@ -7,6 +7,21 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made explicitly supplied `phase_pairs` enable the landmark detail required
+  for crossing comparisons, record the effective configuration, and provide
+  adjustment-aware truncation advice instead of silently doing nothing under
+  practical defaults.
+- Added scale-aware coefficient resolution to sign estimation and induction,
+  preventing deterministic floating-point residue from becoming a maximally
+  confident causal influence.
+- Made all-zero sign rows compile to a constant derivative rather than a
+  constant state, preserving nonzero constant-rate behaviors such as gravity.
+- Gave QPT-generated derivative variables a numeric zero landmark, restoring
+  equivalence with handwritten models and compatibility with numeric
+  abstraction and coverage.
+- Made landmark proposal accept and broadcast natural one-dimensional time
+  vectors, with explicit validation for malformed batch shapes and lengths.
+
 ## [0.1.0] - 2026-07-25
 
 - Licensed the project under the MIT License and added matching package and

@@ -112,16 +112,65 @@ def test_phase_pair_validation():
 # --- the filter must not touch real behaviors ------------------------------
 
 
-def test_undamped_spring_cycle_graph_unchanged():
-    # without landmark discovery the peaks stay in unnamed intervals:
-    # crossings compare as unknown, nothing is provable, nothing pruned —
-    # the golden cycle graph comes out identical with the filter on
+def test_phase_pair_enables_the_landmark_detail_it_needs():
+    # The practical profile normally leaves peaks unnamed, but an explicitly
+    # requested phase-pair filter needs named crossings to do useful work.
     m, init = spring()
-    cfg = qr.SimConfig(discover_landmarks=False)
-    plain = qr.qsim(m, init, config=cfg)
-    nic = qr.qsim(m, init, config=replace(cfg, phase_pairs=(("x", "v"),)))
-    assert nic.graph.export() == plain.graph.export()
-    assert nic.stats["phase_filtered"] == 0
+    nic = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            max_states=500,
+            discover_landmarks=False,
+            phase_pairs=(("x", "v"),),
+        ),
+    )
+    assert nic.config.discover_landmarks
+    assert nic.stats["config_adjustments"] == [
+        "enabled landmark discovery for phase_pairs"
+    ]
+    assert nic.stats["landmarks_minted"] > 0
+    assert nic.stats["phase_filtered"] > 0
+
+
+def test_phase_auto_discovery_truncation_names_the_budget_tradeoff():
+    m, init = spring()
+    result = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            max_states=10,
+            phase_pairs=(("x", "v"),),
+        ),
+    )
+
+    assert result.status is qr.SimStatus.TRUNCATED
+    diagnostic = result.stats["truncation"]
+    assert "phase_pairs enabled landmark discovery" in diagnostic["message"]
+    assert "max_states above 10" in diagnostic["suggestions"][0]
+    assert any("Remove phase_pairs" in item for item in diagnostic["suggestions"])
+
+
+def test_energy_and_phase_adjustments_are_both_reported():
+    m, init = spring()
+    result = qr.qsim(
+        m,
+        init,
+        config=qr.SimConfig(
+            max_states=10,
+            phase_pairs=(("x", "v"),),
+            successor_filters=(qr.EnergyFilter(),),
+        ),
+    )
+
+    assert result.stats["config_adjustments"] == [
+        "enabled landmark discovery for EnergyFilter",
+        "enabled landmark discovery for phase_pairs",
+    ]
+    assert (
+        "EnergyFilter and phase_pairs enabled landmark discovery"
+        in result.stats["truncation"]["message"]
+    )
 
 
 def test_undamped_spring_discovery_wobbles_pruned():

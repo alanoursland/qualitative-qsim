@@ -143,8 +143,10 @@ class SimConfig:
       monotone or exactly repeating. Declaring a pair asserts that (x, y)
       determine the flow (second-order autonomous system) and that the
       pair's equilibria lie at declared landmarks; a pair violating this
-      can prune real behaviors. Path-dependent: incompatible with
-      ``envisionment``.
+      can prune real behaviors. Because crossing comparisons require named
+      turning points, a non-empty declaration enables landmark discovery for
+      the run and records that adjustment in the result statistics.
+      Path-dependent: incompatible with ``envisionment``.
     - ``max_states``: strict upper bound on graph nodes, including the root
       (default 512). When admitting another successor would exceed it, the
       current frontier is marked truncated and the result status is
