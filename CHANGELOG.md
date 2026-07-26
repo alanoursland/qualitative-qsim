@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-25
+
 - Licensed the project under the MIT License and added matching package and
   citation metadata.
 - Made the sound bounded `SimConfig.practical()` profile the default and

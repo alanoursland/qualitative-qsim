@@ -11,17 +11,17 @@ qualitative simulation), with the architecture deliberately laid out so other
 QR formalisms (envisionment, process-based modeling, semi-quantitative
 refinement) and tensorized/GPU-accelerated execution can slot in alongside it.
 
-> **Status: functional, pre-release.** The practical QSIM path, core model
+> **Status: functional alpha.** The practical QSIM path, core model
 > representation, behavior graphs, serialization, and numeric coverage bridge
-> are the supported pre-release core. The broader research surface is
+> are the supported alpha core. The broader research surface is
 > deliberately exposed at lower maturity levels rather than implied to have
 > uniform validation. The project is available under the
 > [MIT License](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/LICENSE);
-> APIs are stable-ish but unversioned.
+> APIs are pre-1.0 and may change.
 
 | Maturity | Surface | What the label means |
 |---|---|---|
-| **Core alpha** | Model/QSIM practical profile, behavior graphs, schemas, trajectory abstraction and coverage | Supported pre-release path; golden, adversarial, integration, and concrete-trajectory soundness checks |
+| **Core alpha** | Model/QSIM practical profile, behavior graphs, schemas, trajectory abstraction and coverage | Supported alpha path; golden, adversarial, integration, and concrete-trajectory soundness checks |
 | **Experimental** | Classic landmark discovery, chatter controls, energy/Lyapunov and phase filters, Q2 refinement, tensor execution and differentiable losses | Semantics and limitations are tested, but configuration and performance contracts may change |
 | **Research preview** | Diagnosis, decomposition, induction, envisionment/guidance, process/device front ends, monotonicity and comparative/causal analysis | Usable and evidence-backed, but narrower scenario coverage; independently audit before consequential use |
 

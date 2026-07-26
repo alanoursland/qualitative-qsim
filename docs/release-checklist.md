@@ -1,7 +1,7 @@
 # Release checklist
 
-The project is pre-release and must not be published until the owner resolves
-the remaining publication decisions in `docs/open-questions.md`.
+The project is preparing its initial `0.1.0` release at Alpha maturity and
+must not be published until the owner resolves the remaining decisions below.
 
 ## One-time publication decisions
 
@@ -9,35 +9,36 @@ the remaining publication decisions in `docs/open-questions.md`.
       metadata.
 - [x] Set the distribution name to `qualitative-qsim`.
 - [ ] Claim or create `qualitative-qsim` on PyPI.
-- [ ] Configure PyPI Trusted Publishing for repository
-      `alanoursland/qualitative_reasoning_lib`, workflow
+- [x] Configure PyPI Trusted Publishing for repository
+      `alanoursland/qualitative-qsim`, workflow
       `publish-pypi.yml`, and GitHub environment `pypi`.
 - [ ] Create the `pypi` GitHub environment and add an environment protection
       rule requiring approval before publication.
 - [ ] Add author/maintainer metadata approved by the owner.
-- [ ] Confirm the repository, issue tracker, and publication URLs.
+- [x] Confirm the repository, issue tracker, and publication URLs.
 
 ## Qualification
 
 - [ ] Install the development environment from `requirements-dev.txt`, then
       install the repository with `--no-build-isolation -e .`.
-- [ ] Run the symbolic/reference CI matrix on every supported Python version.
-- [ ] Run `python -m pytest` with the required Torch dependency on CPU.
+- [x] Run the symbolic/reference CI matrix on every supported Python version.
+- [x] Run `python -m pytest` with the required Torch dependency on CPU.
 - [ ] On a CUDA qualification machine, run `python -m pytest tests/test_tensor.py`
       and `python benchmarks/bench_tensor.py`. Attach the output to the release
       record; it includes device/runtime details, synchronized raw samples,
       memory state, and transfer policy.
-- [ ] Run `python docs/tutorial/make_figures.py` and confirm
+- [x] Run `python docs/tutorial/make_figures.py` and confirm
       `git diff --exit-code -- docs/tutorial/figures`.
 - [ ] Run `python -m build`, install both the wheel and source distribution in
       clean environments, and smoke-test `import qrlib`.
-- [ ] Verify the CI matrix is green.
+- [x] Verify the CI matrix is green.
 
 ## Release
 
-- [ ] Move notable entries from `CHANGELOG.md`'s Unreleased section into a
+- [x] Move notable entries from `CHANGELOG.md`'s Unreleased section into a
       heading for the release version and date.
-- [ ] Remove the pre-release version suffix only when API stability warrants it.
+- [x] Confirm `0.1.0` as the intended final PEP 440 version for this alpha
+      maturity release.
 - [ ] Commit the version and changelog updates.
 - [ ] Create an annotated `v<version>` tag from the qualified commit.
 - [ ] Build artifacts from that tag and inspect wheel/sdist contents and

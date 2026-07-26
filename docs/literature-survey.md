@@ -15,7 +15,7 @@ below was checked by independent skeptics against primary sources (AAAI/
 IJCAI proceedings, Springer/IEEE journals, author archives) and kept only on
 a majority-confirm vote. The nine findings here survived that filter; the
 honest coverage gaps are listed in §"Not yet assessed". Everything is
-assessed against the library as of v0.1.0a0 (full QSIM + landmark discovery,
+assessed against the library as of v0.1.0 (full QSIM + landmark discovery,
 chatter abstraction, analytic filters, attainable envisionment, operating
 regions; the numeric bridge + coverage oracle; sign-structure intake; Q2
 semi-quantitative refinement; explanation; the tensor engine).

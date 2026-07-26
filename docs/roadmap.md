@@ -222,7 +222,7 @@ moved up; analysis/queries attach to the phases that make them possible.
   `tree_layout` (layered positions with tidy first-visit ordering) —
   plus dependency-free SVG renderers (`timeline_svg`, `tree_svg`; cycle
   closures dashed). Dot export remains on `BehaviorGraph`.
-- README rewritten around a verified working example; version 0.1.0a0.
+- README rewritten around a verified working example; version 0.1.0.
 
 ## Backlog (demand-driven — pick up when a use case asks)
 

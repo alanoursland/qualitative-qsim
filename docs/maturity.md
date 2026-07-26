@@ -1,13 +1,13 @@
 # Maturity and qualification
 
 This document records how much confidence each public surface has earned in
-`0.1.0a0`. Implementation completeness and test count are not maturity
+`0.1.0`. Implementation completeness and test count are not maturity
 measures. The labels below reflect the kinds of independent evidence available
 and the breadth of scenarios exercised.
 
 ## Labels
 
-- **Core alpha** — the supported pre-release path. Its public contract is
+- **Core alpha** — the supported alpha path. Its public contract is
   exercised by literature-derived golden cases, adversarial cases,
   cross-module checks, and concrete numeric trajectories.
 - **Experimental** — implemented with semantic tests, but the configuration,
