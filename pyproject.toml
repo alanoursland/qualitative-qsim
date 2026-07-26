@@ -39,6 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "psutil>=5.9",
 ]
 viz = [
     "graphviz>=0.20",

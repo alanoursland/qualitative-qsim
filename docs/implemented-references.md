@@ -43,6 +43,40 @@ see the [roadmap](roadmap.md).
 | [Harary1953](references.md#harary1953) | Signed-graph balance certificates | `analysis.monotonicity` |
 | [RichardsKraanKuipers1992](references.md#richardskraankuipers1992) | Abduction of qualitative model structure from observations | `qrlib.induce` |
 
+## Test coverage and feature seams
+
+The research-lineage test audit uses three criteria:
+
+1. the feature's defining positive behavior is exercised;
+2. validation, refutation, truncation, or another meaningful negative path is
+   exercised without a vacuous conditional; and
+3. at least one natural downstream seam is tested when the feature produces a
+   model, graph, filter, or result consumed elsewhere.
+
+This does not require every pairwise feature combination. The table records
+the interactions where one research-derived feature is genuinely an input,
+filter, or semantic premise for another.
+
+| Reference | Core evidence | Cross-feature seam evidence |
+|---|---|---|
+| [Kuipers1986](references.md#kuipers1986) | Golden behaviors, transition tables, invalid initial states, resource limits in [`test_qsim_golden.py`](../tests/test_qsim_golden.py) and [`test_transitions.py`](../tests/test_transitions.py) | Numeric abstraction/coverage in [`test_soundness.py`](../tests/test_soundness.py); tensor parity in [`test_tensor.py`](../tests/test_tensor.py); all integration tests consume QSIM graphs |
+| [Kuipers1994](references.md#kuipers1994) | Corresponding values, discovery, caps, and cycle closure in [`test_qsim_phase2.py`](../tests/test_qsim_phase2.py) | Discovery frames translated by coverage in [`test_bridge.py`](../tests/test_bridge.py) and composed with energy/phase filtering in [`test_energy.py`](../tests/test_energy.py) and [`test_phase.py`](../tests/test_phase.py) |
+| [KuipersBerleant1988](references.md#kuipersberleant1988) | Bounds, time refinement, infeasibility, and unannotated fallback in [`test_semiquant.py`](../tests/test_semiquant.py) | Tensor interval parity in [`test_interval.py`](../tests/test_interval.py); `At` observations in [`test_diagnosis.py`](../tests/test_diagnosis.py); temporal-guide agreement in `test_temporal_guidance_and_q2_refinement_select_the_same_behavior` in [`test_research_integration.py`](../tests/test_research_integration.py) |
+| [FoucheKuipers1992](references.md#fouchekuipers1992) | Conserved/nonincreasing premises, invalid infinite amplitudes, Lyapunov descent, and cycle pruning in [`test_energy.py`](../tests/test_energy.py) | Numeric coverage in `test_energy_filtered_graph_still_covers_real_springs`; simultaneous energy/phase/chatter action in `test_energy_phase_and_chatter_filters_compose_without_losing_reality` |
+| [ClancyKuipers1997Chatter](references.md#clancykuipers1997chatter) | Detection, no-op cases, actual merging, tracking, and completion in [`test_chatter.py`](../tests/test_chatter.py) | Guide auto-tracking, DecSIM interfaces, phase-pair preservation, numeric coverage, and the three-filter integration test |
+| [LeeKuipers1988](references.md#leekuipers1988) | Pair validation, crossing rules, deterministic pruning, and non-vacuous filter counts in [`test_phase.py`](../tests/test_phase.py) | Damped-spring coverage in `test_damped_spring_trajectories_covered`; energy configuration in `test_energy_and_phase_adjustments_are_both_reported`; phase/chatter and three-filter integration tests |
+| [BrajnikClancy1998](references.md#brajnikclancy1998) | Formula progression, safety/eventuality/until focusing, exogenous input, and invalid specifications in [`test_guide.py`](../tests/test_guide.py) | Chatter direction auto-tracking in [`test_chatter.py`](../tests/test_chatter.py); DecSIM interface guidance in [`test_decsim.py`](../tests/test_decsim.py); Q2 agreement in the research integration suite |
+| [ShultsKuipers1997](references.md#shultskuipers1997) | Cycle/lasso verdicts, quiescent suffixes, universal classification, and explicit truncation uncertainty in [`test_guide.py`](../tests/test_guide.py) | Classification operates on ordinary unguided QSIM results; the guide/Q2 integration test checks that a universal focused result remains numerically feasible |
+| [SubramanianMooney1996](references.md#subramanianmooney1996) | Nominal, single-, and double-fault cases, minimality, multiple observations, starvation, validation, and export in [`test_diagnosis.py`](../tests/test_diagnosis.py) | The same suite crosses `At`, tensor filtering, Q2 narrowing, causal ordering, and the coverage pre-pass |
+| [ClancyKuipers1997](references.md#clancykuipers1997) | Partitioning, interfaces, guidance, cyclic fallback, joining, determinism, and export in [`test_decsim.py`](../tests/test_decsim.py) | Dynamic chatter in [`test_chatter.py`](../tests/test_chatter.py); device-authored model equivalence in `test_device_frontend_decomposition_preserves_monolithic_behaviors` |
+| [Forbus1984](references.md#forbus1984) | QPT-to-QDE equivalence, activation regions, sole-mechanism rates, validation, simulation, and serialization in [`test_frontends.py`](../tests/test_frontends.py) | Region-specific total envisionment in `test_regions_are_envisioned_separately` in [`test_envision.py`](../tests/test_envision.py); all generated models use ordinary QSIM compilation |
+| [deKleerBrown1984](references.md#dekleerbrown1984) | Device wiring/composition and total-envisionment portraits, caps, regions, cycles, and export in [`test_frontends.py`](../tests/test_frontends.py) and [`test_envision.py`](../tests/test_envision.py) | Device models simulate with chatter and preserve monolithic behaviors under DecSIM in [`test_research_integration.py`](../tests/test_research_integration.py) |
+| [IwasakiSimon1986](references.md#iwasakisimon1986) | Chains, feedback, integral edges, singular/redundant systems, regions, and narration in [`test_causal.py`](../tests/test_causal.py) | `At` and `Negligible` treatment in [`test_diagnosis.py`](../tests/test_diagnosis.py) and [`test_oom.py`](../tests/test_oom.py); induced-model and comparative-statics seams in [`test_research_integration.py`](../tests/test_research_integration.py) |
+| [ChiuKuipers1992](references.md#chiukuipers1992) | Equilibrium shifts, additive/monotone/product propagation, indeterminacy, contradictions, validation, and narration in [`test_compare.py`](../tests/test_compare.py) | `test_causal_roles_bound_comparative_statics_parameters` derives admissible parameter/state roles from causal ordering before comparison |
+| [Raiman1986](references.md#raiman1986) | Closure, contradictions, regional validity, sign-fork removal, validation, and serialization in [`test_oom.py`](../tests/test_oom.py) | Reference/tensor parity, causal-equation exclusion, and numeric trajectory coverage are all exercised in the same suite |
+| [Harary1953](references.md#harary1953) | Positive and negative cycles, duplicate/self edges, regions, witnesses, and 120 random graphs checked against an exhaustive oracle in [`test_monotonicity.py`](../tests/test_monotonicity.py) | `test_induced_model_is_valid_for_causal_and_monotonicity_analysis` checks a learned QDE's signed certificate alongside causal analysis |
+| [RichardsKraanKuipers1992](references.md#richardskraankuipers1992) | Known-system recovery, independence, damping, parsimony, multiple trajectories, explicit derivatives, refutation, validation, and export in [`test_induce.py`](../tests/test_induce.py) | The induced-model integration test feeds the learned QDE into causal ordering and signed-graph certification; sign intake/calibration is separately qualified in [`test_signs.py`](../tests/test_signs.py) |
+
 ## Core qualitative simulation
 
 ### Kuipers1986 — QSIM semantics and sound over-approximation
@@ -386,8 +420,6 @@ negligible relative to another.
 - `Negligible` in [`constraints.py`](../src/qrlib/constraints.py) is a
   first-class constraint with serialization, syntax, reference filtering, and
   tensor filtering.
-- [`semiquant.py`](../src/qrlib/semiquant.py) additionally checks the relation
-  when numeric landmark bounds are available.
 
 **Evidence and tutorial.** [`test_oom.py`](../tests/test_oom.py) covers
 declaration, closure, contradiction detection, regional semantics,
@@ -456,4 +488,3 @@ abstraction, differentiable losses, schemas, provenance records, compact
 constraint syntax, and SVG rendering are qrlib engineering contributions.
 They are implemented and tested, but they are not presented here as
 reimplementations of qualitative-reasoning research references.
-

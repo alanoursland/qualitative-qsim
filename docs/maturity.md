@@ -37,6 +37,32 @@ fitness for safety-critical decisions.
 | Envisionment and temporal guidance | Research preview | Attainability, recurrence, specification progress, pruning, and validation in [`test_envision.py`](../tests/test_envision.py) and [`test_guide.py`](../tests/test_guide.py) | Path-dependent phase and Lyapunov filters are incompatible with merged envisionments |
 | Monotonicity, comparison, and causal analysis | Research preview | Positive certificates, concrete negative-cycle witnesses, region separation, and intervention/comparison cases in [`test_monotonicity.py`](../tests/test_monotonicity.py), [`test_compare.py`](../tests/test_compare.py), and [`test_causal.py`](../tests/test_causal.py) | These are structural qualitative conclusions, not effect-size or statistical-causal estimates |
 
+## Adversarial qualification
+
+The ordinary golden and integration suites are supplemented by three
+adversarial layers:
+
+1. [`tests/adversarial.py`](../tests/adversarial.py) generates a deterministic,
+   replayable corpus of small valid QDEs. The corpus contains every supported
+   filtering constraint kind used by the generator, corresponding values,
+   bounded and unbounded spaces, `At` pins, two- and three-variable models,
+   and both regional and non-regional models.
+2. [`test_adversarial_generated.py`](../tests/test_adversarial_generated.py)
+   checks exact reference/tensor/auto graph equivalence, JSON/hash round trips,
+   next-representable-float landmark boundaries, and a controlled predicate
+   mutation that must cause the differential oracle to report divergence.
+   A separate corpus test fails if generation stops exercising any intended
+   branch.
+3. [`test_enumeration_resources.py`](../tests/test_enumeration_resources.py)
+   runs cyclic behavior enumeration in subprocesses protected by both a
+   wall-clock deadline and a 2 GB RSS watchdog. It checks that graph bounds
+   continue to produce readable, non-explosive public results. The watchdog is
+   required because an earlier unguarded form of this case consumed 15.9 GB.
+
+These tests make implementation drift and ineffective “always green” branches
+more visible. They do not replace domain-specific goldens, numeric trajectory
+coverage, external stress testing, or hardware-specific qualification.
+
 ## Release qualification
 
 A release candidate should pass all of the following:

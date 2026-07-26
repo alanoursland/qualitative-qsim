@@ -2,5 +2,6 @@
 # with: python -m pip install --no-build-isolation -e .
 hatchling==1.27.0
 pytest==8.4.1
+psutil==5.9.0
 build==1.2.2.post1
 torch==2.3.0
