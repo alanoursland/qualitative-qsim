@@ -12,8 +12,8 @@ authors:
     given-names: Alan
 version: 0.1.0
 license: MIT
-repository-code: "https://github.com/alanoursland/qualitative_reasoning_lib"
-url: "https://github.com/alanoursland/qualitative_reasoning_lib"
+repository-code: "https://github.com/alanoursland/qualitative-qsim"
+url: "https://github.com/alanoursland/qualitative-qsim"
 keywords:
   - qualitative reasoning
   - qualitative simulation

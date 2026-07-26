@@ -45,9 +45,9 @@ viz = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alanoursland/qualitative_reasoning_lib"
-Repository = "https://github.com/alanoursland/qualitative_reasoning_lib"
-Issues = "https://github.com/alanoursland/qualitative_reasoning_lib/issues"
+Homepage = "https://github.com/alanoursland/qualitative-qsim"
+Repository = "https://github.com/alanoursland/qualitative-qsim"
+Issues = "https://github.com/alanoursland/qualitative-qsim/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qrlib"]
