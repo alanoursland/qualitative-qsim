@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Licensed the project under the MIT License and added matching package and
+  citation metadata.
 - Made the sound bounded `SimConfig.practical()` profile the default and
   added explicit `SimConfig.classic()` textbook semantics, profile
   provenance, distinct-frame telemetry, and actionable truncation diagnoses.

@@ -15,8 +15,9 @@ refinement) and tensorized/GPU-accelerated execution can slot in alongside it.
 > representation, behavior graphs, serialization, and numeric coverage bridge
 > are the supported pre-release core. The broader research surface is
 > deliberately exposed at lower maturity levels rather than implied to have
-> uniform validation. No license has been chosen yet; APIs are stable-ish but
-> unversioned.
+> uniform validation. The project is available under the
+> [MIT License](https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/LICENSE);
+> APIs are stable-ish but unversioned.
 
 | Maturity | Surface | What the label means |
 |---|---|---|

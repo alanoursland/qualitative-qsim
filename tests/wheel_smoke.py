@@ -29,6 +29,11 @@ def _assert_installed_copy() -> None:
 
 def _assert_metadata_links_are_portable() -> None:
     package = metadata.distribution("qualitative-qsim")
+    assert package.metadata["License-Expression"] == "MIT"
+    assert any(
+        entry.name == "LICENSE"
+        for entry in package.files or ()
+    )
     description = package.metadata.get_payload()
     assert "](docs/" not in description
     assert "](paper." not in description

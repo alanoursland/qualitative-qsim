@@ -11,6 +11,7 @@ authors:
   - family-names: Oursland
     given-names: Alan
 version: 0.1.0a0
+license: MIT
 repository-code: "https://github.com/alanoursland/qualitative_reasoning_lib"
 url: "https://github.com/alanoursland/qualitative_reasoning_lib"
 keywords:

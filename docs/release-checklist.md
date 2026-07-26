@@ -1,11 +1,12 @@
 # Release checklist
 
 The project is pre-release and must not be published until the owner resolves
-the remaining licensing and publication decisions in `docs/open-questions.md`.
+the remaining publication decisions in `docs/open-questions.md`.
 
 ## One-time publication decisions
 
-- [ ] Select a license, add `LICENSE`, and add matching package metadata.
+- [x] License the project under MIT and add matching package and citation
+      metadata.
 - [x] Set the distribution name to `qualitative-qsim`.
 - [ ] Claim or create `qualitative-qsim` on PyPI.
 - [ ] Configure PyPI Trusted Publishing for repository

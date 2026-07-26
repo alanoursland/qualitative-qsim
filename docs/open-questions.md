@@ -53,6 +53,11 @@ spirit) with their resolutions; new questions raised by that design follow.
     the observed sample distribution rather than a truth probability;
     thresholding maps unstable and fitted-zero effects to `UNKNOWN`. The
     legacy t-like score remains available for compatibility.
+11. **License and distribution.** → Resolved. The project is licensed under
+    the OSI-approved MIT License, recorded in `LICENSE`, package metadata, and
+    citation metadata. The distribution name is **`qualitative-qsim`**; the
+    Python import namespace remains **`qrlib`**. PyPI ownership and Trusted
+    Publisher configuration remain release-time decisions.
 12. **Order of the phase-7 extras.** → Resolved. Explanation,
     visualization, total envisionment, induction, comparative analysis,
     temporal-logic queries, and soft losses are implemented. Their completed
@@ -74,9 +79,3 @@ spirit) with their resolutions; new questions raised by that design follow.
    with optional landmark predicates for when strict descent holds. QSIM
    uses it both as a local successor filter and to reject recurrence whose
    numeric progress is hidden inside an unchanged qualitative interval.
-11. **License and distribution.** Deliberately deferred by the owner —
-    do not add a license file until they choose one. Until then the
-    default applies (all rights reserved; not publishable/distributable).
-    The distribution name is **`qualitative-qsim`**; the Python import
-    namespace remains **`qrlib`**. PyPI ownership and Trusted Publisher
-    configuration remain release-time decisions.
