@@ -38,7 +38,7 @@ def _assert_metadata_links_are_portable() -> None:
     assert "](docs/" not in description
     assert "](paper." not in description
     assert (
-        "https://github.com/alanoursland/qualitative_reasoning_lib/blob/HEAD/"
+        "https://github.com/alanoursland/qualitative-qsim/blob/HEAD/"
         in description
     )
 
