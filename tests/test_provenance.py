@@ -1,6 +1,9 @@
 """Stable model identity and replay-oriented result provenance."""
 
+import itertools
 import json
+
+import pytest
 
 import qrlib as qr
 from qrlib import Qdir
@@ -85,6 +88,113 @@ def test_model_hash_changes_with_semantic_content():
 
     assert renamed.content_hash() != model.content_hash()
     assert changed.content_hash() != model.content_hash()
+
+
+def permutation_model(
+    *,
+    variable_order=("x", "v", "a"),
+    constraint_order=(0, 1, 2),
+) -> qr.Model:
+    model = qr.Model("permutation")
+    for variable in variable_order:
+        model.variable(variable, landmarks=("0",), unbounded=True)
+    constraints = (
+        qr.Deriv("x", "v"),
+        qr.Deriv("v", "a"),
+        qr.MMinus("x", "a"),
+    )
+    for index in constraint_order:
+        model.constrain(constraints[index])
+    return model
+
+
+def behavior_multiset(result):
+    """Render behaviors independently of the model's variable order."""
+    graph = result.graph
+    rendered = []
+    for behavior in result.behaviors():
+        path = []
+        for node_id, state in zip(behavior.node_ids, behavior.states):
+            frame = graph.nodes[node_id].model
+            cell = []
+            for name, qval in sorted(state.as_dict().items()):
+                space = frame.spaces[frame.index(name)]
+                cell.append((name, space.describe(qval.mag), qval.dir.name))
+            path.append((state.time.name, tuple(cell)))
+        rendered.append((behavior.terminal.name, tuple(path)))
+    return sorted(rendered)
+
+
+@pytest.mark.parametrize(
+    "variable_order",
+    itertools.permutations(("x", "v", "a")),
+)
+def test_variable_authoring_order_does_not_change_behaviors(variable_order):
+    """Dictionary and authoring order do not matter for variables."""
+    config = qr.SimConfig(
+        max_states=400,
+        max_depth=10,
+        discover_landmarks=False,
+    )
+    reference = permutation_model()
+    reference_result = qr.qsim(
+        reference,
+        reference.state(
+            x=("0", Qdir.INC),
+            v=(("0", "+inf"), Qdir.STD),
+            a=("0", Qdir.DEC),
+        ),
+        config=config,
+    )
+
+    reordered = permutation_model(variable_order=variable_order)
+    reordered_result = qr.qsim(
+        reordered,
+        reordered.state(
+            x=("0", Qdir.INC),
+            v=(("0", "+inf"), Qdir.STD),
+            a=("0", Qdir.DEC),
+        ),
+        config=config,
+    )
+
+    assert behavior_multiset(reordered_result) == behavior_multiset(reference_result)
+
+
+@pytest.mark.parametrize(
+    "constraint_order",
+    itertools.permutations(range(3)),
+)
+def test_constraint_authoring_order_does_not_change_behaviors(constraint_order):
+    """Dictionary and authoring order do not matter for constraints."""
+    config = qr.SimConfig(
+        max_states=400,
+        max_depth=10,
+        discover_landmarks=False,
+    )
+    reference = permutation_model()
+    reference_result = qr.qsim(
+        reference,
+        reference.state(
+            x=("0", Qdir.INC),
+            v=(("0", "+inf"), Qdir.STD),
+            a=("0", Qdir.DEC),
+        ),
+        config=config,
+    )
+
+    reordered = permutation_model(constraint_order=constraint_order)
+    reordered_result = qr.qsim(
+        reordered,
+        reordered.state(
+            x=("0", Qdir.INC),
+            v=(("0", "+inf"), Qdir.STD),
+            a=("0", Qdir.DEC),
+        ),
+        config=config,
+    )
+
+    assert behavior_multiset(reordered_result) == behavior_multiset(reference_result)
 
 
 def test_result_carries_pre_discovery_model_hash_for_model_and_compiled_input():

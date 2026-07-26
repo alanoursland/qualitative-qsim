@@ -229,3 +229,43 @@ def test_max_states_is_a_strict_node_limit():
 
     with pytest.raises(ValueError, match="max_states"):
         qr.SimConfig(max_states=0)
+
+
+@pytest.mark.parametrize("cap", (1, 2, 3, 5, 8))
+def test_max_states_contract_holds_across_small_caps(cap):
+    """``max_states`` is a strict node bound, including the root."""
+    m, initial = spring()
+    result = qr.qsim(m, initial, config=qr.SimConfig(max_states=cap))
+
+    assert len(result.graph.nodes) <= cap
+    assert result.status is SimStatus.TRUNCATED
+    assert any(
+        node.terminal is TerminalClass.TRUNCATED
+        for node in result.graph.nodes.values()
+    )
+
+
+@pytest.mark.parametrize("depth", (1, 2, 3, 5, 10))
+def test_max_depth_is_a_strict_node_depth_limit(depth):
+    """``max_depth`` bounds the deepest admitted graph node."""
+    m, initial = spring()
+    result = qr.qsim(
+        m,
+        initial,
+        config=qr.SimConfig(max_depth=depth, max_states=100),
+    )
+
+    assert max(node.depth for node in result.graph.nodes.values()) <= depth
+
+
+@pytest.mark.parametrize("maker", (bathtub, utube, spring))
+def test_every_leaf_is_classified_and_stats_match_graph(maker):
+    """Every childless node states why its behavior ended."""
+    m, initial = maker()
+    result = qr.qsim(m, initial, config=qr.SimConfig(max_states=20))
+
+    assert result.stats["nodes"] == len(result.graph.nodes)
+    assert all(
+        node.children or node.terminal is not None
+        for node in result.graph.nodes.values()
+    )

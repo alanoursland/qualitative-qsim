@@ -1,7 +1,10 @@
 """Phase-7: the explanation layer and visualization exports."""
 
 import json
+import re
 import xml.etree.ElementTree as ET
+
+import pytest
 
 import qrlib as qr
 from qrlib import TerminalClass, semiquant, viz
@@ -130,3 +133,83 @@ def test_tree_svg_marks_cycles():
     ET.fromstring(svg)
     assert "stroke-dasharray" in svg  # the cycle-closure edge
     assert "[cycle]" in svg
+
+
+HOSTILE_VARIABLE_NAMES = (
+    "<script>alert(1)</script>",
+    "</text>",
+    'a"b',
+    "a&b",
+    "a<b>c",
+    "]]><!--",
+    "a\nb",
+)
+
+
+def _model_with_hostile_variable_name(name):
+    model = qr.Model("hostile")
+    model.variable(name, landmarks=(qr.Landmark("0", value=0.0),), unbounded=True)
+    model.variable("d", landmarks=(qr.Landmark("0", value=0.0),), unbounded=True)
+    model.constrain(qr.Deriv(name, "d"))
+    initial = model.state(
+        **{
+            name: (("0", "+inf"), qr.Qdir.DEC),
+            "d": (("-inf", "0"), qr.Qdir.INC),
+        }
+    )
+    return model, initial
+
+
+@pytest.mark.parametrize("name", HOSTILE_VARIABLE_NAMES)
+def test_visual_exports_escape_hostile_variable_names(name):
+    """SVG and DOT exports treat legal model names as data, not markup."""
+    model, initial = _model_with_hostile_variable_name(name)
+    result = qr.qsim(model, initial, config=qr.SimConfig(max_states=30))
+
+    tree = qr.viz.tree_svg(result.graph)
+    timeline = qr.viz.timeline_svg(result.graph, result.behaviors()[0])
+    for svg in (tree, timeline):
+        root = ET.fromstring(svg)
+        text = "".join(root.itertext())
+        assert name.replace("\n", "") in text.replace("\n", "")
+        assert root.find(".//script") is None
+
+    dot = result.graph.to_dot()
+    for label in re.findall(r'label="((?:[^"\\]|\\.)*)"', dot):
+        assert '"' not in re.sub(r"\\.", "", label)
+
+
+@pytest.mark.parametrize("maker", (bathtub, spring))
+def test_query_results_agree_with_graph_contents(maker):
+    """Analysis queries return exactly the graph nodes they describe."""
+    model, initial = maker()
+    result = qr.qsim(model, initial, config=qr.SimConfig(max_states=100))
+    graph = result.graph
+
+    census = queries.terminal_census(graph)
+    assert sum(census.values()) == sum(
+        node.terminal is not None for node in graph.nodes.values()
+    )
+
+    variable = graph.var_order[0]
+    predicate = lambda state: state.as_dict()[variable].dir is qr.Qdir.STD
+    hits = set(queries.find_states(graph, predicate))
+    assert hits
+    assert len(hits) < len(graph.nodes)
+    assert hits == {
+        node_id
+        for node_id, node in graph.nodes.items()
+        if predicate(node.state)
+    }
+
+
+def test_quiescent_query_returns_only_steady_states():
+    """Every reported quiescent state has only steady tracked directions."""
+    model, initial = bathtub()
+    result = qr.qsim(model, initial, config=qr.SimConfig(max_states=100))
+    node_ids = queries.quiescent_states(result.graph)
+
+    assert node_ids
+    for node_id in node_ids:
+        directions = result.graph.nodes[node_id].state.as_dict().values()
+        assert all(qval.dir in (qr.Qdir.STD, qr.Qdir.IGN) for qval in directions)

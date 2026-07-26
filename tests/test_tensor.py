@@ -137,6 +137,106 @@ def test_batched_expansion_matches_per_state():
         assert combos == want
 
 
+def _random_filter_model(seed):
+    rng = random.Random(seed)
+    count = rng.randint(2, 4)
+    names = [f"v{i}" for i in range(count)]
+    model = qr.Model(f"random-filter-{seed}")
+    for name in names:
+        style = rng.choice(("unbounded", "upper", "bounded"))
+        if style == "unbounded":
+            model.variable(name, landmarks=("0",), unbounded=True)
+        elif style == "upper":
+            model.variable(name, landmarks=("0",), upper_unbounded=True)
+        else:
+            model.variable(name, landmarks=("0", "top"))
+
+    left, right = rng.sample(names, 2)
+    model.constrain(qr.Deriv(left, right))
+    for _ in range(rng.randint(0, 3)):
+        kind = rng.choice(("mplus", "mminus", "deriv", "constant", "add"))
+        if kind == "constant":
+            model.constrain(qr.Constant(rng.choice(names)))
+        elif kind == "add" and count >= 3:
+            a, b, total = rng.sample(names, 3)
+            model.constrain(qr.Add(a, b, total))
+        else:
+            a, b = rng.sample(names, 2)
+            relation = {
+                "mplus": qr.MPlus,
+                "mminus": qr.MMinus,
+                "deriv": qr.Deriv,
+                "add": qr.MPlus,
+            }[kind]
+            model.constrain(relation(a, b))
+    return model
+
+
+NONEMPTY_FILTER_SEEDS = (
+    0, 2, 3, 4, 5, 7, 8, 9, 10, 11,
+    12, 13, 14, 15, 16, 17, 18, 20, 21, 22,
+    24, 25, 26, 27, 28, 29,
+)
+
+
+@pytest.mark.parametrize("seed", NONEMPTY_FILTER_SEEDS)
+def test_random_filtered_batches_match_single_state_filtering(seed):
+    """Per-state tensor filtering is identical, including result order."""
+    rng = random.Random(3000 + seed)
+    frame = _random_filter_model(seed).compile()
+    active = tuple(range(len(frame.constraints)))
+    domains_list = []
+    for _ in range(4):
+        domains = []
+        for space in frame.spaces:
+            domains.append(
+                [
+                    QVal(rng.randrange(space.num_ranks), direction)
+                    for direction in (Qdir.DEC, Qdir.STD, Qdir.INC)
+                ]
+            )
+        domains_list.append(domains)
+
+    batched = tengine.filtered_combos_batch(frame, domains_list, active)
+    assert any(batched), "the generated case must exercise accepted combinations"
+    assert batched == [
+        tengine.filtered_combos(frame, domains, active)
+        for domains in domains_list
+    ]
+
+
+@pytest.mark.parametrize("maker", (bathtub, utube, spring))
+def test_named_backend_selector_matches_legacy_override(maker):
+    """Reference and tensor backends produce identical results by contract."""
+    model, initial = maker()
+    config = dict(max_states=100, max_depth=12)
+    reference = qr.qsim(
+        model,
+        initial,
+        config=SimConfig(backend="reference", **config),
+    )
+    legacy = qr.qsim(
+        model,
+        initial,
+        config=SimConfig(use_tensor=False, **config),
+    )
+    tensor = qr.qsim(
+        model,
+        initial,
+        config=SimConfig(backend="tensor", **config),
+    )
+
+    assert reference.graph.export() == legacy.graph.export()
+    assert reference.graph.export() == tensor.graph.export()
+    assert reference.status is legacy.status is tensor.status
+
+
+def test_unknown_backend_is_rejected():
+    """An unknown backend name must not silently fall back."""
+    with pytest.raises(ValueError, match="backend"):
+        SimConfig(backend="tensorflow")
+
+
 # --- abstraction equivalence -----------------------------------------------
 
 

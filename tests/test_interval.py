@@ -202,3 +202,59 @@ def test_validation():
     frame = _numeric_bathtub()
     with pytest.raises(ValueError, match="must be"):
         iv.narrow_batch(frame, torch.zeros(3, 2), torch.zeros(3, 2))
+
+
+SOUNDNESS_PAIRS = (
+    (Interval(1.0, 2.0), Interval(3.0, 4.0)),
+    (Interval(-2.0, -1.0), Interval(3.0, 4.0)),
+    (Interval(-2.0, 3.0), Interval(-5.0, 7.0)),
+    (Interval(-2.0, 3.0), Interval(2.0, 5.0)),
+    (Interval(0.0, 0.0), Interval(-1.0, 1.0)),
+    (Interval(-1.0, 1.0), Interval(0.0, 0.0)),
+    (Interval(1.0, 1.0), Interval(2.0, 2.0)),
+    (Interval(-1e6, 1e6), Interval(-1e-6, 1e-6)),
+    (Interval(0.0, 1.0), Interval(1.0, 2.0)),
+    (Interval(-3.0, -3.0), Interval(-4.0, -2.0)),
+)
+
+
+def _sample_interval(interval, count=25):
+    if interval.lo == interval.hi:
+        return (interval.lo,)
+    step = (interval.hi - interval.lo) / (count - 1)
+    return tuple(interval.lo + index * step for index in range(count))
+
+
+@pytest.mark.parametrize("left,right", SOUNDNESS_PAIRS)
+@pytest.mark.parametrize("operation", ("add", "sub", "mul"))
+def test_reference_interval_operations_contain_dense_samples(
+    left,
+    right,
+    operation,
+):
+    """Every exact result from points in the operands lies in the result."""
+    result = getattr(left, operation)(right)
+    exact = {
+        "add": lambda a, b: a + b,
+        "sub": lambda a, b: a - b,
+        "mul": lambda a, b: a * b,
+    }[operation]
+    for a in _sample_interval(left):
+        for b in _sample_interval(right):
+            value = exact(a, b)
+            assert result.lo - 1e-9 <= value <= result.hi + 1e-9
+
+
+@pytest.mark.parametrize("left,right", SOUNDNESS_PAIRS)
+def test_reference_interval_division_contains_dense_samples(left, right):
+    """Division refines only when the divisor interval excludes zero."""
+    result = left.div(right)
+    if result is None:
+        assert right.lo <= 0.0 <= right.hi
+        return
+
+    assert not (right.lo <= 0.0 <= right.hi)
+    for a in _sample_interval(left):
+        for b in _sample_interval(right):
+            value = a / b
+            assert result.lo - 1e-9 <= value <= result.hi + 1e-9

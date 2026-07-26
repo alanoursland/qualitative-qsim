@@ -1,6 +1,10 @@
 """Signed-graph / orthant consistency certificates."""
 
+import itertools
 import json
+import random
+
+import pytest
 
 import qrlib as qr
 from qrlib.analysis import monotonicity
@@ -142,3 +146,69 @@ def test_polarity_lookup_rejects_unknown_variable():
         assert "unknown variable" in str(error)
     else:
         raise AssertionError("unknown variable should raise KeyError")
+
+
+def _random_signed_graph(seed):
+    rng = random.Random(seed)
+    variables = [f"v{i}" for i in range(4)]
+    constraints = []
+    for _ in range(5):
+        left, right = rng.sample(variables, 2)
+        constraints.append(
+            (rng.choice(("M+", "M-", "Minus")), left, right)
+        )
+    return variables, constraints
+
+
+def _brute_force_consistent(variables, constraints):
+    expected_sign = {"M+": 1, "M-": -1, "Minus": -1}
+    for values in itertools.product((1, -1), repeat=len(variables)):
+        polarities = dict(zip(variables, values))
+        if all(
+            polarities[left] * polarities[right] == expected_sign[kind]
+            for kind, left, right in constraints
+        ):
+            return True
+    return False
+
+
+@pytest.mark.parametrize("seed", range(120))
+def test_random_signed_graphs_match_exhaustive_oracle(seed):
+    """A signed graph is consistent exactly when a polarity assignment exists."""
+    variables, constraints = _random_signed_graph(seed)
+    model = qr.Model(f"random-signed-{seed}")
+    for variable in variables:
+        model.variable(variable, landmarks=("0",), unbounded=True)
+    for kind, left, right in constraints:
+        model.constrain(f"{kind}({left}, {right})")
+
+    certificate = monotonicity.check_signed_graph(model)
+    expected = _brute_force_consistent(variables, constraints)
+    assert certificate.is_consistent is expected
+
+    if certificate.is_consistent:
+        for relation in certificate.relations:
+            assert (
+                certificate.polarities[relation.left]
+                * certificate.polarities[relation.right]
+                == relation.sign
+            )
+    else:
+        assert certificate.conflict_cycle
+        product = 1
+        degrees = {}
+        for relation in certificate.conflict_cycle:
+            product *= relation.sign
+            degrees[relation.left] = degrees.get(relation.left, 0) + 1
+            degrees[relation.right] = degrees.get(relation.right, 0) + 1
+        assert product == -1
+        assert all(degree % 2 == 0 for degree in degrees.values())
+
+
+def test_random_signed_graph_sample_exercises_both_verdicts():
+    """Keep the randomized oracle from becoming a one-sided rubber stamp."""
+    verdicts = {
+        _brute_force_consistent(*_random_signed_graph(seed))
+        for seed in range(120)
+    }
+    assert verdicts == {False, True}
