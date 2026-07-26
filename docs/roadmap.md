@@ -5,6 +5,8 @@ green and docs updated; later phases never begin on top of an untested core.
 Reordered after the host-integration requirements landed
 (`docs/host-integration.md`): operating regions and the coverage oracle
 moved up; analysis/queries attach to the phases that make them possible.
+The research-to-code crosswalk for the completed capabilities is in
+[`docs/implemented-references.md`](implemented-references.md).
 
 ## Phase 0 — Scaffolding *(done, revised)*
 

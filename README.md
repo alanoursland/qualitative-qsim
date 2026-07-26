@@ -71,7 +71,8 @@ Operating regions        Landmark discovery          Landmark harvest/proposal
   the hands-on
   [tutorial](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/tutorial/README.md),
   [QR landscape survey](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/landscape.md),
-  [research references and implementation lineage](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/references.md),
+  [research references](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/references.md),
+  [implemented-reference crosswalk](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/implemented-references.md),
   [architecture](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/architecture.md),
   [QSIM deep-dive](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/qsim.md),
   [compact constraint syntax](https://github.com/alanoursland/qualitative-qsim/blob/HEAD/docs/constraint-syntax.md),

@@ -1,9 +1,12 @@
-# Research references and implementation lineage
+# Research references
 
 This is the canonical, human-readable guide to the research behind
 `qualitative-qsim`. The machine-readable records live in
 [`paper.bib`](../paper.bib); the bracketed keys below are stable identifiers
 used throughout the code and documentation.
+
+For the code-and-test crosswalk covering references with direct implemented
+lineage, see [`implemented-references.md`](implemented-references.md).
 
 The categories matter:
 

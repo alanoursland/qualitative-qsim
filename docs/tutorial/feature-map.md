@@ -56,7 +56,8 @@ capabilities.
 
 The table below distinguishes research-derived functionality from original
 library engineering. Complete annotated records are in
-[`docs/references.md`](../references.md).
+[`docs/references.md`](../references.md); code, test, and scope pointers are in
+[`docs/implemented-references.md`](../implemented-references.md).
 
 | Tutorial capability | Direct lineage |
 |---|---|
