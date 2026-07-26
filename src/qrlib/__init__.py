@@ -5,6 +5,11 @@ the package also provides behavior analysis, numeric-trajectory bridges,
 model frontends, and tensorized execution.
 """
 
+from importlib.metadata import (
+    PackageNotFoundError as _PackageNotFoundError,
+    version as _version,
+)
+
 from .behavior import (
     Behavior,
     BehaviorGraph,
@@ -92,4 +97,7 @@ __all__ = [
     "viz",
 ]
 
-__version__ = "0.1.0"
+try:
+    __version__ = _version("qualitative-qsim")
+except _PackageNotFoundError:  # running from a source tree with no install
+    __version__ = "0.0.0.dev0"
