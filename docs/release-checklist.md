@@ -12,7 +12,7 @@ must not be published until the owner resolves the remaining decisions below.
 - [x] Configure PyPI Trusted Publishing for repository
       `alanoursland/qualitative-qsim`, workflow
       `publish-pypi.yml`, and GitHub environment `pypi`.
-- [ ] Create the `pypi` GitHub environment and add an environment protection
+- [ ] Confirm the pypi environment publishing policy
       rule requiring approval before publication.
 - [ ] Add author/maintainer metadata approved by the owner.
 - [x] Confirm the repository, issue tracker, and publication URLs.
