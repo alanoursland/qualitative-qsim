@@ -53,8 +53,8 @@ partial “total” envisionment would be a contradiction in terms.
 
 ## Temporal logic: classify or guide
 
-Classify the existing reachable graph when the question is “does this model
-have behaviors satisfying the property?”:
+Classify the existing reachable graph when the question is “does *every*
+behavior of this model satisfy the property?”:
 
 ```python
 from qrlib import guide
@@ -65,6 +65,12 @@ returns_to_zero = G(F(mag("x", "==", "0")))
 classification = guide.classify(cycle_result, returns_to_zero)
 print(classification.universal)               # True
 ```
+
+`universal` is the sound direction: because the graph soundly over-covers
+the real behaviors, a property that holds across *all* of them holds for the
+real system too. A non-empty `satisfied` set, by contrast, reports
+*possible* behaviors — a witness there is not a proof that any real behavior
+satisfies the property.
 
 Use `guide.guided` when the temporal formula is part of the problem
 definition—an observation, boundary condition, or exogenous input—and you
